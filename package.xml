@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>robotic_gait_trainer</name>
+  <name>gait_training_robot</name>
   <version>0.0.0</version>
-  <description>The robotic_gait_trainer package</description>
+  <description>The gait_training_robot package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/robotic_gait_trainer</url> -->
+  <!-- <url type="website">http://wiki.ros.org/gait_training_robot</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -53,6 +53,7 @@
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>std_msgs</depend>
+  <depend>pointcloud_to_laserscan</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

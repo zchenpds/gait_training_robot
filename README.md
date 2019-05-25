@@ -1,1 +1,1 @@
-# robotic_gait_trainer
+# gait_training_robot
