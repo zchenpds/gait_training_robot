@@ -1,3 +1,0 @@
-<launch>
-  <node name="pointcloud_to_laserscan" pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan" />
-</launch>
