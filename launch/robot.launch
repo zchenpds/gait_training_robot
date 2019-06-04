@@ -1,0 +1,8 @@
+<launch>
+  <arg name="com_port" default="/dev/ttyUSB0"/>
+  <node name="rosaria" pkg="rosaria" type="RosAria" required="true" output="screen">
+    <param name="port" value="$(arg com_port)" />
+    <remap from="/rosaria/pose" to="/odom"/>
+    <remap from="/rosaria/cmd_vel" to="/cmd_vel"/>
+  </node>
+</launch>
