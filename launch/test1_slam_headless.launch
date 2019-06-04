@@ -1,0 +1,20 @@
+<launch>
+  
+  <arg name="com_port" default="/dev/ttyUSB0"/>
+  <node name="rosaria" pkg="rosaria" type="RosAria" required="true" output="screen">
+    <param name="com_port" value="$(arg com_port)" />
+    <remap from="/rosaria/pose" to="/odom"/>
+    <remap from="/rosaria/cmd_vel" to="/cmd_vel"/>
+  </node>
+
+  <include file="$(find gait_training_robot)/launch/kinect_scan.launch" />
+  <node name="gmapping" pkg="gmapping" type="slam_gmapping"/>
+  <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server"/>
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
+    <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find gait_training_robot)/params/slam/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find gait_training_robot)/params/slam/global_costmap_params.yaml" command="load" /> 
+    <rosparam file="$(find gait_training_robot)/params/slam/base_local_planner_params.yaml" command="load" />
+  </node>
+</launch>
