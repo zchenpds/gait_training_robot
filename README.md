@@ -1,12 +1,32 @@
 # gait_training_robot
 
-# Installation
 ## Prerequisites
 - Ubuntu 16.04
 - ROS Kinetic
 - Aria
 - rosaria
 
+## Checklist for Kinect v1
+1. Install pointcloud_to_laserscan
+  ```bash
+  sudo apt-get install ros-kinetic-pointcloud-to-laserscan
+  ```
+2. Install openni_launch
+  ```bash
+  sudo apt-get install ros-kinetic-openni-launch
+  ```
+3. Install gmapping
+  ```bash
+  sudo apt-get install ros-kinetic-gmapping
+  ```
+4. Install hector_trajectory_server
+  ```bash
+  sudo apt-get install ros-kinetic-hector-trajectory-server
+  ```
+5. Install move_base
+  ```bash
+  sudo apt-get install ros-kinetic-move-base
+  ```
 
 ## Checklist for the robot
 1. Install libaria from source
