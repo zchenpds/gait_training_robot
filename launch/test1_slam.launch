@@ -1,4 +1,4 @@
 <launch>
   <include file="$(find gait_training_robot)/launch/test1_slam_headless.launch" />
-  <include file="$(find gait_training_robot)/launch/test1_slam_rviz.launch">
+  <include file="$(find gait_training_robot)/launch/test1_slam_rviz.launch"/>
 </launch>
