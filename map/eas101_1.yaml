@@ -1,4 +1,4 @@
-image: /tmp/eas101_1.pgm
+image: ./eas101_1.pgm
 resolution: 0.050000
 origin: [-100.000000, -100.000000, 0.000000]
 negate: 0
