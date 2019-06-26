@@ -33,10 +33,11 @@
    ```bash
    cd ~/projects
    git clone https://github.com/zchenpds/Aria.git
+   cd Aria
    make
    sudo make install
    echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Aria/lib' >> ~/.bashrc
-   ldconfig
+   sudo ldconfig
    ```
 2. Download and `catkin_make` a forked source of rosaria
    ```bash
