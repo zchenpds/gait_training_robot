@@ -54,7 +54,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   human_skeleton.msg
-#   Message2.msg
+  human_skeleton_azure.msg
 )
 
 ## Generate services in the 'srv' folder

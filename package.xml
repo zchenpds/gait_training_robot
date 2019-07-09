@@ -62,6 +62,7 @@
   <depend>hector_trajectory_server</depend>
   <depend>move_base</depend>
   <depend>rosaria</depend>
+  <depend>geometry_msgs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
