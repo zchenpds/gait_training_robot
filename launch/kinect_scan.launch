@@ -2,6 +2,9 @@
   <node name="kinect1_broadcaster" pkg="tf" type="static_transform_publisher" args="0.15 0 0.3 0 0 0 1 base_link camera_link 100" />
   <node name="pointcloud_to_laserscan_node" pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" >
     <param name="target_frame" value="camera_link" />
+    <param name="min_height" value="-0.10"/>  <!-- distance from the kinect sensor? -->
+    <param name="angle_min" value="-pi/2"/>
+    <param name="angle_max" value="pi/2"/>  
     <remap from="cloud_in" to="/camera/depth_registered/points" />
     <remap from="scan" to="scan" />
   </node>
