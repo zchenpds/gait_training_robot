@@ -1,5 +1,5 @@
 Header header
-geometry_msgs/Pose pose
+geometry_msgs/Pose[26] pose
 
 int32 K4ABT_JOINT_PELVIS=0
 int32 K4ABT_JOINT_SPINE_NAVAL=1
