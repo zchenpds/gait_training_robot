@@ -1,5 +1,7 @@
 Header header
-geometry_msgs/Pose pose
+uint64 k4a_timestamp_usec
+uint32 id
+geometry_msgs/Pose[26] poses
 
 int32 K4ABT_JOINT_PELVIS=0
 int32 K4ABT_JOINT_SPINE_NAVAL=1
