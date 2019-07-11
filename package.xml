@@ -55,6 +55,7 @@
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>pointcloud_to_laserscan</depend>
   <depend>nav_core</depend>
   <depend>base_local_planner</depend>
@@ -63,6 +64,7 @@
   <depend>move_base</depend>
   <depend>rosaria</depend>
   <depend>geometry_msgs</depend>
+  <depend>sport_sole</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
