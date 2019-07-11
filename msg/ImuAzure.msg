@@ -1,0 +1,7 @@
+Header header
+
+uint64 acc_timestamp_usec
+geometry_msgs/Vector3 linear_acceleration
+
+uint64 gyro_timestamp_usec
+geometry_msgs/Vector3 angular_velocity

@@ -55,6 +55,7 @@ add_message_files(
   FILES
   HumanSkeletonV2.msg
   HumanSkeletonAzure.msg
+  ImuAzure.msg
 )
 
 ## Generate services in the 'srv' folder
