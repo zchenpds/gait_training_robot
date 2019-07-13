@@ -65,6 +65,7 @@
     1. Find IP addresses of both machines by running `hostname -I`. add `export ROS_IP=$(hostname -I)` to the  `~/.bashrc` file of each of the machines.
     2. On the robot computer (master), run `roslaunch gait_training_robot test1_slam_headless.launch`.
     3. On the desktop computer, add `export ROS_MASTER_URI=http://MASTER_IP:11311/` to `~/.bashrc` and run `roslaunch gait_training_robot test1_slam_rviz.launch`.
+    4. Note that if kinect2_bridge package is started via ssh, it is necessary to tell GLFW to be launched on a server screen by running `export DISPLAY=:0` after `ssh`ing to the server.
     ![alt text](images/screenshot1.png)
 
 2. Planning
