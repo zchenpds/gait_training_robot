@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   pointcloud_to_laserscan
   message_generation
   sport_sole
+  actionlib
 )
 
 ## System dependencies are found with CMake's conventions
@@ -124,14 +125,18 @@ CATKIN_DEPENDS message_runtime rosaria roscpp rospy std_msgs
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include/
   ${catkin_INCLUDE_DIRS}
+  /usr/include/pcl-1.7
+  /usr/include/eigen3
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/gait_training_robot.cpp
 # )
+add_library(global_planner_lib src/global_planner.cpp)
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -143,6 +148,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/gait_training_robot_node.cpp)
 add_executable(kalman_filter src/kalman_filter.cpp)
+add_executable(goal_generator src/goal_generator.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -156,6 +162,12 @@ add_executable(kalman_filter src/kalman_filter.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(kalman_filter
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(global_planner_lib
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(goal_generator
   ${catkin_LIBRARIES}
 )
 

@@ -65,6 +65,7 @@
   <depend>rosaria</depend>
   <depend>geometry_msgs</depend>
   <depend>sport_sole</depend>
+  <depend>actionlib</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
