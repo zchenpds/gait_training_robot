@@ -20,6 +20,8 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
 )
 
+find_package(yaml-cpp REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -169,6 +171,7 @@ target_link_libraries(global_planner_lib
 )
 target_link_libraries(goal_generator
   ${catkin_LIBRARIES}
+  yaml-cpp
 )
 
 #############
