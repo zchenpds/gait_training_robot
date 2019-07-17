@@ -159,6 +159,10 @@ add_executable(goal_generator src/goal_generator.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(kalman_filter
+  gait_training_robot_generate_messages_cpp 
+  sport_sole_generate_messages_cpp
+)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(kalman_filter
