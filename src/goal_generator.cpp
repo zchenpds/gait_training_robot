@@ -1,6 +1,5 @@
 #include <ros/ros.h>
-#include <move_base_msgs/MoveBaseAction.h>
-#include <actionlib/client/simple_action_client.h>
+
 #include <angles/angles.h>
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/transform_datatypes.h>
@@ -9,13 +8,20 @@
 #include <yaml-cpp/yaml.h>
 #include <ros/package.h>
 
-
-typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
-
-bool GoalGenerator::readFromYaml(const std::string & fileName)
+GoalGenerator::GoalGenerator(): pose_index_(0), action_client_("move_base", true) 
 {
-  std::vector<YAML::Node> nodes = YAML::LoadAllFromFile(fileName);
-  ROS_INFO("%lu waypoints are found in %s", nodes.size(), fileName.c_str());
+  
+  while(!action_client_.waitForServer(ros::Duration(5.0)))
+  {
+    ROS_INFO("Waiting for the move_base action server to come up");
+  }
+}
+
+
+bool GoalGenerator::readFromYaml(const std::string & file_name)
+{
+  std::vector<YAML::Node> nodes = YAML::LoadAllFromFile(file_name);
+  ROS_INFO("%lu waypoints are found in %s", nodes.size(), file_name.c_str());
   for (const auto & node : nodes) {
     try 
     {
@@ -36,35 +42,85 @@ bool GoalGenerator::readFromYaml(const std::string & fileName)
   
 }
 
-void GoalGenerator::setNextGoal(move_base_msgs::MoveBaseGoal & goal) 
+void GoalGenerator::setNextGoal() 
 {
   if (poses_.empty()) {
     ROS_ERROR("GoalGenerator::poses_ is empty!");
+    ros::shutdown();
   }
-  ROS_INFO("%u, %zu", num_goals_requested, poses_.size());
-  const geometry_msgs::Pose & pose = poses_[num_goals_requested % poses_.size()];
-  goal.target_pose.pose.position.x = pose.position.x;
-  goal.target_pose.pose.position.y = pose.position.y;
-  goal.target_pose.pose.orientation.z = pose.orientation.z;
-  goal.target_pose.pose.orientation.w = pose.orientation.w;
-  num_goals_requested++;
+
+  ROS_INFO("%u, %zu", pose_index_, poses_.size());
+
+  const geometry_msgs::Pose & pose = poses_[pose_index_];
+  cur_goal_.target_pose.header.frame_id = "map";
+  cur_goal_.target_pose.header.stamp = ros::Time::now();
+  cur_goal_.target_pose.pose.position.x = pose.position.x;
+  cur_goal_.target_pose.pose.position.y = pose.position.y;
+  cur_goal_.target_pose.pose.orientation.z = pose.orientation.z;
+  cur_goal_.target_pose.pose.orientation.w = pose.orientation.w;
+
+  if (pose_index_ >= poses_.size() - 1) pose_index_ = 0;
+  else pose_index_++;
 
 }
 
-void GoalGenerator::setNextGoalCircular(move_base_msgs::MoveBaseGoal & goal)
+void GoalGenerator::setNextGoalCircular()
 {
   const double dth = -0.3, r = 0.8, x0 = 0.2, y0 = -0.8;
   static double th = M_PI/2;
   double x = x0 + r * cos(th);
   double y = y0 + r * sin(th);
-  goal.target_pose.pose.position.x = x;
-  goal.target_pose.pose.position.y = y;
+  cur_goal_.target_pose.header.frame_id = "map";
+  cur_goal_.target_pose.header.stamp = ros::Time::now();
+  cur_goal_.target_pose.pose.position.x = x;
+  cur_goal_.target_pose.pose.position.y = y;
   tf::Quaternion q;
   q.setRPY(0, 0, th - M_PI/2);
-  tf::quaternionTFToMsg(q, goal.target_pose.pose.orientation);
+  tf::quaternionTFToMsg(q, cur_goal_.target_pose.pose.orientation);
   th = angles::normalize_angle(th + dth);
 
 }
+
+void GoalGenerator::sendGoal()
+{
+  printPoseMessage("Sending goal [%.2f m, %.2f m, %.2f rad]", cur_goal_.target_pose.pose);
+  action_client_.sendGoal(cur_goal_, 
+    boost::bind(&GoalGenerator::doneCB, this, _1, _2) ,
+    boost::bind(&GoalGenerator::activeCB, this),
+    boost::bind(&GoalGenerator::feedbackCB, this, _1) 
+  );
+}
+
+void GoalGenerator::doneCB(const actionlib::SimpleClientGoalState & state, const move_base_msgs::MoveBaseResultConstPtr & result)
+{
+  if(action_client_.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
+  {
+    printPoseMessage("Hooray, the base moved to pose [%.2f m, %.2f m, %.2f rad]!", cur_goal_.target_pose.pose);
+    setNextGoal();
+    sendGoal();
+  }  
+  else{
+    printPoseMessage("The base failed to move to pose [%.2f m, %.2f m, %.2f rad] for some reason", cur_goal_.target_pose.pose);
+    ros::shutdown();
+  }
+}
+void GoalGenerator::activeCB()
+{
+  printPoseMessage("Goal [%.2f m, %.2f m, %.2f rad] just went active", cur_goal_.target_pose.pose);
+}
+
+void GoalGenerator::feedbackCB(const move_base_msgs::MoveBaseFeedbackConstPtr & feedback)
+{
+  printPoseMessage("Received pose feedback [%.2f m, %.2f m, %.2f rad]", feedback->base_position.pose);
+  const auto & goal_position = cur_goal_.target_pose.pose.position;
+  const auto & actual_position = feedback->base_position.pose.position;
+  double dist_to_goal = hypot(goal_position.x - actual_position.x, goal_position.y - actual_position.y);
+  if (dist_to_goal < 0.5) {
+    setNextGoal();
+    sendGoal();
+  }
+}
+
 
 
 int main(int argc, char** argv){
@@ -72,52 +128,9 @@ int main(int argc, char** argv){
 
   GoalGenerator gg;
   gg.readFromYaml(ros::package::getPath("gait_training_robot") + "/data/waypoints.yaml"); // TO-DO: read as a ROS parameter
-  
-  //std::terminate();
+  gg.setNextGoal();
+  gg.sendGoal();
 
-  //tell the action client that we want to spin a thread by default
-  MoveBaseClient ac("move_base", true);
-
-  //wait for the action server to come up
-  while(!ac.waitForServer(ros::Duration(5.0))){
-    ROS_INFO("Waiting for the move_base action server to come up");
-  }
-  
-  
-
-  while (1) {
-    
-    move_base_msgs::MoveBaseGoal goal;
-
-    //we'll send a goal to the robot to move 1 meter forward
-    goal.target_pose.header.frame_id = "map";
-    goal.target_pose.header.stamp = ros::Time::now();
-
-    gg.setNextGoal(goal);
-    //gg.setNextGoalCircular(goal);
-       
-    ROS_INFO("Sending goal [%.2f m, %.2f m, %.2f rad]", 
-        goal.target_pose.pose.position.x, 
-        goal.target_pose.pose.position.y, 
-        tf::getYaw(goal.target_pose.pose.orientation));
-    ac.sendGoal(goal);
-    
-    ac.waitForResult();
-    if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
-      ROS_INFO("Hooray, the base moved to pose [%.2f m, %.2f m, %.2f rad]!", 
-        goal.target_pose.pose.position.x, 
-        goal.target_pose.pose.position.y, 
-        tf::getYaw(goal.target_pose.pose.orientation));
-    else {
-      ROS_INFO("The base failed to move to pose [%.2f m, %.2f m, %.2f rad] for some reason", 
-        goal.target_pose.pose.position.x, 
-        goal.target_pose.pose.position.y, 
-        tf::getYaw(goal.target_pose.pose.orientation));
-      break;
-    }
-
-  }
-
-
+  ros::spin();
   return 0;
 }
