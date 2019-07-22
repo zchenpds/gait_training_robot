@@ -149,6 +149,7 @@ add_library(global_planner_lib src/global_planner.cpp)
 # add_executable(${PROJECT_NAME}_node src/gait_training_robot_node.cpp)
 add_executable(kalman_filter src/kalman_filter.cpp)
 add_executable(goal_generator src/goal_generator.cpp)
+add_executable(distance_controller src/distance_controller.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -172,6 +173,9 @@ target_link_libraries(global_planner_lib
   ${catkin_LIBRARIES}
 )
 target_link_libraries(goal_generator
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(distance_controller
   ${catkin_LIBRARIES}
 )
 
