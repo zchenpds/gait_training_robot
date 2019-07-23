@@ -8,24 +8,30 @@ DistanceController::DistanceController():
   estimated_state_({}),
   desired_state_({})
 {
-  nh_.subscribe("/distance_controller/cmd_vel_in", 1, &DistanceController::cmdVelCB, this);
+  sub_cmd_vel_in_ = nh_.subscribe("/distance_controller/cmd_vel_in", 1, &DistanceController::cmdVelCB, this);
   pub_cmd_vel_out_ = nh_.advertise<geometry_msgs::Twist>("/distance_controller/cmd_vel_out", 1);
 
   desired_state_.distance = 1.5;
   desired_state_.bearing = M_PI;
 }
 
+DistanceController::~DistanceController()
+{
+  pub_cmd_vel_out_.shutdown();
+  sub_cmd_vel_in_.shutdown();
+}
+
 void DistanceController::cmdVelCB(const geometry_msgs::Twist & cmd_vel_in)
 {
-  tf::TransformListener listener;
   geometry_msgs::Twist cmd_vel_out = {};
   try
   {
-    listener.lookupTransform("/base_link", "/skeleton_pelvis_link", ros::Time(0), tf_base_to_pelvis_);
+    tf_listener_.lookupTransform("/base_link", "/skeleton_pelvis_link", ros::Time(0), tf_base_to_pelvis_);
     tf::Vector3 disp_vec =  tf_base_to_pelvis_.getOrigin();
-    estimated_state_.distance = disp_vec.length();
+    estimated_state_.distance = hypot(disp_vec.getX(), disp_vec.getY());
     estimated_state_.bearing = angles::normalize_angle_positive(atan2(disp_vec.getY(), disp_vec.getX()));
     ROS_INFO_STREAM("Estimated state: " << estimated_state_);
+    //ROS_INFO_STREAM("disp_vector: [" << disp_vec.getX() << ", " << disp_vec.getY() << ", " << disp_vec.getZ() << "]" );
     pub_cmd_vel_out_.publish(cmd_vel_out);
   }
   catch (tf::TransformException ex)

@@ -18,13 +18,15 @@ std::ostream & operator<<(std::ostream & os, const HumanState & state)
 class DistanceController {
 private:
   ros::NodeHandle nh_;
+  ros::Subscriber sub_cmd_vel_in_;
   ros::Publisher pub_cmd_vel_out_;
+  tf::TransformListener tf_listener_;
   HumanState estimated_state_, desired_state_;
   tf::StampedTransform tf_base_to_pelvis_;
 
 public:
   DistanceController();
-  ~DistanceController() {}
+  ~DistanceController();
   void cmdVelCB(const geometry_msgs::Twist & cmd_vel_in);
 };
 
