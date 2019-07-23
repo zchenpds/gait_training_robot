@@ -1,0 +1,4 @@
+<launch>
+  <node name="kinect_azure_broadcaster1" pkg="tf" type="static_transform_publisher" args="0 0 0.7 0 0 1 0 base_link kinect_azure/camera_base 100" />
+  <node name="rosserial_server" pkg="rosserial_server" type="socket_node" output="screen"/>
+</launch>
