@@ -1,11 +1,11 @@
 <launch>
 
   <arg name="com_port" default="/dev/ttyUSB0"/>
-  <include file="$(find gait_training_robot)/launch/robot.launch">
+  <include file="$(find gait_training_robot)/launch/includes/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
   </include>
 
-  <include file="$(find gait_training_robot)/launch/kinect_scan.launch" />
+  <include file="$(find gait_training_robot)/launch/includes/kinect_scan.launch" />
   <node name="gmapping" pkg="gmapping" type="slam_gmapping"/>
   <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server"/>
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
