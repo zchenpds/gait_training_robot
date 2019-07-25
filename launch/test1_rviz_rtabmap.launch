@@ -1,0 +1,3 @@
+<launch>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap.rviz" output="screen"/>
+</launch>
