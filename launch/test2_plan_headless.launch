@@ -3,11 +3,11 @@
   <arg name="com_port" default="/dev/ttyUSB0"/>
   <arg name="rcv_skeleton" default="false"/>
 
-  <include file="$(find gait_training_robot)/launch/robot.launch">
+  <include file="$(find gait_training_robot)/launch/includes/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
   </include>
 
-  <include file="$(find gait_training_robot)/launch/kinect_scan.launch" />
+  <include file="$(find gait_training_robot)/launch/includes/kinect_scan.launch" />
   
   <node name="map_server" pkg="map_server" type="map_server" args="$(find gait_training_robot)/map/abs_1.yaml"/>
   <include file="$(find amcl)/examples/amcl_diff.launch" />
