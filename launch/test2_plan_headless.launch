@@ -1,7 +1,7 @@
 <launch>
   
   <arg name="com_port" default="/dev/ttyUSB0"/>
-  <arg name="rcv_skeleton" default="true"/>
+  <arg name="rcv_skeleton" default="false"/>
 
   <include file="$(find gait_training_robot)/launch/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
@@ -9,7 +9,7 @@
 
   <include file="$(find gait_training_robot)/launch/kinect_scan.launch" />
   
-  <node name="map_server" pkg="map_server" type="map_server" args="$(find gait_training_robot)/map/eas101_1.yaml"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find gait_training_robot)/map/abs_1.yaml"/>
   <include file="$(find amcl)/examples/amcl_diff.launch" />
 
   <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server"/>
