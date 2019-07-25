@@ -1,18 +1,21 @@
 <launch>
-  
+  <arg name="localization"      default="false"/>
+  <arg name="database_path"     default="rtabmap.db"/>
   <arg name="com_port" default="/dev/ttyUSB0"/>
-  <arg name="rcv_skeleton" default="false"/>
-
-  <include file="$(find gait_training_robot)/launch/includes/robot.launch">
+  
+  <include file="$(find gait_training_robot)/launch/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
   </include>
 
-  <include file="$(find gait_training_robot)/launch/includes/kinect_scan.launch" />
-  
-  <node name="map_server" pkg="map_server" type="map_server" args="$(find gait_training_robot)/map/abs_1.yaml"/>
-  <include file="$(find amcl)/examples/amcl_diff.launch" />
+  <include file="$(find gait_training_robot)/launch/includes/kinect_rtabmap.launch">
+    <arg name="localization" value="$(arg localization)" />
+    <arg name="database_path" value="$(arg database_path)" />
+  </include>
 
-  <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server"/>
+
+  <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server">
+    <rosparam file="$(find gait_training_robot)/params/slam/gmapping_params.yaml" command="load" />
+  </node>
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="local_costmap" />
@@ -20,9 +23,4 @@
     <rosparam file="$(find gait_training_robot)/params/slam/global_costmap_params.yaml" command="load" /> 
     <rosparam file="$(find gait_training_robot)/params/slam/base_local_planner_params.yaml" command="load" />
   </node>
-
-  <group if="$(arg rcv_skeleton)">
-    <include file="$(find rosserial_server)/launch/socket.launch"/>
-    <node name="kinect2_broadcaster" pkg="tf" type="static_transform_publisher" args="0.17 -0.04 0.74 0.5 -0.5 -0.5 0.5 base_link kinect2_link 100" />
-  </group>
 </launch>
