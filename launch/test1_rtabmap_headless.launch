@@ -2,6 +2,7 @@
   <arg name="localization"      default="false"/>
   <arg name="database_path"     default="rtabmap.db"/>
   <arg name="com_port" default="/dev/ttyUSB0"/>
+  <arg name="enable_distance_controller" default="true"/>
   
   <include file="$(find gait_training_robot)/launch/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
@@ -22,5 +23,10 @@
     <rosparam file="$(find gait_training_robot)/params/slam/local_costmap_params.yaml" command="load" />
     <rosparam file="$(find gait_training_robot)/params/slam/global_costmap_params.yaml" command="load" /> 
     <rosparam file="$(find gait_training_robot)/params/slam/base_local_planner_params.yaml" command="load" />
+    <remap from="/cmd_vel" to="/distance_controller/cmd_vel_in" if="$(arg enable_distance_controller)" />
   </node>
+  <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" >
+    <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
+  </node>
+
 </launch>
