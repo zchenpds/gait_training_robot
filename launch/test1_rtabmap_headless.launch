@@ -4,7 +4,7 @@
   <arg name="com_port" default="/dev/ttyUSB0"/>
   <arg name="enable_distance_controller" default="true"/>
   
-  <include file="$(find gait_training_robot)/launch/robot.launch">
+  <include file="$(find gait_training_robot)/launch/includes/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
   </include>
 
