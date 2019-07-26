@@ -8,7 +8,7 @@ Panels:
         - /Status1
         - /PointCloud21
         - /LaserScan1
-        - /Map1
+        - /Map1/Status1
         - /TF1
         - /TF1/Frames1
         - /Polygon1
@@ -66,7 +66,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -83,7 +83,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -238,6 +238,16 @@ Visualization Manager:
       Unreliable: false
       Use Timestamp: false
       Value: false
+    - Alpha: 0.699999988
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Map
+      Topic: /move_base/global_costmap/costmap
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -263,25 +273,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 11.3393936
+      Distance: 18.9675903
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.54697156
-        Y: 1.99770069
-        Z: -0.202721134
+        X: 1.48814499
+        Y: 0.759695053
+        Z: 0.262724072
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.52479637
+      Pitch: 1.40479648
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.11539268
+      Yaw: 3.11040401
     Saved: ~
 Window Geometry:
   Displays:
