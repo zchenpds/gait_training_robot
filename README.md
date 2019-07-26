@@ -5,6 +5,7 @@
 - ROS Kinetic
 - Aria
 - rosaria
+- [BodyTrackerAzure](https://github.com/ral-stevens/BodyTrackerAzure)
 
 ## Checklist for Kinect v1
 1. Install pointcloud_to_laserscan
@@ -15,7 +16,7 @@
   ```bash
   sudo apt-get install ros-kinetic-openni-launch
   ```
-3. Install gmapping
+3. Install gmapping (optional)
   ```bash
   sudo apt-get install ros-kinetic-gmapping
   ```
@@ -26,6 +27,16 @@
 5. Install move_base
   ```bash
   sudo apt-get install ros-kinetic-move-base
+  ```
+6. Install rtabmap_ros
+  ```bash
+  sudo apt-get install ros-kinetic-rtabmap-ros
+  ```
+7. Build rosserial_windows from a forked repo.
+  ```bash
+  git clone https://github.com/ral-stevens/rosserial.git
+  cd ~/catkin_ws
+  catkin_make
   ```
 
 ## Checklist for the robot
@@ -59,7 +70,7 @@
 
 # Examples
 
-1. SLAM
+1. SLAM using gmapping
   - **One Machine**. run `roslaunch gait_training_robot test1_slam_headless.launch`.
   - **Two Machines**. 
     1. Find IP addresses of both machines by running `hostname -I`. add `export ROS_IP=$(hostname -I)` to the  `~/.bashrc` file of each of the machines.
@@ -72,3 +83,21 @@
   - **Two Machines**.
     1. On the robot computer (master), run `roslaunch gait_training_robot test2_plan_headless.launch`.
     2. On the desktop computer, run `roslaunch gait_training_robot test1_slam_rviz.launch`.
+
+3. SLAM using rtabmap_ros
+  - **Two Machines**.
+    1. On the robot computer (master), run `roslaunch gait_training_robot test1_rtabmap_headless.launch localization:=false enable_distance_controller:=false`.
+    2. On the desktop computer, start rviz by running `roslaunch gait_training_robot test1_rviz_rtabmap.launch`.
+4. Localization using rtabmap
+  - **Two Machines**. Requires a map built by rtabmap.
+    1. On the robot computer (master), run `roslaunch gait_training_robot test1_rtabmap_headless.launch localization:=true enable_distance_controller:=false`.
+    2. On the desktop computer, start rviz by running `roslaunch gait_training_robot test1_rviz_rtabmap.launch`.
+    3. To record waypoints on the robot computer, start a new terminal and run `rostopic echo /move_base_simple/goal > ~/catkin_ws/src/gait_training_robot/data/waypoints.yaml` on the robot computer, and publish goals from rviz. 
+    4. To play back waypoints that have been recorded on the robot computer, run `rosrun gait_training_robot goal_generator`.
+5. Human distance controller
+  - **Three Machines**. Requires a map built by rtabmap. Requires waypoints to be recorded.
+    1. On the robot computer (master), run `roslaunch gait_training_robot test1_rtabmap_headless.launch localization:=true enable_distance_controller:=true`.
+    2. On the desktop computer, start rviz by running `roslaunch gait_training_robot test1_rviz_rtabmap.launch`.
+    3. On the Windows computer, start `BodyTrackerAzure.exe`.
+    4. To play back waypoints that have been recorded on the robot computer, run `rosrun gait_training_robot goal_generator`.
+    
