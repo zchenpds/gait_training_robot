@@ -4,19 +4,23 @@
   <arg name="com_port" default="/dev/ttyUSB0"/>
   <arg name="enable_distance_controller" default="true"/>
   
+  <!-- rosaria -->
   <include file="$(find gait_training_robot)/launch/includes/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
   </include>
 
+  <!-- Kinect1 + rtabmap_ros -->
   <include file="$(find gait_training_robot)/launch/includes/kinect_rtabmap.launch">
     <arg name="localization" value="$(arg localization)" />
     <arg name="database_path" value="$(arg database_path)" />
   </include>
 
-
+  <!-- Record trajectory -->
   <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server">
     <rosparam file="$(find gait_training_robot)/params/slam/gmapping_params.yaml" command="load" />
   </node>
+
+  <!-- move_base -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="local_costmap" />
@@ -25,9 +29,16 @@
     <rosparam file="$(find gait_training_robot)/params/slam/base_local_planner_params.yaml" command="load" />
     <remap from="/cmd_vel" to="/distance_controller/cmd_vel_in" if="$(arg enable_distance_controller)" />
   </node>
+
+  <!-- Distance controller node -->
   <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" if="$(arg enable_distance_controller)" >
     <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
   </node>
+
+  <!-- rosserial_server to receive skeleton data -->
   <include file="$(find gait_training_robot)/launch/includes/kinect_azure.launch" if="$(arg enable_distance_controller)" />
+
+
+
 
 </launch>

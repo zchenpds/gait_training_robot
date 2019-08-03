@@ -100,4 +100,6 @@
     2. On the desktop computer, start rviz by running `roslaunch gait_training_robot test1_rviz_rtabmap.launch`.
     3. On the Windows computer, start `BodyTrackerAzure.exe`.
     4. To play back waypoints that have been recorded on the robot computer, run `rosrun gait_training_robot goal_generator`.
-    
+6. Validate urdf
+  - **One Machine**. After changes are made to `urdf/*.urdf.xacro` files, use `catkin_make` to generate the urdf files.
+    1. Run `roslaunch gait_training_robot rviz+urdf_state.launch`.

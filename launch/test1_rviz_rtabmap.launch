@@ -1,3 +1,4 @@
 <launch>
+  <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap.rviz" output="screen"/>
 </launch>

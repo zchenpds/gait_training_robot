@@ -1,0 +1,9 @@
+<launch>
+	<arg name="urdf" default="gtr2.urdf"/>
+	<arg name="joint_state_gui" default="true" />
+	<param name="robot_description" textfile="$(find gait_training_robot)/urdf/$(arg urdf)" />
+	<param name="use_gui" value="$(arg joint_state_gui)"/>
+	<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+	<node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/display_urdf.rviz" required="true" />
+</launch>

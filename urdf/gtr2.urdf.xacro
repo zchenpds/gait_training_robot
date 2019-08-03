@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+
+<robot name="gtr2" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- sensor mount description -->
+	<xacro:include filename="$(find gait_training_robot)/urdf/camera_mount.urdf.xacro" />
+	<xacro:camera_mount_xacro parent="base_link">
+	  <origin rpy="0 0 0" xyz="0 0 0.7"/>
+  </xacro:camera_mount_xacro>
+
+  <!-- azure kinect description -->
+  <xacro:include filename="$(find gait_training_robot)/urdf/azure_kinect.urdf.xacro" />
+  <xacro:azure_kinect_xacro name="rear_kinect" parent="camera_mount_top">
+	  <origin rpy="0 0 3.1416" xyz="-0.07 0 0.01"/>
+  </xacro:azure_kinect_xacro>
+
+	<!-- kinect v1 description -->
+  <xacro:include filename="$(find gait_training_robot)/urdf/kinect.urdf.xacro" />
+	<xacro:kinect_xacro name="camera" parent="base_link">
+	  <origin rpy="0 0 0" xyz="0.15 0.02 0.27"/>
+  </xacro:kinect_xacro>
+
+	<!-- robot description -->
+  <xacro:include filename="$(find gait_training_robot)/urdf/pioneer3dx.urdf.xacro"/>
+
+</robot>
