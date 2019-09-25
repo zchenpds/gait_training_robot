@@ -1,0 +1,20 @@
+<launch>
+  <arg name="recording_file" default="" />
+  <arg name="recording_loop_enabled" default="true" />
+  <arg name="belt_speed" default="0.0" />
+
+  <include file="$(find azure_kinect_ros_driver)/launch/driver.launch">
+    <arg name="depth_mode" value="WFOV_2X2BINNED" />
+    <arg name="body_tracking_enabled" value="true" />
+    <arg name="fps" value="15" />
+    <arg name="rgb_point_cloud" value="false" />
+    <arg name="recording_file" value="$(arg recording_file)" />
+    <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
+  </include>
+
+  <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+    <param name="belt_speed" value="$(arg belt_speed)" />
+  </node>
+  <node name="dummy_broadcaster" pkg="tf" type="static_transform_publisher" args="0 0 0.74 0 0 0 map camera_base 100" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/gait_analyzer.rviz" required="true" />
+</launch>
