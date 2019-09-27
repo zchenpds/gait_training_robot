@@ -25,6 +25,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(yaml-cpp REQUIRED)
 find_package(xacro REQUIRED)
+find_package( PkgConfig REQUIRED)
+pkg_check_modules( gsl REQUIRED gsl )
 
 # Xacro files
 file(GLOB xacro_files ${CMAKE_CURRENT_SOURCE_DIR}/urdf/*.urdf.xacro)
@@ -205,6 +207,7 @@ target_link_libraries(distance_controller
 )
 target_link_libraries(gait_analyzer
   ${catkin_LIBRARIES}
+  ${gsl_LIBRARIES}
 )
 
 
