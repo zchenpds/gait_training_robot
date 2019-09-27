@@ -25,8 +25,8 @@ GaitAnalyzer::GaitAnalyzer():
     com_model_(COM_MODEL_14_SEGMENT),
     gait_phase_{GAIT_PHASE_UNKNOWN, GAIT_PHASE_UNKNOWN},
     touches_ground_{
-        {true, true}, // Left ankle, right ankle
-        {true, false} // Left foot, right foot
+        {false, false}, // Left ankle, right ankle
+        {false, false} // Left foot, right foot
         },
     z_ground_(0.0),
     nh_("~"),
@@ -41,11 +41,15 @@ GaitAnalyzer::GaitAnalyzer():
 #undef LIST_ENTRY
 
     sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
+    sub_gait_state_ = nh_.subscribe("/sport_sole_publisher/gait_state", 5, &GaitAnalyzer::gaitStateCB, this );
 
     pub_pcom_ = nh_.advertise<geometry_msgs::PointStamped>("pcom", 1);
     pub_xcom_ = nh_.advertise<geometry_msgs::PointStamped>("xcom", 1);
     pub_bos_ = nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
     pub_mos_ = nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
+    for (int i = 0; i < mos_t::mos_count; ++i)
+        pub_mos_values_[i] = nh_.advertise<std_msgs::Float64>("mos_values" + std::to_string(i), 1);
+
     pub_ground_clearance_left_ = nh_.advertise<std_msgs::Float64>("ground_clearance_left", 1);
     pub_ground_clearance_right_ = nh_.advertise<std_msgs::Float64>("ground_clearance_right", 1);
 }
@@ -96,7 +100,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         z_ground_ = 0.95 * std::min(z_ground_, z_min) + 0.05 * z_min;
 
         // Update gait phase
-        updateGaitPhase();
+        //updateGaitPhase();
 
         // Calculate pcom (projected center of mass)
         com_t com = getCoM();
@@ -138,13 +142,13 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         auto mos = getMoS(bos_points, xcom);       
 
         MarkerArrayPtr markerArrayPtr(new MarkerArray);
-        //for (size_t i = 0; i < mos_t::mos_count; ++i)
-        for (size_t i = 0; i < 1; ++i)        
+        for (size_t i = 0; i < mos_t::mos_count; ++i)
+        //for (size_t i = 0; i < 1; ++i)        
         {
             MarkerPtr markerPtr(new Marker);
             markerPtr->header.stamp = it_pelvis_closest->header.stamp;
             markerPtr->header.frame_id = "map";
-            markerPtr->lifetime = ros::Duration(0.08);
+            markerPtr->lifetime = ros::Duration(0.13);
             markerPtr->ns = "gait_analyzer";
             markerPtr->id = i;
             markerPtr->type = Marker::ARROW;
@@ -174,7 +178,23 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         }
         pub_mos_.publish(markerArrayPtr);
 
+        
+        for (size_t i = 0; i < mos_t::mos_count; i++)
+        {
+            std_msgs::Float64 msg;
+            msg.data = mos.values[i].dist;
+            pub_mos_values_[i].publish(msg);
+        }
+
     }
+}
+
+void GaitAnalyzer::gaitStateCB(const std_msgs::UInt8& msg)
+{
+    touches_ground_[ANKLE][LEFT] = msg.data & (1<<3);
+    touches_ground_[FOOT][LEFT] = msg.data & (1<<2);
+    touches_ground_[ANKLE][RIGHT] = msg.data & (1<<1);
+    touches_ground_[FOOT][RIGHT] = msg.data & (1<<0);
 }
 
 
@@ -227,6 +247,14 @@ comv_t GaitAnalyzer::getCoMv(const com_t & com, ros::Time ts)
     
     ts_1 = ts;
     com_1 = com;
+
+#if 0
+    comv_t res;
+    double t = ts.toSec();
+    res.setX(comv_differentiator_x_.getDerivative(t, com.getX()) - belt_speed);
+    res.setY(comv_differentiator_y_.getDerivative(t, com.getY()));
+#endif
+
     return res;
     
 }
@@ -265,9 +293,9 @@ bos_t GaitAnalyzer::getBoS()
         \param phi: the angular coordinate
     */
     auto addToBoS = [&, this](ankle_foot_t ankle_or_foot, double rho, double phi){
-        //if (touches_ground_[ankle_or_foot][LEFT])
+        if (touches_ground_[ankle_or_foot][LEFT])
             bos_points.push_back(vec[ankle_or_foot][LEFT] + (v0[LEFT] * rho).rotate({0, 0, 1}, phi));
-        //if (touches_ground_[ankle_or_foot][RIGHT])
+        if (touches_ground_[ankle_or_foot][RIGHT])
             bos_points.push_back(vec[ankle_or_foot][RIGHT] + (v0[RIGHT] * rho).rotate({0, 0, 1}, -phi));
     };
 
@@ -285,7 +313,8 @@ bos_t GaitAnalyzer::getBoS()
     addToBoS(ANKLE, 0.02, 3 * M_PI_4);     // L/RLMA: Lateral malleolus
     addToBoS(ANKLE, 0.02, 5 * M_PI_4);     // L/RMMA: Medial malleolus
 
-
+    if (bos_points.size() < 3)
+        return res;
 
     // Graham Scan (convex hull) https://en.wikipedia.org/wiki/Graham_scan
     // Step 1: find the point p0 with the min y coordinate, and put it in res
@@ -322,6 +351,8 @@ bos_t GaitAnalyzer::getBoS()
 mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
 {
     mos_t res;
+    com_t pxcom = xcom;
+    pxcom.setZ(z_ground_);
 
     double mos_sign = 1.0;
     double dist_min = 2.0;
@@ -329,7 +360,7 @@ mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
 
     if (bos_points.size() < 3)
     {
-        ROS_ERROR("Ill-formed BoS polygon.");
+        ROS_WARN_THROTTLE(10, "Ill-formed BoS polygon.");
         return {};
     }
 
@@ -343,7 +374,7 @@ mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
             it2 = it1 + 1;
         
         tf2::Vector3 v1, v2;
-        v1 = xcom - *it1;
+        v1 = pxcom - *it1;
         v2 = *it2 - *it1;
 
         // Determin whether the XCoM is within the BoS polygon (mos_sign > 0.0)
@@ -351,14 +382,15 @@ mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
         if (mos_sign > 0.0)
             mos_sign = (v2.cross(v1).getZ() > 0) ? 1.0 : -1.0;
 
-        // Project xcom onto the line (*it1, *it2)
+        // Project pxcom onto the line (*it1, *it2)
         double t = v1.dot(v2) / v2.length2();
 
         // Limit the projection to the range (0.0, 1.0)
         t = std::min(std::max(t, 0.0), 1.0);
 
         auto && pt = it1->lerp(*it2, t);
-        double dist = (pt - xcom).length();
+        double dist = (pt - pxcom).length();
+        //std::cout << pt << pxcom << std::endl;
         if (dist < dist_min)
         {
             dist_min = dist;
@@ -395,7 +427,7 @@ mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
 
     // Project xcom onto the line connecting the bottom BoS point with the top BoS point
     {
-        double v1 = (xcom - bos_points[indices[0]]).dot(v0_ap);
+        double v1 = (pxcom - bos_points[indices[0]]).dot(v0_ap);
         double v2 = (bos_points[indices[1]] - bos_points[indices[0]]).dot(v0_ap);
         double t = v1 / v2;
         
@@ -413,7 +445,7 @@ mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
 
     // Project xcom onto the line connecting the left BoS point with the right BoS point
     {
-        double v1 = (xcom - bos_points[indices[2]]).dot(v0_ml);
+        double v1 = (pxcom - bos_points[indices[2]]).dot(v0_ml);
         double v2 = (bos_points[indices[3]] - bos_points[indices[2]]).dot(v0_ml);
         double t = v1 / v2;
         

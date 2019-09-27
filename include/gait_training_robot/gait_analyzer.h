@@ -15,6 +15,8 @@
 #include <tf2/convert.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_msgs/Float64.h>
+#include <utils/differentiator.h>
+#include <std_msgs/UInt8.h>
 
 // The format of these list entries is :
 //
@@ -111,6 +113,7 @@ class GaitAnalyzer
 public:
   GaitAnalyzer();
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
+  void gaitStateCB(const std_msgs::UInt8& msg);
   com_t getCoM();
   comv_t getCoMv(const com_t & com, ros::Time ts);
   bos_t getBoS();
@@ -148,11 +151,14 @@ private:
 
   ros::NodeHandle nh_;
   ros::Subscriber sub_skeletons_;
+  ros::Subscriber sub_gait_state_;
 
   ros::Publisher pub_pcom_; // Center of mass projected onto the ground
   ros::Publisher pub_xcom_; // Extrapolated center of mass projected onto the ground  
   ros::Publisher pub_bos_; // Base of support polygon
   ros::Publisher pub_mos_; // Margin of stability
+  ros::Publisher pub_mos_values_[3]; // Margin of stability
+
   ros::Publisher pub_ground_clearance_left_; // ground clearance
   ros::Publisher pub_ground_clearance_right_; // ground clearance
   
@@ -160,6 +166,8 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   tf2::Transform tf_depth_to_map_;
+
+  Differentiator comv_differentiator_x_, comv_differentiator_y_;
 
   // Params
   #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) param_type param_variable;
