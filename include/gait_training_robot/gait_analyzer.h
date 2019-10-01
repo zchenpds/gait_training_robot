@@ -16,7 +16,11 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_msgs/Float64.h>
 #include <utils/differentiator.h>
-#include <std_msgs/UInt8.h>
+
+#include "sport_sole/SportSole.h"
+
+#include <message_filters/cache.h>
+#include <message_filters/subscriber.h>
 
 // The format of these list entries is :
 //
@@ -113,7 +117,8 @@ class GaitAnalyzer
 public:
   GaitAnalyzer();
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
-  void gaitStateCB(const std_msgs::UInt8& msg);
+  void sportSoleCB(const sport_sole::SportSole& msg);
+  void updateGaitState(const uint8_t& msgs);
   com_t getCoM();
   comv_t getCoMv(const com_t & com, ros::Time ts);
   bos_t getBoS();
@@ -151,7 +156,8 @@ private:
 
   ros::NodeHandle nh_;
   ros::Subscriber sub_skeletons_;
-  ros::Subscriber sub_gait_state_;
+  message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
+  message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
 
   ros::Publisher pub_pcom_; // Center of mass projected onto the ground
   ros::Publisher pub_xcom_; // Extrapolated center of mass projected onto the ground  

@@ -30,6 +30,8 @@ GaitAnalyzer::GaitAnalyzer():
         },
     z_ground_(0.0),
     nh_("~"),
+    sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 1),
+    cache_sport_sole_(sub_sport_sole_, 100),
     tf_listener_(tf_buffer_)
 {
     // Collect ROS parameters from the param server or from the command line
@@ -41,7 +43,8 @@ GaitAnalyzer::GaitAnalyzer():
 #undef LIST_ENTRY
 
     sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
-    sub_gait_state_ = nh_.subscribe("/sport_sole_publisher/gait_state", 5, &GaitAnalyzer::gaitStateCB, this );
+    // Do not register call back for now.
+    //cache_gait_state_.registerCallback(&GaitAnalyzer::gaitStateCB, this );
 
     pub_pcom_ = nh_.advertise<geometry_msgs::PointStamped>("pcom", 1);
     pub_xcom_ = nh_.advertise<geometry_msgs::PointStamped>("xcom", 1);
@@ -56,6 +59,9 @@ GaitAnalyzer::GaitAnalyzer():
 
 void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 {
+    auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(msg.markers[0].header.stamp);
+    updateGaitState(msg_sport_sole_ptr->gait_state);
+
     double dist_min_pelvis = 100.0;
     //double idx = -1; // body id with the min dist of pelvis from camera center
     auto it_pelvis_closest = msg.markers.end();// iterator of the pelvis marker of the closest body
@@ -189,12 +195,17 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     }
 }
 
-void GaitAnalyzer::gaitStateCB(const std_msgs::UInt8& msg)
+void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
 {
-    touches_ground_[ANKLE][LEFT] = msg.data & (1<<3);
-    touches_ground_[FOOT][LEFT] = msg.data & (1<<2);
-    touches_ground_[ANKLE][RIGHT] = msg.data & (1<<1);
-    touches_ground_[FOOT][RIGHT] = msg.data & (1<<0);
+    updateGaitState(msg.gait_state);
+}
+
+void GaitAnalyzer::updateGaitState(const uint8_t& gait_state)
+{
+    touches_ground_[ANKLE][LEFT] = gait_state & (1<<3);
+    touches_ground_[FOOT][LEFT] = gait_state & (1<<2);
+    touches_ground_[ANKLE][RIGHT] = gait_state & (1<<1);
+    touches_ground_[FOOT][RIGHT] = gait_state & (1<<0);
 }
 
 
