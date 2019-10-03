@@ -25,8 +25,8 @@ GaitAnalyzer::GaitAnalyzer():
     com_model_(COM_MODEL_14_SEGMENT),
     gait_phase_{GAIT_PHASE_UNKNOWN, GAIT_PHASE_UNKNOWN},
     touches_ground_{
-        {false, false}, // Left ankle, right ankle
-        {false, false} // Left foot, right foot
+        {true, true}, // Left ankle, right ankle
+        {true, true} // Left foot, right foot
         },
     z_ground_(0.0),
     nh_("~"),
@@ -59,9 +59,12 @@ GaitAnalyzer::GaitAnalyzer():
 
 void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 {
-    auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(msg.markers[0].header.stamp);
-    updateGaitState(msg_sport_sole_ptr->gait_state);
-
+    if (ros::Time::now() - cache_sport_sole_.getLatestTime() < ros::Duration(1.0))
+    {
+        auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(msg.markers[0].header.stamp);
+        updateGaitState(msg_sport_sole_ptr->gait_state);
+    }
+    
     double dist_min_pelvis = 100.0;
     //double idx = -1; // body id with the min dist of pelvis from camera center
     auto it_pelvis_closest = msg.markers.end();// iterator of the pelvis marker of the closest body
