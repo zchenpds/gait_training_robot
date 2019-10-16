@@ -15,10 +15,10 @@
     <arg name="database_path" value="$(arg database_path)" />
   </include>
 
-  <!-- Record trajectory -->
+  <!-- Record trajectory
   <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server">
     <rosparam file="$(find gait_training_robot)/params/slam/gmapping_params.yaml" command="load" />
-  </node>
+  </node>-->
 
   <!-- move_base -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
@@ -35,8 +35,8 @@
     <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
   </node>
 
-  <!-- rosserial_server to receive skeleton data -->
-  <include file="$(find gait_training_robot)/launch/includes/kinect_azure.launch" if="$(arg enable_distance_controller)" />
+  <!-- rosserial_server to receive skeleton data 
+  <include file="$(find gait_training_robot)/launch/includes/kinect_azure.launch" if="$(arg enable_distance_controller)" />-->
 
 
 
