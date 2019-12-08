@@ -1,3 +1,4 @@
 .vscode/
 data/*
 urdf/*.urdf
+bag/*
