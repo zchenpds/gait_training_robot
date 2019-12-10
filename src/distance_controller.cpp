@@ -25,7 +25,7 @@ void DistanceController::cmdVelCB(const geometry_msgs::Twist & cmd_vel_in)
   static geometry_msgs::Twist cmd_vel_out = {};
   try
   {
-    tf_listener_.lookupTransform("/base_link", "/skeleton_pelvis_link", ros::Time(0), tf_base_to_pelvis_);
+    tf_listener_.lookupTransform("/base_link", "/joint_0", ros::Time(0), tf_base_to_pelvis_);
     tf::Vector3 disp_vec =  tf_base_to_pelvis_.getOrigin();
     estimated_state_.stamp = ros::Time::now();
     ROS_INFO_STREAM("DEBUG: At t=" << estimated_state_.stamp << ", tf_stamp=" << tf_base_to_pelvis_.stamp_);
@@ -36,7 +36,12 @@ void DistanceController::cmdVelCB(const geometry_msgs::Twist & cmd_vel_in)
   }
   catch (tf::TransformException ex)
   {
-    ROS_ERROR("%s", ex.what());
+    const std::string str_error = ex.what();
+    auto pos = str_error.find_first_of("source_frame does not exist");
+    if (pos != std::string::npos)
+      ROS_WARN_DELAYED_THROTTLE(1.0, "Waiting for subject to come in the FOV of the Azure Kinect sensor...");
+    else
+      ROS_WARN_DELAYED_THROTTLE(1.0, "%s", ex.what());
     //ros::Duration(1.0).sleep();
   }
 

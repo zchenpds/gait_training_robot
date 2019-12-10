@@ -67,6 +67,8 @@
   <depend>sport_sole</depend>
   <depend>actionlib</depend>
   <depend>xacro</depend>
+  <!-- git clone -b melodic-devel https://github.com/MoriKen254/timed_roslaunch.git -->
+  <depend>timed_roslaunch</depend>
   
   <!-- The export tag contains other, unspecified, tags -->
   <export>

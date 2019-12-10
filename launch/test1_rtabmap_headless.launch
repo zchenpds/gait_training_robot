@@ -3,6 +3,11 @@
   <arg name="database_path"     default="rtabmap.db"/>
   <arg name="com_port" default="/dev/ttyUSB0"/>
   <arg name="enable_distance_controller" default="true"/>
+
+  <!-- Arguments for Kinect driver -->
+  <arg name="azure_kinect_driver_required" default="false" />
+  <arg name="recording_file" default="" />
+  <arg name="recording_loop_enabled" default="true" />
   
   <!-- rosaria -->
   <include file="$(find gait_training_robot)/launch/includes/robot.launch">
@@ -14,6 +19,11 @@
     <arg name="localization" value="$(arg localization)" />
     <arg name="database_path" value="$(arg database_path)" />
   </include>
+
+  <!-- Specify the where azure kinect is positioned on the robot.
+    This is needed even if the azure kinect driver is included in the calling launch file -->
+  <node name="tf_broadcaster_azure_kinect" pkg="tf" type="static_transform_publisher"  
+    args="-0.07 0 0.01 3.1416 0 0 camera_mount_top camera_base 100" />
 
   <!-- Record trajectory
   <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server">
@@ -30,15 +40,30 @@
     <remap from="/cmd_vel" to="/distance_controller/cmd_vel_in" if="$(arg enable_distance_controller)" />
   </node>
 
-  <!-- Distance controller node -->
-  <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" if="$(arg enable_distance_controller)" >
-    <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
-  </node>
+  <!-- Kinect driver launch file -->
+  <!-- Have to delay-launch this because openni will not work -->
+  <include file="$(find timed_roslaunch)/launch/timed_roslaunch.launch"
+           if="$(eval arg('enable_distance_controller') or 
+                      arg('azure_kinect_driver_required'))">
+    <arg name="time" value="2" />
+    <arg name="pkg" value="azure_kinect_ros_driver" />
+    <arg name="file" value="driver.launch" />
+    <arg name="value" 
+        value="depth_mode:=WFOV_2X2BINNED 
+               body_tracking_enabled:=true fps:=15 rgb_point_cloud:=false
+               recording_file:=$(arg recording_file)
+               recording_loop_enabled:=$(arg recording_loop_enabled)
+               required:=true
+               output:=screen" />
+  </include>
 
-  <!-- rosserial_server to receive skeleton data 
-  <include file="$(find gait_training_robot)/launch/includes/kinect_azure.launch" if="$(arg enable_distance_controller)" />-->
-
-
+  <!-- If distance controller is enabled: -->
+  <group if="$(arg enable_distance_controller)">
+    <!-- Distance controller node -->
+    <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" output="screen" >
+      <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
+    </node>
+  </group>
 
 
 </launch>
