@@ -79,12 +79,10 @@ add_custom_target(media_files ALL DEPENDS ${urdf_files})
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  HumanSkeletonV2.msg
-  HumanSkeletonAzure.msg
-  ImuAzure.msg
-)
+# add_message_files(
+#   FILES
+#   message1.msg
+# )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
