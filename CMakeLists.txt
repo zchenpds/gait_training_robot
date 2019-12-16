@@ -26,6 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(yaml-cpp REQUIRED)
 find_package(xacro REQUIRED)
 find_package( PkgConfig REQUIRED)
+find_package(Eigen3 REQUIRED)
 pkg_check_modules( gsl REQUIRED gsl )
 
 # Xacro files
@@ -149,9 +150,11 @@ CATKIN_DEPENDS message_runtime rosaria roscpp rospy std_msgs
 ## Your package locations should be listed before other locations
 include_directories(
   include/
+  external/EKF/include/
+  external/EKF/examples/
   ${catkin_INCLUDE_DIRS}
   /usr/include/pcl-1.7
-  /usr/include/eigen3
+  ${Eigen3_INCLUDE_DIR}
 )
 
 ## Declare a C++ library
@@ -170,7 +173,7 @@ add_library(global_planner_lib src/global_planner.cpp)
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/gait_training_robot_node.cpp)
-add_executable(kalman_filter src/kalman_filter.cpp)
+add_executable(sport_sole_kalman_filter src/sport_sole_kalman_filter.cpp)
 add_executable(goal_generator src/goal_generator.cpp)
 add_executable(distance_controller src/distance_controller.cpp)
 add_executable(gait_analyzer src/gait_analyzer.cpp)
@@ -184,13 +187,13 @@ add_executable(gait_analyzer src/gait_analyzer.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(kalman_filter
+add_dependencies(sport_sole_kalman_filter
   gait_training_robot_generate_messages_cpp 
   sport_sole_generate_messages_cpp
 )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(kalman_filter
+target_link_libraries(sport_sole_kalman_filter
   ${catkin_LIBRARIES}
 )
 target_link_libraries(global_planner_lib

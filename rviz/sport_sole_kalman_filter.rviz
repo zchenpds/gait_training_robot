@@ -6,8 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /PointStamped1
-        - /PointStamped2
+        - /RobotModel1
+        - /RobotModel2
       Splitter Ratio: 0.5
     Tree Height: 728
   - Class: rviz/Selection
@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -54,32 +54,78 @@ Visualization Manager:
       Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
       Value: true
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /body_tracking_data
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        back_sonar:
+          Value: true
+        base_link:
+          Value: true
         camera_base:
           Value: true
         camera_body:
           Value: true
+        camera_depth_frame:
+          Value: true
+        camera_depth_optical_frame:
+          Value: true
+        camera_lens1_link:
+          Value: true
+        camera_lens2_link:
+          Value: true
+        camera_lens3_link:
+          Value: true
+        camera_link:
+          Value: true
+        camera_mount_left:
+          Value: true
+        camera_mount_right:
+          Value: true
+        camera_mount_top:
+          Value: true
+        camera_rgb_frame:
+          Value: true
+        camera_rgb_optical_frame:
+          Value: true
         camera_visor:
+          Value: true
+        caster_hubcap:
+          Value: true
+        caster_swivel:
+          Value: true
+        caster_wheel:
           Value: true
         depth_camera_link:
           Value: true
+        front_sonar:
+          Value: true
         imu_link:
+          Value: true
+        joint_0:
+          Value: true
+        left_hub:
+          Value: true
+        left_wheel:
           Value: true
         map:
           Value: true
+        odom:
+          Value: true
+        rear_kinect_base:
+          Value: true
+        rear_kinect_body:
+          Value: true
+        rear_kinect_visor:
+          Value: true
         rgb_camera_link:
+          Value: true
+        right_hub:
+          Value: true
+        right_wheel:
+          Value: true
+        top_plate:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -88,85 +134,132 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          camera_base:
-            camera_body:
-              {}
-            camera_visor:
-              {}
-            depth_camera_link:
-              {}
-            imu_link:
-              {}
-            rgb_camera_link:
-              {}
+          odom:
+            base_link:
+              back_sonar:
+                {}
+              camera_link:
+                camera_depth_frame:
+                  camera_depth_optical_frame:
+                    {}
+                camera_lens1_link:
+                  {}
+                camera_lens2_link:
+                  {}
+                camera_lens3_link:
+                  {}
+                camera_rgb_frame:
+                  camera_rgb_optical_frame:
+                    {}
+              camera_mount_top:
+                camera_base:
+                  camera_body:
+                    {}
+                  camera_visor:
+                    {}
+                  depth_camera_link:
+                    imu_link:
+                      {}
+                    joint_0:
+                      {}
+                    rgb_camera_link:
+                      {}
+                camera_mount_left:
+                  {}
+                camera_mount_right:
+                  {}
+                rear_kinect_base:
+                  rear_kinect_body:
+                    {}
+                  rear_kinect_visor:
+                    {}
+              caster_swivel:
+                caster_wheel:
+                  caster_hubcap:
+                    {}
+              front_sonar:
+                {}
+              left_hub:
+                left_wheel:
+                  {}
+              right_hub:
+                right_wheel:
+                  {}
+              top_plate:
+                {}
       Update Interval: 0
-      Value: true
-    - Alpha: 1
-      Class: rviz/Polygon
-      Color: 25; 255; 0
-      Enabled: true
-      Name: Polygon
-      Topic: /gait_analyzer/bos
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: true
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: PointCloud2
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.009999999776482582
-      Style: Flat Squares
-      Topic: /points2
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: true
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 204; 41; 204
-      Enabled: true
-      History Length: 1
-      Name: PointStamped
-      Radius: 0.05000000074505806
-      Topic: /gait_analyzer/pcom
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 115; 210; 22
-      Enabled: true
-      History Length: 1
-      Name: PointStamped
-      Radius: 0.05000000074505806
-      Topic: /gait_analyzer/xcom
-      Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /gait_analyzer/mos
+      Marker Topic: /sport_sole_kalman_filter/estimates
       Name: MarkerArray
       Namespaces:
-        gait_analyzer: true
+        {}
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: false
+      Marker Topic: /sport_sole_publisher/accel_left
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/Marker
+      Enabled: false
+      Marker Topic: /sport_sole_publisher/accel_right
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        camera_base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        camera_body:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        camera_visor:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Name: RobotModel
+      Robot Description: robot_description
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+      Name: RobotModel
+      Robot Description: robot_description2
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -194,26 +287,26 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rtabmap_ros/OrbitOriented
-      Distance: 2.16090726852417
+      Class: rviz/Orbit
+      Distance: 4.006144046783447
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.8705112338066101
-        Y: 0.04016128182411194
-        Z: -0.000762939453125
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.345398485660553
       Target Frame: <Fixed Frame>
-      Value: OrbitOriented (rtabmap_ros)
-      Yaw: 0
+      Value: Orbit (rviz)
+      Yaw: 1.1003960371017456
     Saved: ~
 Window Geometry:
   Displays:

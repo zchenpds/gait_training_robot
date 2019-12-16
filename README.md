@@ -114,3 +114,7 @@ Follow these steps to set up the relevant ROS parameters
     1. Run `roslaunch gait_training_robot rviz+urdf_state.launch`.
     
     ![alt text](images/screenshot2.png)
+
+7. Test Kalman filter
+  `roslaunch gait_training_robot test4_kalman_filter.launch record_bag:=true`
+  `roslaunch gait_training_robot test4_kalman_filter.launch play_bag:=true bag_name:=data_2019-12-03-21-05-58.bag`

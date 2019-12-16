@@ -1,0 +1,118 @@
+<launch>
+  
+  <!-- Arguments for EKF -->
+  <arg name="sampling_period" default="0.01" /> 
+  <arg name="system_noise_p" default="0.000" /> 
+  <arg name="system_noise_v" default="0.001" /> 
+  <arg name="system_noise_th" default="0.00" /> 
+  <arg name="measurement_noise_p" default="0.05" /> 
+  <arg name="measurement_noise_v" default="0.01" /> 
+  <arg name="measurement_noise_th" default="20.2" /> 
+  
+  <!-- Arguments for Kinect driver -->
+  <arg name="recording_file" default="" />
+  <arg name="recording_loop_enabled" default="true" />
+  <arg name="belt_speed" default="0.0" /> 
+
+  <!-- Arguements for sport_sole_publisher -->
+  <arg name="session_name" default="abc" />
+
+  <!-- Arguments for rosbag record -->
+  <arg name="record_bag" default="false" />
+  <arg name="play_bag" default="false" />
+  <arg name="bag_name" default="data_2019-12-11-03-26-30.bag" />
+  <!-- <arg name="bag_name" default="data_2019-12-11-04-21-29.bag" /> -->
+  <!-- <arg name="bag_name" default="data_2019-12-11-04-31-31.bag" /> -->
+
+
+  <!-- Other arguments -->
+  <!-- static_test: is the robot static? -->
+  <arg name="static_test" default="false" />
+
+  <!-- ++++ NODE sport_sole_kalman_filter ++++ -->
+  <node name="sport_sole_kalman_filter" pkg="gait_training_robot" type="sport_sole_kalman_filter" output="screen" >
+    <param name="sampling_period" value="$(arg sampling_period)" />
+    <param name="system_noise_p" value="$(arg system_noise_p)" />
+    <param name="system_noise_v" value="$(arg system_noise_v)" />
+    <param name="system_noise_th" value="$(arg system_noise_th)" />
+    <param name="measurement_noise_p" value="$(arg measurement_noise_p)" />
+    <param name="measurement_noise_v" value="$(arg measurement_noise_v)" />
+    <param name="measurement_noise_th" value="$(arg measurement_noise_th)" />
+  </node>
+
+  <!-- <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+    <param name="belt_speed" value="$(arg belt_speed)" />
+  </node> -->
+
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/sport_sole_kalman_filter.rviz" required="true" /> -->
+  <param name="robot_description2" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf.rviz" output="screen"/>
+
+
+  <!-- ++++ FILTER INPUTS ++++ -->
+  <!-- Use real data -->
+  <group unless="$(arg play_bag)">
+
+    <!-- sport_sole_publisher -->
+    <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" >
+      <param name="session_name" value="$(arg session_name)" type="str"/>
+    </node>
+
+    <!-- If (static_test==true) -->
+    <group if="$(arg static_test)">
+      <!-- Kinect driver launch file -->
+      <include file="$(find azure_kinect_ros_driver)/launch/driver.launch" >
+        <arg name="depth_mode" value="WFOV_2X2BINNED" />
+        <arg name="body_tracking_enabled" value="true" />
+        <arg name="fps" value="15" />
+        <arg name="rgb_point_cloud" value="false" />
+        <arg name="recording_file" value="$(arg recording_file)" />
+        <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
+      </include>
+      <!-- Broadcast tf from map to camera_link -->
+      <node name="dummy_broadcaster_static" pkg="tf" type="static_transform_publisher" 
+            args="0 0 0.70 0 0 1 0 map camera_base 100" if="$(arg static_test)" />
+    </group>
+
+    <!-- Else if (static_test==false), start the robot -->
+    <group unless="$(arg static_test)">
+      <include file="$(find gait_training_robot)/launch/test1_rtabmap_headless.launch" >
+        <arg name="enable_distance_controller" value="true"/>
+        <arg name="azure_kinect_driver_required" default="true" />
+        <arg name="recording_file" value="$(arg recording_file)" />
+        <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
+      </include>
+    </group>
+
+  </group>
+
+  <!-- rosbag play -->
+  <group if="$(arg play_bag)">
+    <node name="rosbag_play_node" pkg="rosbag" type="play"
+          args="$(find gait_training_robot)/bags/$(arg bag_name)"
+          if="$(arg play_bag)" />
+    <!-- Robot state publisher -->
+    <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+	  <node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="state_publisher" />
+  </group>
+
+  <!-- rosbag record -->
+  <group if="$(arg static_test)">
+    <node name="rosbag_record_node" pkg="rosbag" type="record" 
+          args="record -o $(find gait_training_robot)/bags/data 
+                /sport_sole_publisher/sport_sole_markers /sport_sole_publisher/sport_sole
+                /body_tracking_data /tf /tf_static" 
+          if="$(arg record_bag)"/>
+  </group>
+
+  <group unless="$(arg static_test)">
+    <node name="rosbag_record_node" pkg="rosbag" type="record" 
+          args="record -o $(find gait_training_robot)/bags/data 
+                /sport_sole_publisher/sport_sole_markers /sport_sole_publisher/sport_sole
+                /body_tracking_data /tf /tf_static
+                /joint_states" 
+          if="$(arg record_bag)"/> 
+    
+  </group>
+
+</launch>
