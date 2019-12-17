@@ -32,6 +32,7 @@
 
   <!-- move_base -->
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <param name="clearing_rotation_allowed" value="false" />
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="local_costmap" />
     <rosparam file="$(find gait_training_robot)/params/slam/local_costmap_params.yaml" command="load" />
