@@ -21,6 +21,8 @@
 #include <ros/ros.h>
 //#include <sensor_msgs/Imu.h>
 #include <visualization_msgs/MarkerArray.h> 
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/TwistWithCovarianceStamped.h>
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -69,6 +71,7 @@ typedef KalmanExamples::SportSole::ExtendedErrorStateKalmanFilter<T> ExtendedKal
     LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", float, 0.02f)                  \
     LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", float, 0.01f)               \
     LIST_ENTRY(measurement_noise_th, "The standard deviation of orientation measurement noise.", float, 0.2f)               \
+    LIST_ENTRY(global_frame, "The reference frame for the filter output.", std::string, std::string("odom"))               \
 
 
 
@@ -160,7 +163,9 @@ private:
     message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
     ros::Subscriber sub_skeletons_;
 
-    ros::Publisher pub_estimates_;
+    ros::Publisher pub_pose_estimates_[LEFT_RIGHT];
+    ros::Publisher pub_twist_estimates_[LEFT_RIGHT];
+    ros::Publisher pub_pose_measurements_[LEFT_RIGHT];
 
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;

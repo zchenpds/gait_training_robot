@@ -8,6 +8,9 @@ using visualization_msgs::MarkerArrayPtr;
 using visualization_msgs::Marker;
 using visualization_msgs::MarkerPtr;
 
+using PoseType = geometry_msgs::PoseWithCovarianceStamped;
+using TwistType = geometry_msgs::TwistWithCovarianceStamped;
+
 // Class SportSoleKalmanFilterParams
 void SportSoleKalmanFilterParams::print()
 {
@@ -95,7 +98,13 @@ SportSoleKalmanFilterNode::SportSoleKalmanFilterNode(const ros::NodeHandle& n, c
     sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &SportSoleKalmanFilterNode::skeletonsCB, this );
     
     // Initialize the publishers
-    pub_estimates_ = private_nh_.advertise<MarkerArray>("estimates", 1);
+    for (auto lr: {LEFT, RIGHT})
+    {
+        auto str_lr = std::string(!lr?"_l": "_r");
+        pub_pose_estimates_[lr] = private_nh_.advertise<PoseType>("pose_estimate" + str_lr, 1);
+        pub_twist_estimates_[lr] = private_nh_.advertise<TwistType>("twist_estimate" + str_lr, 1);
+        pub_pose_measurements_[lr] = private_nh_.advertise<PoseType>("pose_measurement" + str_lr, 1);
+    }
 
     // Open the files for data logging
     std::string strDate;// = generateDateString();
@@ -197,12 +206,12 @@ void SportSoleKalmanFilterNode::sportSoleCB(const sport_sole::SportSole& msg)
         // Broadcast a transform for the IMU measurement of the ankle joint frames.
         geometry_msgs::TransformStamped tf_ankle;
         tf_ankle.header.stamp = msg.header.stamp;
-        tf_ankle.header.frame_id = "map"; // "map"
+        tf_ankle.header.frame_id = params_.global_frame; // params_.global_frame
         tf_ankle.child_frame_id = std::string("ankle_i_") + (!lr?"l": "r");
         assignVector3(tf_ankle.transform.translation, x.p());
         auto q_imu = getImuQuaternion<T>(msg.quaternion[lr]);
         assignQuaternion(tf_ankle.transform.rotation, q_imu); // * x.q
-        tf_boradcaster_.sendTransform(tf_ankle);
+        // tf_boradcaster_.sendTransform(tf_ankle);
     }
     
 }
@@ -235,7 +244,7 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
         try
         {
             // Find the tf from map frame to depth_camera_link frame
-            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform("map", "depth_camera_link", stamp_skeleton_curr);
+            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(params_.global_frame, "depth_camera_link", stamp_skeleton_curr);
             fromMsg(tf_msg.transform, tf_depth_to_map_);
             
         }
@@ -247,13 +256,15 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
         }
 
         // Broadcast some random tfs.
-        for (auto joint_id: {K4ABT_JOINT_PELVIS})
+        // for (auto joint_id: {K4ABT_JOINT_PELVIS})
+        if (size_t joint_id = 0)
+        // for (size_t joint_id = 0; joint_id < K4ABT_JOINT_COUNT; joint_id++)
         {
             const auto & it_joint = it_pelvis_closest + joint_id;
 
             geometry_msgs::TransformStamped tf_joint;
             tf_joint.header.stamp = stamp_skeleton_curr;
-            tf_joint.header.frame_id = "depth_camera_link"; // "map", "depth_camera_link"
+            tf_joint.header.frame_id = "depth_camera_link"; // params_.global_frame, "depth_camera_link"
             tf_joint.child_frame_id = std::string("joint_") + std::to_string(joint_id);
             tf_joint.transform.translation.x = it_joint->pose.position.x;
             tf_joint.transform.translation.y = it_joint->pose.position.y;
@@ -313,7 +324,6 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
         else
         {
             // Get ankle measurements and do an EKF initialization/update
-            MarkerArrayPtr markerArrayPtr(new MarkerArray);
             const size_t ankle_indices[] = {K4ABT_JOINT_ANKLE_LEFT, K4ABT_JOINT_ANKLE_RIGHT};
             for (size_t lr : {LEFT, RIGHT})
             {
@@ -336,12 +346,13 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                 if (lr == LEFT)
                     q_ankle_tf = q_ankle_tf * tf2::Quaternion(tf2::Vector3(0.577, 0.577, 0.577), 2 * M_PI / 3);
                 
-                Eigen::Quaternion<T> q_ankle(q_ankle_tf.w(), q_ankle_tf.x(), q_ankle_tf.y(), q_ankle_tf.z());
+                // Eigen::Quaternion<T> q_ankle(q_ankle_tf.w(), q_ankle_tf.x(), q_ankle_tf.y(), q_ankle_tf.z());
+                Eigen::Quaternion<T> q_ankle(pow(1 - pow(q_ankle_tf.z(), 2), 0.5), 0.0f, 0.0f, q_ankle_tf.z());
 
                 // Broadcast a transform for the Kinect measurement of the ankle joint frames.
                 geometry_msgs::TransformStamped tf_ankle;
                 tf_ankle.header.stamp = stamp_skeleton_curr;
-                tf_ankle.header.frame_id = "map"; // "map", "depth_camera_link"
+                tf_ankle.header.frame_id = params_.global_frame; // params_.global_frame, "depth_camera_link"
                 tf_ankle.child_frame_id = std::string("ankle_k_") + (!lr?"l": "r");
                 tf_ankle.transform.translation = toMsg(p_ankle);
                 tf_ankle.transform.rotation = toMsg(q_ankle_tf);
@@ -390,19 +401,34 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
 
 
                     // Construct the visualization message 
-                    auto marker_ptr = constructMarkerMsg(x, q_imu, it_ankle->header.stamp);
-                    marker_ptr->id = lr;
-                    markerArrayPtr->markers.push_back(*marker_ptr);
+                    PoseType pose_estimate_msg;
+                    pose_estimate_msg.header.stamp = it_ankle->header.stamp;
+                    pose_estimate_msg.header.frame_id = params_.global_frame;
+                    assignVector3(pose_estimate_msg.pose.pose.position, x.p());
+                    assignQuaternion(pose_estimate_msg.pose.pose.orientation, q_imu * x.q); // x.q * q_imu; q_imu * x.q
+                    pub_pose_estimates_[lr].publish(pose_estimate_msg);
 
+                    TwistType twist_estimate_msg;
+                    twist_estimate_msg.header.stamp = it_ankle->header.stamp;
+                    twist_estimate_msg.header.frame_id = params_.global_frame;
+                    assignVector3(twist_estimate_msg.twist.twist.linear, x.v());
+                    pub_twist_estimates_[lr].publish(twist_estimate_msg);
+
+                    PoseType pose_measurement_msg;
+                    pose_measurement_msg.header.stamp = it_ankle->header.stamp;
+                    pose_measurement_msg.header.frame_id = params_.global_frame;
+                    assignVector3(pose_measurement_msg.pose.pose.position, zp);
+                    pose_measurement_msg.pose.pose.orientation = tf2::toMsg(q_ankle_tf);
+                    pub_pose_measurements_[lr].publish(pose_measurement_msg);
                 }
 
-            // Data logging
-            ofs_measurement_[lr] << stamp_sport_sole_prev_[lr] << " "   // 1; timestamp
-                << zp.transpose().format(csv_format_) << "\n";          // 3; position measurement
+                // Data logging
+                ofs_measurement_[lr] << stamp_sport_sole_prev_[lr] << " "   // 1; timestamp
+                    << zp.transpose().format(csv_format_) << "\n";          // 3; position measurement
                 
 
             }
-            pub_estimates_.publish(markerArrayPtr);
+
             stamp_skeleton_prev_ = it_pelvis_closest->header.stamp;
         }
     }
@@ -412,7 +438,7 @@ MarkerPtr SportSoleKalmanFilterNode::constructMarkerMsg(const State& x,const Eig
 {
     MarkerPtr marker_ptr(new Marker);
     marker_ptr->header.stamp = stamp;
-    marker_ptr->header.frame_id = "map";
+    marker_ptr->header.frame_id = params_.global_frame;
     marker_ptr->lifetime = ros::Duration(0.13);
     marker_ptr->ns = nh_.getNamespace();
     marker_ptr->type = Marker::CUBE;
