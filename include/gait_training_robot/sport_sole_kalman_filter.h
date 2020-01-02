@@ -68,6 +68,7 @@ typedef KalmanExamples::SportSole::ExtendedErrorStateKalmanFilter<T> ExtendedKal
     LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", float, 0.0f)          \
     LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", float, 0.001f)        \
     LIST_ENTRY(system_noise_th, "The standard deviation of noise added to the angular position state.", float, 0.0f)        \
+    LIST_ENTRY(system_noise_ba, "The standard deviation of noise added to the acc bias state.", float, 0.01f)        \
     LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", float, 0.02f)                  \
     LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", float, 0.01f)               \
     LIST_ENTRY(measurement_noise_th, "The standard deviation of orientation measurement noise.", float, 0.2f)               \

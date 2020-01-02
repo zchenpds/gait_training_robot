@@ -83,8 +83,9 @@ SportSoleKalmanFilterNode::SportSoleKalmanFilterNode(const ros::NodeHandle& n, c
     const auto & xpstd = params_.system_noise_p;
     const auto & xvstd = params_.system_noise_v;
     const auto & xthstd = params_.system_noise_th;
+    const auto & xbastd = params_.system_noise_ba;
     setModelCovariance(SportSoleEKF::sys, 
-        {xpstd, xpstd, xpstd, xvstd, xvstd, xvstd, xthstd, xthstd, xthstd});
+        {xpstd, xpstd, xpstd, xvstd, xvstd, xvstd, xthstd, xthstd, xthstd, xbastd, xbastd, xbastd});
 
     const auto & zpstd = params_.measurement_noise_p;
     setModelCovariance(SportSoleEKF::pm, {zpstd, zpstd, zpstd});
@@ -363,7 +364,7 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                 //ROS_INFO_STREAM_THROTTLE(1, (!lr?"Left  ": "Right ") << "q_imu is: " << q_imu.vec().transpose() << "; " << q_imu.w());
                 
                 // Calculate the quaternion state measurement
-                auto q_state = q_imu.inverse() * q_ankle;
+                auto q_state = q_ankle * q_imu.inverse(); //q_imu.inverse() * q_ankle;  q_ankle * q_imu.inverse();
                 
                 // Is this the first skeleton message received after the receipt of the first sport_sole message?
                 if (stamp_skeleton_prev_.isZero())
@@ -405,7 +406,7 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                     pose_estimate_msg.header.stamp = it_ankle->header.stamp;
                     pose_estimate_msg.header.frame_id = params_.global_frame;
                     assignVector3(pose_estimate_msg.pose.pose.position, x.p());
-                    assignQuaternion(pose_estimate_msg.pose.pose.orientation, q_imu * x.q); // x.q * q_imu; q_imu * x.q
+                    assignQuaternion(pose_estimate_msg.pose.pose.orientation, x.q * q_imu); // x.q * q_imu; q_imu * x.q
                     pub_pose_estimates_[lr].publish(pose_estimate_msg);
 
                     TwistType twist_estimate_msg;
