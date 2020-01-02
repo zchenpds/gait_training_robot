@@ -1,11 +1,13 @@
 <launch>
   <arg name="com_port" default="/dev/ttyUSB0"/>
+  <arg name="enable_teleop" default="false"/>
   <arg name="urdf" default="gtr2.urdf"/>
   <node name="rosaria" pkg="rosaria" type="RosAria" required="true" output="screen">
     <param name="port" value="$(arg com_port)" />
     <remap from="/rosaria/pose" to="/odom"/>
     <remap from="/rosaria/cmd_vel" to="/cmd_vel"/>
   </node>
+  <node name="rqt_robot_steering" pkg="rqt_robot_steering" type="rqt_robot_steering" if="$(arg enable_teleop)" />
   <param name="robot_description" textfile="$(find gait_training_robot)/urdf/$(arg urdf)" />
   <node name="joint_state_publisher_gtr2" pkg="joint_state_publisher" type="joint_state_publisher" />
 	<node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="state_publisher" />
