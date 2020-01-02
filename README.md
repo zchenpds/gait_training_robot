@@ -88,7 +88,7 @@ Follow these steps to set up the relevant ROS parameters
     3. Note that if kinect2_bridge package is started via ssh, it is necessary to tell GLFW to be launched on a server screen by running `export DISPLAY=:0` after `ssh`ing to the server.
     ![alt text](images/screenshot1.png)
 
-2. Planning
+2. Planning using gmapping
   - **Two Machines**.
     1. On the robot computer (master), run `roslaunch gait_training_robot test2_plan_headless.launch`.
     2. On the desktop computer, run `roslaunch gait_training_robot test1_slam_rviz.launch`.
@@ -103,6 +103,7 @@ Follow these steps to set up the relevant ROS parameters
     2. On the desktop computer, start rviz by running `roslaunch gait_training_robot test1_rviz_rtabmap.launch`.
     3. To record waypoints on the robot computer, start a new terminal and run `rostopic echo /move_base_simple/goal > ~/catkin_ws/src/gait_training_robot/data/waypoints.yaml` on the robot computer, and publish goals from rviz. 
     4. To play back waypoints that have been recorded on the robot computer, run `rosrun gait_training_robot goal_generator`.
+    5. Sometimes, the robot maybe stuck somewhere because it mistakenly perceives an obstacle which does not exist. In this case, we want to clear the cost map by running `rosservice call /move_base/clear_costmaps "{}"`.
 5. Human distance controller
   - **Three Machines**. Requires a map built by rtabmap. Requires waypoints to be recorded.
     1. On the robot computer (master), run `roslaunch gait_training_robot test1_rtabmap_headless.launch localization:=true enable_distance_controller:=true`.
