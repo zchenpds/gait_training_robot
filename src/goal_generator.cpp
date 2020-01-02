@@ -3,43 +3,107 @@
 #include <angles/angles.h>
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/transform_datatypes.h>
+#include <geometry_msgs/PoseArray.h>
 
 #include <gait_training_robot/goal_generator.h>
 #include <yaml-cpp/yaml.h>
 #include <ros/package.h>
 
-GoalGenerator::GoalGenerator(): pose_index_(0), action_client_("move_base", true) 
+void GoalGeneratorParams::print()
 {
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val)         \
+    ROS_INFO_STREAM("" << #param_variable << " - " << #param_type " : " << param_variable);
+
+    ROS_PARAM_LIST
+  #undef LIST_ENTRY
+}
+
+GoalGenerator::GoalGenerator(const ros::NodeHandle& n, const ros::NodeHandle& p): 
+nh_(n),
+private_nh_(p),
+pose_index_(0), 
+action_client_("move_base", true) 
+{
+  // Collect ROS parameters from the param server or from the command line
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) \
+    private_nh_.param(#param_variable, params_.param_variable, param_default_val);
+
+    ROS_PARAM_LIST
+  #undef LIST_ENTRY
+
+  readFromYaml(params_.yaml_file_path);
   
-  while(!action_client_.waitForServer(ros::Duration(5.0)))
+  if (params_.preview == false)
   {
-    ROS_INFO("Waiting for the move_base action server to come up");
+    while(!action_client_.waitForServer(ros::Duration(5.0)))
+    {
+      ROS_INFO("Waiting for the move_base action server to come up");
+    }
+    setNextGoal();
+    sendGoal();
   }
+  else
+  {
+    pub_goal_poses_ = private_nh_.advertise<geometry_msgs::PoseArray>("goal_poses", 1);
+    ros::Duration(0.5).sleep();
+    previewPoses();
+  }
+  
 }
 
 
 bool GoalGenerator::readFromYaml(const std::string & file_name)
 {
   std::vector<YAML::Node> nodes = YAML::LoadAllFromFile(file_name);
-  ROS_INFO("%lu waypoints are found in %s", nodes.size(), file_name.c_str());
-  for (const auto & node : nodes) {
-    try 
-    {
-      ROS_INFO("Reading pose with seq = %d", node["header"]["seq"].as<int>());
-      poses_.push_back(geometry_msgs::Pose());
-      const YAML::Node & node_position = node["pose"]["position"];
-      poses_.back().position.x = node_position["x"].as<double>();
-      poses_.back().position.y = node_position["y"].as<double>();
-      const YAML::Node & node_orientation = node["pose"]["orientation"];
-      poses_.back().orientation.z = node_orientation["z"].as<double>();
-      poses_.back().orientation.w = node_orientation["w"].as<double>();
-    }
-    catch (YAML::InvalidNode & exception)
-    {
-      ROS_WARN("Failed to read a node. Error message: %s", exception.what());
+  if (nodes.size() > 0 && nodes[0]["pose"].IsDefined())
+  {
+    ROS_INFO("%lu waypoints are found in %s", nodes.size(), file_name.c_str());
+    for (const auto & node : nodes) {
+      try 
+      {
+        ROS_INFO("Reading pose with seq = %d", node["header"]["seq"].as<int>());
+        poses_.push_back(geometry_msgs::Pose());
+        const YAML::Node & node_position = node["pose"]["position"];
+        const YAML::Node & node_orientation = node["pose"]["orientation"];
+        if (!params_.interpolation_enabled)
+        {
+          poses_.back().position.x = node_position["x"].as<double>();
+          poses_.back().position.y = node_position["y"].as<double>();
+          poses_.back().orientation.z = node_orientation["z"].as<double>();
+          poses_.back().orientation.w = node_orientation["w"].as<double>();
+        }
+        else
+        {
+          // Interpolate waypoints
+        }
+        
+      }
+      catch (YAML::InvalidNode & exception)
+      {
+        ROS_WARN("Failed to read a node. Error message: %s", exception.what());
+      }
     }
   }
   
+}
+
+void GoalGenerator::previewPoses()
+{
+  if (poses_.empty()) {
+    ROS_ERROR("GoalGenerator::poses_ is empty!");
+    ros::shutdown();
+  }
+
+  geometry_msgs::PoseArrayPtr msg_pose_array(new geometry_msgs::PoseArray);
+  msg_pose_array->header.frame_id = "map";
+  msg_pose_array->header.stamp = ros::Time::now();
+  
+  for (const auto & pose : poses_) {
+    msg_pose_array->poses.push_back(pose);
+  }
+
+  pub_goal_poses_.publish(msg_pose_array);
+  ROS_INFO("Prview of goals published.");
 }
 
 void GoalGenerator::setNextGoal() 
@@ -115,7 +179,7 @@ void GoalGenerator::feedbackCB(const move_base_msgs::MoveBaseFeedbackConstPtr & 
   const auto & goal_position = cur_goal_.target_pose.pose.position;
   const auto & actual_position = feedback->base_position.pose.position;
   double dist_to_goal = hypot(goal_position.x - actual_position.x, goal_position.y - actual_position.y);
-  if (dist_to_goal < 0.5) {
+  if (dist_to_goal < params_.dist_tolerance) {
     setNextGoal();
     sendGoal();
   }
@@ -127,9 +191,7 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "goal_generator");
 
   GoalGenerator gg;
-  gg.readFromYaml(ros::package::getPath("gait_training_robot") + "/data/waypoints.yaml"); // TO-DO: read as a ROS parameter
-  gg.setNextGoal();
-  gg.sendGoal();
+  
 
   ros::spin();
   return 0;

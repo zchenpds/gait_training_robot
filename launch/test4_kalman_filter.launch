@@ -5,7 +5,8 @@
   <arg name="system_noise_p" default="0.000" /> 
   <arg name="system_noise_v" default="0.001" /> 
   <arg name="system_noise_th" default="0.00" /> 
-  <arg name="measurement_noise_p" default="0.05" /> 
+  <arg name="system_noise_ba" default="0.01" /> 
+  <arg name="measurement_noise_p" default="0.02" /> 
   <arg name="measurement_noise_v" default="0.01" /> 
   <arg name="measurement_noise_th" default="20.2" /> 
   
@@ -35,6 +36,7 @@
     <param name="system_noise_p" value="$(arg system_noise_p)" />
     <param name="system_noise_v" value="$(arg system_noise_v)" />
     <param name="system_noise_th" value="$(arg system_noise_th)" />
+    <param name="system_noise_ba" value="$(arg system_noise_ba)" />
     <param name="measurement_noise_p" value="$(arg measurement_noise_p)" />
     <param name="measurement_noise_v" value="$(arg measurement_noise_v)" />
     <param name="measurement_noise_th" value="$(arg measurement_noise_th)" />
@@ -77,6 +79,7 @@
     <!-- Else if (static_test==false), start the robot -->
     <group unless="$(arg static_test)">
       <include file="$(find gait_training_robot)/launch/test1_rtabmap_headless.launch" >
+        <arg name="localization" value="true" />
         <arg name="enable_distance_controller" value="true"/>
         <arg name="azure_kinect_driver_required" default="true" />
         <arg name="recording_file" value="$(arg recording_file)" />
