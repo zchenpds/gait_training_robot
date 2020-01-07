@@ -21,7 +21,7 @@ void GoalGeneratorParams::print()
 GoalGenerator::GoalGenerator(const ros::NodeHandle& n, const ros::NodeHandle& p): 
 nh_(n),
 private_nh_(p),
-pose_index_(0), 
+pose_index_(0), num_laps_(0),
 action_client_("move_base", true) 
 {
   // Collect ROS parameters from the param server or from the command line
@@ -39,6 +39,7 @@ action_client_("move_base", true)
     {
       ROS_INFO("Waiting for the move_base action server to come up");
     }
+    ros::Duration(params_.delay_start_secs).sleep();
     setNextGoal();
     sendGoal();
   }
@@ -123,7 +124,11 @@ void GoalGenerator::setNextGoal()
   cur_goal_.target_pose.pose.orientation.z = pose.orientation.z;
   cur_goal_.target_pose.pose.orientation.w = pose.orientation.w;
 
-  if (pose_index_ >= poses_.size() - 1) pose_index_ = 0;
+  if (pose_index_ >= poses_.size() - 1) {
+    pose_index_ = 0;
+    num_laps_++;
+  }
+
   else pose_index_++;
 
 }
@@ -148,11 +153,19 @@ void GoalGenerator::setNextGoalCircular()
 void GoalGenerator::sendGoal()
 {
   printPoseMessage("Sending goal [%.2f m, %.2f m, %.2f rad]", cur_goal_.target_pose.pose);
-  action_client_.sendGoal(cur_goal_, 
-    boost::bind(&GoalGenerator::doneCB, this, _1, _2) ,
-    boost::bind(&GoalGenerator::activeCB, this),
-    boost::bind(&GoalGenerator::feedbackCB, this, _1) 
-  );
+
+  if (num_laps_ >= params_.max_num_laps) {
+    action_client_.cancelAllGoals();
+    ros::shutdown();
+  }
+  else
+  {
+    action_client_.sendGoal(cur_goal_, 
+      boost::bind(&GoalGenerator::doneCB, this, _1, _2) ,
+      boost::bind(&GoalGenerator::activeCB, this),
+      boost::bind(&GoalGenerator::feedbackCB, this, _1) 
+    );
+  }
 }
 
 void GoalGenerator::doneCB(const actionlib::SimpleClientGoalState & state, const move_base_msgs::MoveBaseResultConstPtr & result)

@@ -15,11 +15,15 @@
   <arg name="recording_loop_enabled" default="true" />
   <arg name="belt_speed" default="0.0" /> 
 
-  <!-- Arguements for sport_sole_publisher -->
+  <!-- Arguments for sport_sole_publisher -->
   <arg name="session_name" default="abc" />
+  <arg name="watch_sport_sole" default="true" />
+
+  <!-- Arguments for goal_generator -->
+  <arg name="max_num_laps" default="3" />
 
   <!-- Arguments for rosbag record -->
-  <arg name="record_bag" default="false" />
+  <arg name="record_bag" default="true" />
   <arg name="play_bag" default="false" />
   <arg name="bag_name" default="data_2019-12-11-03-26-30.bag" />
   <!-- <arg name="bag_name" default="data_2019-12-11-04-21-29.bag" /> -->
@@ -84,6 +88,9 @@
         <arg name="azure_kinect_driver_required" default="true" />
         <arg name="recording_file" value="$(arg recording_file)" />
         <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
+        <arg name="enable_goal_generator" value="true" />
+        <arg name="max_num_laps" value="$(arg max_num_laps)" />
+        <arg name="delay_start_secs" value="20.0" />
       </include>
     </group>
 

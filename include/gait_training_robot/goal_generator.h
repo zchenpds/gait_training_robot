@@ -29,6 +29,8 @@ typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseCl
   LIST_ENTRY(interpolation_enabled, "Smooth the paths between waypoints by adding more waypoints", bool, false)    \
   LIST_ENTRY(dist_tolerance, "The critical distance between the current and the goal robot positions, below which the robot will start pursuing the next goal in the sequence.", float, 1.0f)    \
   LIST_ENTRY(preview, "If true, the goal will not be executed.", bool, false)    \
+  LIST_ENTRY(max_num_laps, "The maximum number of laps the robot will run before shutting down.", int, 3)    \
+  LIST_ENTRY(delay_start_secs, "The number of seconds that this node will wait for before sending the first goal.", double, 0.0)    \
 
 
 struct GoalGeneratorParams 
@@ -53,6 +55,7 @@ private:
   MoveBaseClient action_client_;
   std::vector<geometry_msgs::Pose> poses_;
   uint32_t pose_index_; 
+  size_t num_laps_;
   move_base_msgs::MoveBaseGoal cur_goal_;
 
   ros::Publisher pub_goal_poses_;

@@ -31,6 +31,12 @@
   <arg name="v_nominal" default="0.5"/>
   <arg name="v_max" default="1.2"/>
 
+  <!-- goal_generator -->
+  <arg name="enable_goal_generator" default="false"/>
+  <arg name="max_num_laps" default="3"/>
+  <arg name="delay_start_secs" default="0.0"/>
+
+
   <!-- Specify the where azure kinect is positioned on the robot.
     This is needed even if the azure kinect driver is included in the calling launch file -->
   <node name="tf_broadcaster_azure_kinect" pkg="tf" type="static_transform_publisher"  
@@ -85,6 +91,12 @@
       <param name="v_max" value="$(arg v_max)" />
     </node>
   </group>
+
+  <!-- goal_generator -->
+  <node pkg="gait_training_robot" type="goal_generator" name="goal_generator" if="$(arg enable_goal_generator)" output="screen" >
+    <param name="max_num_laps" value="$(arg max_num_laps)" />
+    <param name="delay_start_secs" value="$(arg delay_start_secs)" />
+  </node>
 
 
 </launch>

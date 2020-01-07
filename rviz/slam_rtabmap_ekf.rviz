@@ -22,6 +22,7 @@ Panels:
   - Class: rviz/Views
     Expanded:
       - /Current View1
+      - /Current View1/Focal Point1
     Name: Views
     Splitter Ratio: 0.5
   - Class: rviz/Time
@@ -628,14 +629,14 @@ Visualization Manager:
       Marker Topic: /body_tracking_data
       Name: MarkerArray
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: odom
     Frame Rate: 30
   Name: root
   Tools:
@@ -659,7 +660,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.118046283721924
+      Distance: 5.922627925872803
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -667,17 +668,17 @@ Visualization Manager:
         Value: false
       Focal Point:
         X: 0.04270285367965698
-        Y: 0.22297857701778412
+        Y: -1.22298002243042
         Z: 0.6119353771209717
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.15979699790477753
+      Pitch: 0.04479624330997467
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.5753705501556396
+      Yaw: 1.5703704357147217
     Saved: ~
 Window Geometry:
   Displays:
