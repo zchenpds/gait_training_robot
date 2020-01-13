@@ -87,9 +87,9 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     {
         try
         {
-            // Find the tf from map frame to depth_camera_link frame
-            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform("map", "depth_camera_link", ros::Time(0));
-            fromMsg(tf_msg.transform, tf_depth_to_map_);
+            // Find the tf from global frame to depth_camera_link frame
+            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(global_frame, "depth_camera_link", ros::Time(0));
+            fromMsg(tf_msg.transform, tf_depth_to_global_);
             
         }
         catch (tf2::TransformException & ex)
@@ -103,7 +103,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         {
             // Convert messages to tf2::vectors for easier calculation
             fromMsg((it_pelvis_closest + i)->pose.position, vec_joints_[i]);
-            vec_joints_[i] = tf_depth_to_map_ * vec_joints_[i];                
+            vec_joints_[i] = tf_depth_to_global_ * vec_joints_[i];                
         }
         double z_min = std::min(vec_joints_[K4ABT_JOINT_FOOT_LEFT].getZ(), vec_joints_[K4ABT_JOINT_FOOT_RIGHT].getZ());
         z_ground_ = 0.95 * std::min(z_ground_, z_min) + 0.05 * z_min;
@@ -115,7 +115,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         com_t com = getCoM();
 
         geometry_msgs::PointStamped msg_pcom;
-        msg_pcom.header.frame_id = "map";
+        msg_pcom.header.frame_id = global_frame;
         msg_pcom.header.stamp = it_pelvis_closest->header.stamp;
         msg_pcom.point.x = com.getX();
         msg_pcom.point.y = com.getY();
@@ -128,7 +128,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         com_t xcom = com + comv / omega0;
 
         geometry_msgs::PointStamped msg_xcom;
-        msg_xcom.header.frame_id = "map";
+        msg_xcom.header.frame_id = global_frame;
         msg_xcom.header.stamp = it_pelvis_closest->header.stamp;
         msg_xcom.point.x = xcom.getX();
         msg_xcom.point.y = xcom.getY();
@@ -140,7 +140,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 
         geometry_msgs::PolygonStamped msg_bos;
         msg_bos.header.stamp = it_pelvis_closest->header.stamp;
-        msg_bos.header.frame_id = "map";
+        msg_bos.header.frame_id = global_frame;
         for (const auto & point : bos_points)
             msg_bos.polygon.points.push_back(vector3ToPoint32(point));
         
@@ -156,7 +156,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         {
             MarkerPtr markerPtr(new Marker);
             markerPtr->header.stamp = it_pelvis_closest->header.stamp;
-            markerPtr->header.frame_id = "map";
+            markerPtr->header.frame_id = global_frame;
             markerPtr->lifetime = ros::Duration(0.13);
             markerPtr->ns = "gait_analyzer";
             markerPtr->id = i;

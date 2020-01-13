@@ -34,7 +34,9 @@
 // Example:
 // LIST_ENTRY(sensor_sn, "The serial number of the sensor this node should connect with", std::string, std::string(""))
 #define ROS_PARAM_LIST \
-  LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0)
+  LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0) \
+  LIST_ENTRY(global_frame, "The global frame ID, e.g. map or odom.", std::string, std::string("odom")) \
+
 
 struct BodySegment
 {
@@ -171,7 +173,7 @@ private:
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
-  tf2::Transform tf_depth_to_map_;
+  tf2::Transform tf_depth_to_global_;
 
   Differentiator comv_differentiator_x_, comv_differentiator_y_;
 
