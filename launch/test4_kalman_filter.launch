@@ -29,6 +29,9 @@
   <!-- <arg name="bag_name" default="data_2019-12-11-04-21-29.bag" /> -->
   <!-- <arg name="bag_name" default="data_2019-12-11-04-31-31.bag" /> -->
 
+  <!-- Arguments for gait_analyzer -->
+  <arg name="enable_gait_analyzer" default="true" />
+  <arg name="record_gait_analytics" default="true" />
 
   <!-- Other arguments -->
   <!-- static_test: is the robot static? -->
@@ -52,7 +55,7 @@
 
   <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/sport_sole_kalman_filter.rviz" required="true" /> -->
   <param name="robot_description2" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf.rviz" output="screen"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf.rviz" output="screen" unless="$(arg enable_gait_analyzer)" />
 
 
   <!-- ++++ FILTER INPUTS ++++ -->
@@ -123,6 +126,21 @@
                 /joint_states" 
           if="$(arg record_bag)"/> 
     
+  </group>
+
+  <!-- gait_analyzer -->
+  <group if="$(arg enable_gait_analyzer)" >
+    <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+      <param name="belt_speed" value="$(arg belt_speed)" />
+    </node>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" />
+    <node name="rosbag_record_ga_node" pkg="rosbag" type="record" 
+          args="record -o $(find gait_training_robot)/bags/gait_analytics/gait_analytics 
+                /gait_analyzer/pcom 
+                /gait_analyzer/xcom
+                /gait_analyzer/mos
+                /gait_analyzer/bos" 
+          if="$(arg record_gait_analytics)"/> 
   </group>
 
 </launch>
