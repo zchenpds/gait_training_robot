@@ -32,7 +32,8 @@ GaitAnalyzer::GaitAnalyzer():
     nh_("~"),
     sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 1),
     cache_sport_sole_(sub_sport_sole_, 100),
-    tf_listener_(tf_buffer_)
+    tf_listener_(tf_buffer_),
+    sub_id_(-1)
 {
     // Collect ROS parameters from the param server or from the command line
 #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) \
@@ -70,15 +71,23 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     auto it_pelvis_closest = msg.markers.end();// iterator of the pelvis marker of the closest body
 
     // Find the closest body, K4ABT_JOINT_PELVIS = 0
-    for (auto it = msg.markers.begin(); it < msg.markers.end(); it += K4ABT_JOINT_COUNT)
-    {
-        // The coordinates are in expressed in /depth_camera_link
-        double dist_pelvis = hypot(it->pose.position.x, it->pose.position.z);
-        if (dist_pelvis < dist_min_pelvis)
-        {
-            dist_pelvis = dist_min_pelvis;
-            it_pelvis_closest = it;
-            //idx = it->id / 100;
+    if (sub_id_ < 0) {
+        for (auto it = msg.markers.begin(); it < msg.markers.end(); it += K4ABT_JOINT_COUNT) {
+            // The coordinates are in expressed in /depth_camera_link
+            double dist_pelvis = hypot(it->pose.position.x, it->pose.position.z);
+            if (dist_pelvis < dist_min_pelvis) {
+                dist_pelvis = dist_min_pelvis;
+                it_pelvis_closest = it;
+                sub_id_ = it_pelvis_closest->id / 100;
+            }
+        }
+    }
+    else {
+        for (auto it = msg.markers.begin(); it < msg.markers.end(); it += K4ABT_JOINT_COUNT) {
+            if (it->id / 100 == sub_id_) {
+                it_pelvis_closest = it;
+                break;
+            }
         }
     }
 

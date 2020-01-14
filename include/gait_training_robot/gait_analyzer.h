@@ -182,6 +182,9 @@ private:
     ROS_PARAM_LIST
   #undef LIST_ENTRY
 
+  // Subject selection
+  int32_t sub_id_;
+
 private:
   // Helper method for converting a tf2::Vector3 object to a geometry_msgs::Point32 object
   geometry_msgs::Point32 vector3ToPoint32(const tf2::Vector3 & vec);

@@ -82,6 +82,9 @@ private:
   HumanState estimated_state_, desired_state_;
   tf::StampedTransform tf_base_to_pelvis_;
 
+  // Subject selection
+    int32_t sub_id_;
+
 public:
   DistanceController(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   ~DistanceController();

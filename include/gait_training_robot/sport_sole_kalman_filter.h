@@ -189,6 +189,9 @@ private:
     std::ofstream ofs_measurement_[LEFT_RIGHT];
     static Eigen::IOFormat csv_format_;
 
+    // Subject selection
+    int32_t sub_id_;
+
 };
 
 // Define static member variable
