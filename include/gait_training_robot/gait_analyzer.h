@@ -10,6 +10,7 @@
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/convert.h>
@@ -36,6 +37,19 @@
 #define ROS_PARAM_LIST \
   LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0) \
   LIST_ENTRY(global_frame, "The global frame ID, e.g. map or odom.", std::string, std::string("odom")) \
+
+
+struct GaitAnalyzerParams 
+{
+  // Print the value of all parameters
+  void print();
+
+  // Parameters
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) param_type param_variable;
+    ROS_PARAM_LIST
+  #undef LIST_ENTRY
+};
+
 
 
 struct BodySegment
@@ -117,7 +131,7 @@ struct mos_t
 class GaitAnalyzer
 {
 public:
-  GaitAnalyzer();
+  GaitAnalyzer(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void sportSoleCB(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
@@ -156,13 +170,22 @@ private:
   // The z coordinate of the ground
   double z_ground_;
 
+  // Node handles
   ros::NodeHandle nh_;
+  ros::NodeHandle private_nh_;
+  GaitAnalyzerParams params_;
+
   ros::Subscriber sub_skeletons_;
+  message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> sub_pose_estimates_[LEFT_RIGHT];
+  message_filters::Cache<geometry_msgs::PoseWithCovarianceStamped> cache_pose_estimates_[LEFT_RIGHT];
+  geometry_msgs::Pose pose_estimates_[LEFT_RIGHT];
+  bos_t footprints_[LEFT_RIGHT];
   message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
 
   ros::Publisher pub_pcom_; // Center of mass projected onto the ground
   ros::Publisher pub_xcom_; // Extrapolated center of mass projected onto the ground  
+  ros::Publisher pub_footprints_[LEFT_RIGHT];
   ros::Publisher pub_bos_; // Base of support polygon
   ros::Publisher pub_mos_; // Margin of stability
   ros::Publisher pub_mos_values_[3]; // Margin of stability

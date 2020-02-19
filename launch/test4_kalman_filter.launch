@@ -25,12 +25,24 @@
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
   <arg name="play_bag" default="false" />
-  <arg name="bag_name" default="data_2019-12-11-03-26-30.bag" />
+  <!-- <arg name="bag_name" default="data_2019-12-11-03-26-30.bag" /> -->
   <!-- <arg name="bag_name" default="data_2019-12-11-04-21-29.bag" /> -->
   <!-- <arg name="bag_name" default="data_2019-12-11-04-31-31.bag" /> -->
 
+  <!-- <arg name="bag_name" default="data_2020-01-03-13-15-50.bag" /> -->
+  <!-- <arg name="bag_name" default="data_2020-01-06-20-45-24.bag" /> -->
+  <!-- <arg name="bag_name" default="data_2020-01-06-20-56-02.bag" /> -->
+
+  <!-- <arg name="bag_name" default="vicon/data_2020-01-13-17-28-32.bag" /> -->
+  <!-- <arg name="bag_name" default="vicon/data_2020-01-13-17-33-53.bag" /> -->
+  <!-- <arg name="bag_name" default="vicon/data_2020-01-13-17-37-34.bag" /> -->
+  <!-- <arg name="bag_name" default="vicon/data_2020-01-13-17-41-27.bag" /> -->
+  <!-- <arg name="bag_name" default="vicon/data_2020-01-14-17-07-28.bag" /> -->
+  <!-- <arg name="bag_name" default="vicon/data_2020-01-14-17-16-12.bag" /> -->
+  <arg name="bag_name" default="vicon/data_2020-01-18-17-46-05.bag" />
+
   <!-- Arguments for gait_analyzer -->
-  <arg name="enable_gait_analyzer" default="true" />
+  <arg name="enable_gait_analyzer" default="false" />
   <arg name="record_gait_analytics" default="true" />
 
   <!-- Other arguments -->
@@ -66,6 +78,7 @@
     <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" >
       <param name="session_name" value="$(arg session_name)" type="str"/>
     </node>
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sport_sole)/rviz/accel_orient.rviz" if="$(arg watch_sport_sole)"/> -->
 
     <!-- If (static_test==true) -->
     <group if="$(arg static_test)">
@@ -101,8 +114,9 @@
 
   <!-- rosbag play -->
   <group if="$(arg play_bag)">
+    <param name="use_sim_time" value="true"/>
     <node name="rosbag_play_node" pkg="rosbag" type="play"
-          args="$(find gait_training_robot)/bags/$(arg bag_name)"
+          args="--clock $(find gait_training_robot)/bags/$(arg bag_name)"
           if="$(arg play_bag)" />
     <!-- Robot state publisher -->
     <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
@@ -123,7 +137,9 @@
           args="record -o $(find gait_training_robot)/bags/data 
                 /sport_sole_publisher/sport_sole_markers /sport_sole_publisher/sport_sole
                 /body_tracking_data /tf /tf_static
-                /joint_states" 
+                /joint_states
+                /sport_sole_kalman_filter/pose_estimate_l
+                /sport_sole_kalman_filter/pose_estimate_r" 
           if="$(arg record_bag)"/> 
     
   </group>

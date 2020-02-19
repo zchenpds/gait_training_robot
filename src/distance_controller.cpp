@@ -27,6 +27,7 @@ DistanceController::DistanceController(const ros::NodeHandle& n, const ros::Node
 
     ROS_PARAM_LIST
   #undef LIST_ENTRY
+  params_.print();
 
   sub_cmd_vel_in_ = nh_.subscribe("/distance_controller/cmd_vel_in", 1, &DistanceController::cmdVelCB, this);
   pub_cmd_vel_out_ = nh_.advertise<geometry_msgs::Twist>("/distance_controller/cmd_vel_out", 1);

@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -67,19 +67,71 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        back_sonar:
+          Value: true
+        base_link:
+          Value: true
         camera_base:
           Value: true
         camera_body:
           Value: true
+        camera_lens1_link:
+          Value: true
+        camera_lens2_link:
+          Value: true
+        camera_lens3_link:
+          Value: true
+        camera_link:
+          Value: true
+        camera_mount_left:
+          Value: true
+        camera_mount_right:
+          Value: true
+        camera_mount_top:
+          Value: true
+        camera_rgb_frame:
+          Value: true
+        camera_rgb_optical_frame:
+          Value: true
         camera_visor:
+          Value: true
+        caster_hubcap:
+          Value: true
+        caster_swivel:
+          Value: true
+        caster_wheel:
           Value: true
         depth_camera_link:
           Value: true
+        front_sonar:
+          Value: true
+        imu_left:
+          Value: true
         imu_link:
+          Value: true
+        imu_right:
+          Value: true
+        left_hub:
+          Value: true
+        left_wheel:
           Value: true
         map:
           Value: true
+        odom:
+          Value: true
+        rear_kinect_base:
+          Value: true
+        rear_kinect_body:
+          Value: true
+        rear_kinect_visor:
+          Value: true
         rgb_camera_link:
+          Value: true
+        right_hub:
+          Value: true
+        right_wheel:
+          Value: true
+        top_plate:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -88,17 +140,55 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          camera_base:
-            camera_body:
-              {}
-            camera_visor:
-              {}
-            depth_camera_link:
-              {}
-            imu_link:
-              {}
-            rgb_camera_link:
-              {}
+          imu_left:
+            {}
+          imu_right:
+            {}
+          odom:
+            base_link:
+              back_sonar:
+                {}
+              camera_link:
+                camera_lens1_link:
+                  {}
+                camera_lens2_link:
+                  {}
+                camera_lens3_link:
+                  {}
+              camera_mount_top:
+                camera_base:
+                  camera_body:
+                    {}
+                  camera_visor:
+                    {}
+                  depth_camera_link:
+                    imu_link:
+                      {}
+                    rgb_camera_link:
+                      {}
+                camera_mount_left:
+                  {}
+                camera_mount_right:
+                  {}
+                rear_kinect_base:
+                  rear_kinect_body:
+                    {}
+                  rear_kinect_visor:
+                    {}
+              caster_swivel:
+                caster_wheel:
+                  caster_hubcap:
+                    {}
+              front_sonar:
+                {}
+              left_hub:
+                left_wheel:
+                  {}
+              right_hub:
+                right_wheel:
+                  {}
+              top_plate:
+                {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -171,7 +261,7 @@ Visualization Manager:
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: map
+    Fixed Frame: odom
     Frame Rate: 30
   Name: root
   Tools:
@@ -195,7 +285,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rtabmap_ros/OrbitOriented
-      Distance: 2.16090726852417
+      Distance: 8.89760684967041
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

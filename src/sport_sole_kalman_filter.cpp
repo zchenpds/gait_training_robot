@@ -267,7 +267,7 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
 
         // Broadcast some random tfs.
         // for (auto joint_id: {K4ABT_JOINT_PELVIS})
-        if (size_t joint_id = 0)
+        size_t joint_id = 0;
         // for (size_t joint_id = 0; joint_id < K4ABT_JOINT_COUNT; joint_id++)
         {
             const auto & it_joint = it_pelvis_closest + joint_id;
@@ -356,8 +356,17 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                 if (lr == LEFT)
                     q_ankle_tf = q_ankle_tf * tf2::Quaternion(tf2::Vector3(0.577, 0.577, 0.577), 2 * M_PI / 3);
                 
-                // Eigen::Quaternion<T> q_ankle(q_ankle_tf.w(), q_ankle_tf.x(), q_ankle_tf.y(), q_ankle_tf.z());
-                Eigen::Quaternion<T> q_ankle(pow(1 - pow(q_ankle_tf.z(), 2), 0.5), 0.0f, 0.0f, q_ankle_tf.z());
+                Eigen::Quaternion<T> q_ankle(q_ankle_tf.w(), q_ankle_tf.x(), q_ankle_tf.y(), q_ankle_tf.z());
+                // Eigen::Quaternion<T> q_ankle(pow(1 - pow(q_ankle_tf.z(), 2), 0.5), 0.0f, 0.0f, q_ankle_tf.z());
+
+                auto getYawFromQuat = [](const Eigen::Quaternion<T> &q)->T{
+                    Eigen::Matrix<T, 3, 1> vec0 = Eigen::Matrix<T, 3, 1>::UnitX();
+                    vec0 = q * vec0;
+                    return atan2(vec0(1), vec0(0));
+                };
+
+                auto yaw_kinect = getYawFromQuat(q_ankle);
+                //q_ankle = Eigen::AngleAxis<T>(yaw_kinect, Eigen::Matrix<T, 3, 1>::UnitZ());
 
                 // Broadcast a transform for the Kinect measurement of the ankle joint frames.
                 geometry_msgs::TransformStamped tf_ankle;
@@ -373,6 +382,12 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                 //ROS_INFO_STREAM_THROTTLE(1, (!lr?"Left  ": "Right ") << "q_imu is: " << q_imu.vec().transpose() << "; " << q_imu.w());
                 
                 // Calculate the quaternion state measurement
+                auto yaw_imu = getYawFromQuat(q_imu);
+                auto delta_yaw = yaw_kinect - yaw_imu;
+                static auto delta_yaw_1 = delta_yaw;
+                T convergence_ratio = 0.1;
+                //delta_yaw_1 += (delta_yaw - delta_yaw_1) * convergence_ratio;
+                //auto q_state =  Eigen::AngleAxis<T>(delta_yaw_1, Eigen::Matrix<T, 3, 1>::UnitZ());
                 auto q_state = q_ankle * q_imu.inverse(); //q_imu.inverse() * q_ankle;  q_ankle * q_imu.inverse();
                 
                 // Is this the first skeleton message received after the receipt of the first sport_sole message?
@@ -397,6 +412,7 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                     
                     // Update state with orientation measurement
                     OrientationMeasurement zth; // Define the measurement of the error quaternion state.
+                    //zth = (q_state * x.q.inverse()).vec();
                     zth = (q_state * x.q.inverse()).vec();
                     //ekf_[lr].update(zth);
                     ROS_INFO_STREAM_THROTTLE(1, (!lr?"Left  ": "Right ") << "EKF state updated to " 
@@ -415,7 +431,7 @@ void SportSoleKalmanFilterNode::skeletonsCB(const MarkerArray& msg)
                     pose_estimate_msg.header.stamp = it_ankle->header.stamp;
                     pose_estimate_msg.header.frame_id = params_.global_frame;
                     assignVector3(pose_estimate_msg.pose.pose.position, x.p());
-                    assignQuaternion(pose_estimate_msg.pose.pose.orientation, x.q * q_imu); // x.q * q_imu; q_imu * x.q
+                    assignQuaternion(pose_estimate_msg.pose.pose.orientation, q_ankle); // x.q * q_imu, q_state * q_imu, q_ankle
                     pub_pose_estimates_[lr].publish(pose_estimate_msg);
 
                     TwistType twist_estimate_msg;

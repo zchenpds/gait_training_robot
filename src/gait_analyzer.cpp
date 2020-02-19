@@ -8,28 +8,25 @@
 
 using namespace visualization_msgs;
 
-/* #include "sport_sole/SportSole.h"
-
-void listenerCallback (const sport_sole::SportSole& msg)
+void GaitAnalyzerParams::print()
 {
-    //TODO: Kalman filter??
-    //process the subcribed data here
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val)         \
+    ROS_INFO_STREAM("" << #param_variable << " - " << #param_type " : " << param_variable);
+
+    ROS_PARAM_LIST
+  #undef LIST_ENTRY
 }
 
-void sportsole_callback(const sport_sole::SportSole::ConstPtr &msg, const left_right_t left_right) {
-    ; // Do stuff
-}
-*/
-
-GaitAnalyzer::GaitAnalyzer():
-    com_model_(COM_MODEL_14_SEGMENT),
+GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
+    com_model_(COM_MODEL_14_SEGMENT), // COM_MODEL_PELVIS, COM_MODEL_14_SEGMENT
     gait_phase_{GAIT_PHASE_UNKNOWN, GAIT_PHASE_UNKNOWN},
     touches_ground_{
         {true, true}, // Left ankle, right ankle
         {true, true} // Left foot, right foot
         },
     z_ground_(0.0),
-    nh_("~"),
+    nh_(n),
+    private_nh_(p),
     sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 1),
     cache_sport_sole_(sub_sport_sole_, 100),
     tf_listener_(tf_buffer_),
@@ -37,25 +34,32 @@ GaitAnalyzer::GaitAnalyzer():
 {
     // Collect ROS parameters from the param server or from the command line
 #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) \
-    nh_.param(#param_variable, param_variable, param_default_val);\
-    ROS_INFO_STREAM("" << #param_variable << " - " << #param_type " : " << param_variable);
+    private_nh_.param(#param_variable, params_.param_variable, param_default_val);
 
     ROS_PARAM_LIST
 #undef LIST_ENTRY
+    params_.print();
 
     sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
-    // Do not register call back for now.
-    //cache_gait_state_.registerCallback(&GaitAnalyzer::gaitStateCB, this );
 
-    pub_pcom_ = nh_.advertise<geometry_msgs::PointStamped>("pcom", 1);
-    pub_xcom_ = nh_.advertise<geometry_msgs::PointStamped>("xcom", 1);
-    pub_bos_ = nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
-    pub_mos_ = nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
+    sub_pose_estimates_[LEFT].subscribe(nh_, "/sport_sole_kalman_filter/pose_estimate_l", 1);
+    sub_pose_estimates_[RIGHT].subscribe(nh_, "/sport_sole_kalman_filter/pose_estimate_r", 1);
+    for (size_t lr: {LEFT, RIGHT}) {        
+        cache_pose_estimates_[lr].connectInput(sub_pose_estimates_[lr]);
+        cache_pose_estimates_[lr].setCacheSize(100u);
+        auto str_lr = std::string(!lr?"_l": "_r");
+        pub_footprints_[lr] = private_nh_.advertise<geometry_msgs::PolygonStamped>("footprint" + str_lr, 1);
+    }
+
+    pub_pcom_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom", 1);
+    pub_xcom_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom", 1);
+    pub_bos_ = private_nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
+    pub_mos_ = private_nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
     for (int i = 0; i < mos_t::mos_count; ++i)
-        pub_mos_values_[i] = nh_.advertise<std_msgs::Float64>("mos_values" + std::to_string(i), 1);
+        pub_mos_values_[i] = private_nh_.advertise<std_msgs::Float64>("mos_values" + std::to_string(i), 1);
 
-    pub_ground_clearance_left_ = nh_.advertise<std_msgs::Float64>("ground_clearance_left", 1);
-    pub_ground_clearance_right_ = nh_.advertise<std_msgs::Float64>("ground_clearance_right", 1);
+    pub_ground_clearance_left_ = private_nh_.advertise<std_msgs::Float64>("ground_clearance_left", 1);
+    pub_ground_clearance_right_ = private_nh_.advertise<std_msgs::Float64>("ground_clearance_right", 1);
 }
 
 void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
@@ -63,8 +67,23 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     if (ros::Time::now() - cache_sport_sole_.getLatestTime() < ros::Duration(1.0))
     {
         auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(msg.markers[0].header.stamp);
+        if (!msg_sport_sole_ptr)
+            return;
         updateGaitState(msg_sport_sole_ptr->gait_state);
     }
+    else
+    {
+        ROS_WARN_STREAM_THROTTLE(5.0, "Bad ros time!! Late by " << (ros::Time::now() - cache_sport_sole_.getLatestTime()).toSec() << " sec");
+    }
+    
+
+    // for (size_t lr : {LEFT, RIGHT}) {
+    //     //if (msg.markers[0].header.stamp - cache_pose_estimates_[lr].getLatestTime() < ros::Duration(1.0))
+    //     {
+    //         auto msg_pose_estimate_ptr = cache_pose_estimates_[lr].getElemBeforeTime(msg.markers[0].header.stamp);
+    //         pose_estimates_[lr] = msg_pose_estimate_ptr->pose.pose;
+    //     }
+    // }
     
     double dist_min_pelvis = 100.0;
     //double idx = -1; // body id with the min dist of pelvis from camera center
@@ -97,7 +116,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         try
         {
             // Find the tf from global frame to depth_camera_link frame
-            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(global_frame, "depth_camera_link", ros::Time(0));
+            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(params_.global_frame, "depth_camera_link", ros::Time(0));
             fromMsg(tf_msg.transform, tf_depth_to_global_);
             
         }
@@ -124,7 +143,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         com_t com = getCoM();
 
         geometry_msgs::PointStamped msg_pcom;
-        msg_pcom.header.frame_id = global_frame;
+        msg_pcom.header.frame_id = params_.global_frame;
         msg_pcom.header.stamp = it_pelvis_closest->header.stamp;
         msg_pcom.point.x = com.getX();
         msg_pcom.point.y = com.getY();
@@ -137,24 +156,32 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         com_t xcom = com + comv / omega0;
 
         geometry_msgs::PointStamped msg_xcom;
-        msg_xcom.header.frame_id = global_frame;
+        msg_xcom.header.frame_id = params_.global_frame;
         msg_xcom.header.stamp = it_pelvis_closest->header.stamp;
         msg_xcom.point.x = xcom.getX();
         msg_xcom.point.y = xcom.getY();
         msg_xcom.point.z = z_ground_;
         pub_xcom_.publish(msg_xcom);
 
-        // Calculate the base of support polygon
+        // Calculate the base of support polygon, as well as update footprint polygons
         bos_t bos_points = getBoS();
 
         geometry_msgs::PolygonStamped msg_bos;
         msg_bos.header.stamp = it_pelvis_closest->header.stamp;
-        msg_bos.header.frame_id = global_frame;
+        msg_bos.header.frame_id = params_.global_frame;
         for (const auto & point : bos_points)
             msg_bos.polygon.points.push_back(vector3ToPoint32(point));
-        
         pub_bos_.publish(msg_bos);
 
+
+        for (size_t lr : {LEFT, RIGHT}) {
+            geometry_msgs::PolygonStamped msg_footprint;
+            msg_footprint.header.stamp = it_pelvis_closest->header.stamp;
+            msg_footprint.header.frame_id = params_.global_frame;
+            for (const auto & point : footprints_[lr])
+                msg_footprint.polygon.points.push_back(vector3ToPoint32(point));
+            pub_footprints_[lr].publish(msg_footprint);
+        }
         
         // Calculate margin of stability
         auto mos = getMoS(bos_points, xcom);       
@@ -165,8 +192,8 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         {
             MarkerPtr markerPtr(new Marker);
             markerPtr->header.stamp = it_pelvis_closest->header.stamp;
-            markerPtr->header.frame_id = global_frame;
-            markerPtr->lifetime = ros::Duration(0.13);
+            markerPtr->header.frame_id = params_.global_frame;
+            markerPtr->lifetime = ros::Duration(0.05);
             markerPtr->ns = "gait_analyzer";
             markerPtr->id = i;
             markerPtr->type = Marker::ARROW;
@@ -224,7 +251,7 @@ void GaitAnalyzer::updateGaitState(const uint8_t& gait_state)
 com_t GaitAnalyzer::getCoM()
 {
     
-    if (com_model_ == COM_MODEL_14_SEGMENT)
+    if (com_model_ == COM_MODEL_PELVIS)
     {
         com_t res;
         res.setX(vec_joints_[K4ABT_JOINT_PELVIS].getX());
@@ -258,14 +285,14 @@ com_t GaitAnalyzer::getCoM()
 
 comv_t GaitAnalyzer::getCoMv(const com_t & com, ros::Time ts)
 {
-    //belt_speed;
+    //params_.belt_speed;
     static com_t com_1 = com;
     static ros::Time ts_1 = ts;
     
     comv_t res;
 
     res = (com - com_1) / ((ts - ts_1).toSec());
-    res.setX(res.getX() - belt_speed);
+    res.setX(res.getX() - params_.belt_speed);
     //ROS_INFO_STREAM("comv: " << res);
     
     ts_1 = ts;
@@ -274,7 +301,7 @@ comv_t GaitAnalyzer::getCoMv(const com_t & com, ros::Time ts)
 #if 0
     comv_t res;
     double t = ts.toSec();
-    res.setX(comv_differentiator_x_.getDerivative(t, com.getX()) - belt_speed);
+    res.setX(comv_differentiator_x_.getDerivative(t, com.getX()) - params_.belt_speed);
     res.setY(comv_differentiator_y_.getDerivative(t, com.getY()));
 #endif
 
@@ -287,7 +314,7 @@ bos_t GaitAnalyzer::getBoS()
     bos_t bos_points;
     bos_t res;
     
-
+#if 1
     // Define unit foot orientation vectors v0[]
     bos_t::value_type v0[LEFT_RIGHT] = {
         vec_joints_[K4ABT_JOINT_FOOT_LEFT] - vec_joints_[K4ABT_JOINT_ANKLE_LEFT],
@@ -299,13 +326,34 @@ bos_t GaitAnalyzer::getBoS()
         {vec_joints_[K4ABT_JOINT_FOOT_LEFT], vec_joints_[K4ABT_JOINT_FOOT_RIGHT]},
         {vec_joints_[K4ABT_JOINT_ANKLE_LEFT], vec_joints_[K4ABT_JOINT_ANKLE_RIGHT]}
     };
+#else
+    // Define unit foot orientation vectors v0[]
+    bos_t::value_type v0[LEFT_RIGHT] = {{1.0, 0.0, 0.0}, {1.0, 0.0, 0.0}};
 
-    for (int i = 0; i < LEFT_RIGHT; i++)
+    // Visual markers for feet and ankles
+    bos_t::value_type vec[FOOT_ANKLE][LEFT_RIGHT];
+
+    const double FOOT_LENGTH = 0.2;
+    
+    for (size_t lr : {LEFT, RIGHT})
     {
-        v0[i].setZ(0);
-        v0[i] = v0[i].normalize();
-        vec[FOOT][i].setZ(z_ground_);
-        vec[ANKLE][i].setZ(z_ground_);
+        const auto & q_msg = pose_estimates_[lr].orientation;
+        tf2::Quaternion q(q_msg.x, q_msg.y, q_msg.z, q_msg.w);
+        v0[lr] = tf2::quatRotate(q, v0[lr]);
+        const auto & p_msg = pose_estimates_[lr].position;
+        vec[ANKLE][lr].setValue(p_msg.x, p_msg.y, p_msg.z);
+        vec[FOOT][lr] = vec[ANKLE][lr] + v0[lr] * FOOT_LENGTH;
+    }
+
+#endif
+
+    for (size_t lr : {LEFT, RIGHT})
+    {
+        v0[lr].setZ(0);
+        v0[lr] = v0[lr].normalize();
+        vec[FOOT][lr].setZ(z_ground_);
+        vec[ANKLE][lr].setZ(z_ground_);
+        footprints_[lr].clear();
     }
 
     /*!
@@ -316,13 +364,20 @@ bos_t GaitAnalyzer::getBoS()
         \param phi: the angular coordinate
     */
     auto addToBoS = [&, this](ankle_foot_t ankle_or_foot, double rho, double phi){
-        if (touches_ground_[ankle_or_foot][LEFT])
-            bos_points.push_back(vec[ankle_or_foot][LEFT] + (v0[LEFT] * rho).rotate({0, 0, 1}, phi));
-        if (touches_ground_[ankle_or_foot][RIGHT])
-            bos_points.push_back(vec[ankle_or_foot][RIGHT] + (v0[RIGHT] * rho).rotate({0, 0, 1}, -phi));
+        tf2::Vector3 pt[LEFT_RIGHT] = {
+            vec[ankle_or_foot][LEFT] + (v0[LEFT] * rho).rotate({0, 0, 1}, phi),
+            vec[ankle_or_foot][RIGHT] + (v0[RIGHT] * rho).rotate({0, 0, 1}, -phi)};
+        
+        for (size_t lr : {LEFT, RIGHT}) 
+        {
+            footprints_[lr].push_back(pt[lr]);
+            if (touches_ground_[ankle_or_foot][lr])
+                bos_points.push_back(pt[lr]);
+        }
     };
 
 
+#if 0
     // Oxford Foot Model 
     // https://www.c-motion.com/v3dwiki/index.php/Tutorial:_Oxford_Foot_Model
 
@@ -335,6 +390,18 @@ bos_t GaitAnalyzer::getBoS()
     addToBoS(ANKLE, 0.01, 2.5 * M_PI_4);     // L/RLMA: Lateral malleolus
     addToBoS(ANKLE, 0.02, 3 * M_PI_4);     // L/RLMA: Lateral malleolus
     addToBoS(ANKLE, 0.02, 5 * M_PI_4);     // L/RMMA: Medial malleolus
+#else
+    addToBoS(FOOT, 0.05, -M_PI_4);
+    addToBoS(FOOT, 0.03, 0.0); 
+    addToBoS(FOOT, 0.03, M_PI_2);
+    addToBoS(FOOT, 0.03, 6 * M_PI_4);
+
+    addToBoS(ANKLE, 0.01, 5.5 * M_PI_4);
+    addToBoS(ANKLE, 0.01, 2.5 * M_PI_4);
+    addToBoS(ANKLE, 0.02, 3 * M_PI_4); 
+    addToBoS(ANKLE, 0.02, 5 * M_PI_4);
+#endif
+
 
     if (bos_points.size() < 3)
         return res;
@@ -384,7 +451,13 @@ mos_t GaitAnalyzer::getMoS(const bos_t & bos_points, const com_t & xcom)
     if (bos_points.size() < 3)
     {
         ROS_WARN_THROTTLE(10, "Ill-formed BoS polygon.");
-        return {};
+        res.values[mos_t::mos_shortest].pt = pxcom;
+        res.values[mos_t::mos_shortest].dist = 0.0;
+        res.values[mos_t::mos_anteroposterior].pt = pxcom;
+        res.values[mos_t::mos_anteroposterior].dist = 0.0;
+        res.values[mos_t::mos_mediolateral].pt = pxcom;
+        res.values[mos_t::mos_mediolateral].dist = 0.0;
+        return res;
     }
 
     // Part 1: Iterate through each line segment (*it1, *it2) in the bos polygon
