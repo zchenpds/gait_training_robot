@@ -113,10 +113,13 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     // Process the closest body
     if (it_pelvis_closest != msg.markers.end())
     {
+        // Get the current timestamp of the skeleton message
+        const auto & stamp_skeleton_curr = it_pelvis_closest->header.stamp;
+
         try
         {
             // Find the tf from global frame to depth_camera_link frame
-            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(params_.global_frame, "depth_camera_link", ros::Time(0));
+            geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(params_.global_frame, "depth_camera_link", stamp_skeleton_curr);
             fromMsg(tf_msg.transform, tf_depth_to_global_);
             
         }
@@ -152,7 +155,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 
         // Calculate CoMv (projected)
         comv_t comv = getCoMv(com, it_pelvis_closest->header.stamp);
-        static double omega0 = sqrt(9.8 / (com.getZ() - z_ground_));
+        static double omega0 = sqrt(9.8 / (0.9));
         com_t xcom = com + comv / omega0;
 
         geometry_msgs::PointStamped msg_xcom;
