@@ -11,7 +11,7 @@
   <!-- azure kinect description -->
   <xacro:include filename="$(find gait_training_robot)/urdf/azure_kinect.urdf.xacro" />
   <xacro:azure_kinect_xacro name="rear_kinect" parent="camera_mount_top">
-	  <origin rpy="0 -0.0225 3.1416" xyz="-0.07 0 0.01"/>
+	  <origin rpy="0 -0.0225 3.1416" xyz="-0.028 0.023 0.01"/>
   </xacro:azure_kinect_xacro>
 
 	<!-- kinect v1 description -->

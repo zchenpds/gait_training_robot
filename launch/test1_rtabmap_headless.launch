@@ -40,7 +40,7 @@
   <!-- Specify the where azure kinect is positioned on the robot.
     This is needed even if the azure kinect driver is included in the calling launch file -->
   <node name="tf_broadcaster_azure_kinect" pkg="tf" type="static_transform_publisher"  
-    args="-0.07 0 0.01 3.1416 0 0 camera_mount_top camera_base 100" />
+    args="-0.028 0.023 3.1416 0 0 camera_mount_top camera_base 100" />
 
   <!-- Record trajectory
   <node name="trajectory_server" pkg="hector_trajectory_server" type="hector_trajectory_server">
