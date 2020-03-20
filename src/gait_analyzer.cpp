@@ -42,8 +42,8 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
     sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
 
-    sub_pose_estimates_[LEFT].subscribe(nh_, "/sport_sole_kalman_filter/pose_estimate_l", 1);
-    sub_pose_estimates_[RIGHT].subscribe(nh_, "/sport_sole_kalman_filter/pose_estimate_r", 1);
+    sub_pose_estimates_[LEFT].subscribe(nh_, "/kalman_filter/pose_estimate_l", 1);
+    sub_pose_estimates_[RIGHT].subscribe(nh_, "/kalman_filter/pose_estimate_r", 1);
     for (size_t lr: {LEFT, RIGHT}) {        
         cache_pose_estimates_[lr].connectInput(sub_pose_estimates_[lr]);
         cache_pose_estimates_[lr].setCacheSize(100u);

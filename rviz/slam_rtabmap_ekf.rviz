@@ -498,7 +498,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /sport_sole_kalman_filter/estimates
+      Marker Topic: /kalman_filter/estimates
       Name: MarkerArray
       Namespaces:
         {}
@@ -531,7 +531,7 @@ Visualization Manager:
       Shaft Length: 0.5
       Shaft Radius: 0.029999999329447746
       Shape: Axes
-      Topic: /sport_sole_kalman_filter/pose_estimate_l
+      Topic: /kalman_filter/pose_estimate_l
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -561,7 +561,7 @@ Visualization Manager:
       Shaft Length: 0.5
       Shaft Radius: 0.029999999329447746
       Shape: Axes
-      Topic: /sport_sole_kalman_filter/pose_estimate_r
+      Topic: /kalman_filter/pose_estimate_r
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -591,7 +591,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05000000074505806
       Shape: Axes
-      Topic: /sport_sole_kalman_filter/pose_measurement_l
+      Topic: /kalman_filter/pose_measurement_l
       Unreliable: false
       Value: false
     - Alpha: 1
@@ -621,7 +621,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05000000074505806
       Shape: Axes
-      Topic: /sport_sole_kalman_filter/pose_measurement_r
+      Topic: /kalman_filter/pose_measurement_r
       Unreliable: false
       Value: false
     - Class: rviz/MarkerArray

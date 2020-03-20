@@ -173,7 +173,7 @@ add_library(global_planner_lib src/global_planner.cpp)
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/gait_training_robot_node.cpp)
-add_executable(sport_sole_kalman_filter src/sport_sole_kalman_filter.cpp)
+add_executable(kalman_filter src/kalman_filter.cpp)
 add_executable(goal_generator src/goal_generator.cpp)
 add_executable(distance_controller src/distance_controller.cpp)
 add_executable(gait_analyzer src/gait_analyzer.cpp)
@@ -187,13 +187,13 @@ add_executable(gait_analyzer src/gait_analyzer.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(sport_sole_kalman_filter
+add_dependencies(kalman_filter
   gait_training_robot_generate_messages_cpp 
   sport_sole_generate_messages_cpp
 )
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(sport_sole_kalman_filter
+target_link_libraries(kalman_filter
   ${catkin_LIBRARIES}
 )
 target_link_libraries(global_planner_lib

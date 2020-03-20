@@ -49,8 +49,8 @@
   <!-- static_test: is the robot static? -->
   <arg name="static_test" default="false" />
 
-  <!-- ++++ NODE sport_sole_kalman_filter ++++ -->
-  <node name="sport_sole_kalman_filter" pkg="gait_training_robot" type="sport_sole_kalman_filter" output="screen" >
+  <!-- ++++ NODE kalman_filter ++++ -->
+  <node name="kalman_filter" pkg="gait_training_robot" type="kalman_filter" output="screen" >
     <param name="sampling_period" value="$(arg sampling_period)" />
     <param name="system_noise_p" value="$(arg system_noise_p)" />
     <param name="system_noise_v" value="$(arg system_noise_v)" />
@@ -65,7 +65,6 @@
     <param name="belt_speed" value="$(arg belt_speed)" />
   </node> -->
 
-  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/sport_sole_kalman_filter.rviz" required="true" /> -->
   <param name="robot_description2" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf.rviz" output="screen" unless="$(arg enable_gait_analyzer)" />
 
@@ -138,8 +137,10 @@
                 /sport_sole_publisher/sport_sole_markers /sport_sole_publisher/sport_sole
                 /body_tracking_data /tf /tf_static
                 /joint_states
-                /sport_sole_kalman_filter/pose_estimate_l
-                /sport_sole_kalman_filter/pose_estimate_r" 
+                /kalman_filter/pose_estimate_l
+                /kalman_filter/pose_estimate_r
+                /kalman_filter/pose_measurement_l
+                /kalman_filter/pose_measurement_r" 
           if="$(arg record_bag)"/> 
     
   </group>
