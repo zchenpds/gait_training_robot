@@ -494,14 +494,6 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /kalman_filter/estimates
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
     - Alpha: 1
       Axes Length: 0.20000000298023224
       Axes Radius: 0.10000000149011612
@@ -641,31 +633,31 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/PointStamped
       Color: 204; 41; 204
-      Enabled: true
-      History Length: 1
+      Enabled: false
+      History Length: 100
       Name: PointStamped
-      Radius: 0.10000000149011612
-      Topic: /gait_analyzer/pcom
+      Radius: 0.05000000074505806
+      Topic: /gait_analyzer/xcom_estimate
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Class: rviz/PointStamped
       Color: 245; 121; 0
       Enabled: true
-      History Length: 1
+      History Length: 100
       Name: PointStamped
-      Radius: 0.10000000149011612
-      Topic: /gait_analyzer/xcom
+      Radius: 0.05000000074505806
+      Topic: /gait_analyzer/xcom_measurement
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /gait_analyzer/mos
       Name: MarkerArray
       Namespaces:
-        gait_analyzer: true
+        {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Class: rviz/Polygon
       Color: 245; 121; 0
@@ -709,7 +701,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: -3.140000104904175
+      Angle: 3.140000104904175
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -719,11 +711,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 135.5234832763672
+      Scale: 130.71221923828125
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: 0.042319271713495255
-      Y: -1.1393089294433594
+      X: -0.7757525444030762
+      Y: -1.2050830125808716
     Saved: ~
 Window Geometry:
   Displays:

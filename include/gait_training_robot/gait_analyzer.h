@@ -10,6 +10,7 @@
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
@@ -23,6 +24,11 @@
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
 
+#include "COMKF/SystemModel.hpp"
+#include "COMKF/PVMeasurementModel.hpp"
+
+typedef float T;
+#include "kalman_filter_common.h"
 // The format of these list entries is :
 //
 // LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val)
@@ -34,9 +40,65 @@
 //
 // Example:
 // LIST_ENTRY(sensor_sn, "The serial number of the sensor this node should connect with", std::string, std::string(""))
-#define ROS_PARAM_LIST \
+#define GA_PARAM_LIST \
   LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0) \
   LIST_ENTRY(global_frame, "The global frame ID, e.g. map or odom.", std::string, std::string("odom")) \
+
+
+#define COMKF_PARAM_LIST \
+  LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", float, 0.01f)    \
+  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", float, 0.0f)          \
+  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", float, 0.09f)        \
+  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", float, 0.06f)                  \
+  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", float, 0.1f)                  \
+
+
+namespace com_kf {
+  using State = KalmanExamples::COMKF::State<T>;
+  using Control = KalmanExamples::COMKF::Control<T>;
+  using SystemModel = KalmanExamples::COMKF::SystemModel<T>;
+
+  using Measurement = KalmanExamples::COMKF::PVMeasurement<T>;
+  using MeasurementModel = KalmanExamples::COMKF::PVMeasurementModel<T>;
+
+  using ExtendedKalmanFilter = Kalman::ExtendedKalmanFilter<State>;
+
+  struct KalmanFilterParams 
+  {
+    // Print the value of all parameters
+    void print();
+
+    // Parameters
+    #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) param_type param_variable;
+      COMKF_PARAM_LIST
+    #undef LIST_ENTRY
+  };
+
+  struct KalmanFilter: public ExtendedKalmanFilter
+  {
+    KalmanFilter();
+    
+    /**
+     * @brief Predict the state with customized step length
+     * 
+     * @param u The control input vector.
+     * @param dt The step length. Will be ignored if negative.
+     */
+    const State& predict(const Control & u, T dt = T(-1.0));
+    const State& update(const Measurement& zpv);
+
+    // Set covariance matrices
+    void setSystemCov(T sigma_p, T sigma_v, T sampling_period);
+    void setMeasurementCov(T sigma_p, T sigma_v);
+
+
+    static SystemModel sys;
+    static MeasurementModel mm;
+  };
+}
+
+enum left_right_t {LEFT = 0, RIGHT, LEFT_RIGHT};
+enum ankle_foot_t {FOOT = 0, ANKLE, FOOT_ANKLE};
 
 
 struct GaitAnalyzerParams 
@@ -46,7 +108,7 @@ struct GaitAnalyzerParams
 
   // Parameters
   #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) param_type param_variable;
-    ROS_PARAM_LIST
+    GA_PARAM_LIST
   #undef LIST_ENTRY
 };
 
@@ -75,8 +137,8 @@ public:
 // Define the bone list based on the documentation
 const std::array<BodySegment, 25> vec_segments =
 {
-  BodySegment(std::make_pair(K4ABT_JOINT_SPINE_CHEST, K4ABT_JOINT_SPINE_NAVAL), 0.139, 0.44), // Abdomen (T12-L1/L4-L5)
-  BodySegment(std::make_pair(K4ABT_JOINT_SPINE_NAVAL, K4ABT_JOINT_PELVIS), 0.142, 0.1), // Pelvis (L4-L5/greater trochanter)
+  BodySegment(std::make_pair(K4ABT_JOINT_SPINE_CHEST, K4ABT_JOINT_SPINE_NAVEL), 0.139, 0.44), // Abdomen (T12-L1/L4-L5)
+  BodySegment(std::make_pair(K4ABT_JOINT_SPINE_NAVEL, K4ABT_JOINT_PELVIS), 0.142, 0.1), // Pelvis (L4-L5/greater trochanter)
   BodySegment(std::make_pair(K4ABT_JOINT_SPINE_CHEST, K4ABT_JOINT_NECK), 0.216, 0.18), // Thorax (C7-T1/T12-L1), reverse
   BodySegment(std::make_pair(K4ABT_JOINT_NECK, K4ABT_JOINT_HEAD), 0.081, 1.4), // Head and neck
   BodySegment(std::make_pair(K4ABT_JOINT_HEAD, K4ABT_JOINT_NOSE), 0.0, 0.0),
@@ -105,6 +167,8 @@ const std::array<BodySegment, 25> vec_segments =
 };
 
 typedef std::array<tf2::Vector3,K4ABT_JOINT_COUNT> vec_joints_t;
+typedef std::array<std::array<tf2::Vector3, LEFT_RIGHT>, FOOT_ANKLE> vec_refpoints_t;
+typedef std::array<tf2::Vector3, LEFT_RIGHT> vec_refvecs_t;
 typedef tf2::Vector3 com_t;
 typedef tf2::Vector3 comv_t;
 typedef std::vector<tf2::Vector3> bos_t;
@@ -128,6 +192,22 @@ struct mos_t
   } values[mos_count];
 };
 
+typedef tf2::Vector3 cop_t;
+
+// Regex to be replaced with commas: (?<![{\n )+])   (?=[ -])
+namespace sport_sole {
+  constexpr size_t NUM_PSENSOR = 8;
+  constexpr size_t NUM_2XPSENSOR = NUM_PSENSOR * 2;
+  std::array<double, NUM_2XPSENSOR> 
+    Rho = {0.2106, 0.1996, 0.1648, 0.1562, 0.1497, 0.0174, 0.0128, 0.0865, 0.2106, 0.1996, 0.1648, 0.1562, 0.1497, 0.0174, 0.0128, 0.0865}, 
+    Theta = {-0.1064, 0.0662,-0.1415, 0.0465, 0.2570,-1.1735, 1.0175, 0.2395, 0.1064,-0.0662, 0.1415,-0.0465,-0.2570, 1.1735,-1.0175,-0.2395};
+
+  cop_t getCoP(
+    const SportSole::_pressures_type & pressures, 
+    const vec_refpoints_t & vec_refpoints, 
+    const vec_refvecs_t & vec_refvecs);
+}
+
 class GaitAnalyzer
 {
 public:
@@ -135,16 +215,14 @@ public:
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void sportSoleCB(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
-  com_t getCoM();
-  comv_t getCoMv(const com_t & com, ros::Time ts);
-  bos_t getBoS();
-  mos_t getMoS(const bos_t & bos, const com_t & xcom);
+  void updateCoMMeasurement(const ros::Time & stamp);
+  void updateCoMEstimate(const ros::Time & stamp, const com_kf::State & x);
+  void updateBoS();
+  void updateMoS(const com_t & xcom);
 
   void updateGaitPhase();
 
 private:
-  enum left_right_t {LEFT = 0, RIGHT, LEFT_RIGHT};
-  enum ankle_foot_t {FOOT = 0, ANKLE, FOOT_ANKLE};
 
   // Define the possible models for calculating CoM
   enum com_model_t {
@@ -165,6 +243,9 @@ private:
 
   // Internal state
   vec_joints_t vec_joints_;
+  vec_refpoints_t vec_refpoints_;
+  vec_refvecs_t vec_refvecs_;
+  sport_sole::SportSole::_pressures_type pressures_;
 
 
   // The z coordinate of the ground
@@ -173,37 +254,55 @@ private:
   // Node handles
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
-  GaitAnalyzerParams params_;
+  GaitAnalyzerParams ga_params_;
+  ros::NodeHandle comkf_nh_;
+  com_kf::KalmanFilterParams comkf_params_;
+  
+  //geometry_msgs::Pose pose_estimates_[LEFT_RIGHT];
 
+  // Subscribers
   ros::Subscriber sub_skeletons_;
-  message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> sub_pose_estimates_[LEFT_RIGHT];
-  message_filters::Cache<geometry_msgs::PoseWithCovarianceStamped> cache_pose_estimates_[LEFT_RIGHT];
-  geometry_msgs::Pose pose_estimates_[LEFT_RIGHT];
-  bos_t footprints_[LEFT_RIGHT];
   message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
 
-  ros::Publisher pub_pcom_; // Center of mass projected onto the ground
-  ros::Publisher pub_xcom_; // Extrapolated center of mass projected onto the ground  
+  // Publishers
+  ros::Time stamp_pcom_measurement_;
+  com_t pcom_pos_measurement_;
+  ros::Publisher pub_pcom_pos_measurement_; // Center of mass projected onto the ground
+  comv_t pcom_vel_measurement_;
+  ros::Publisher pub_pcom_vel_measurement_; // Center of mass velocity projected onto the ground
+  com_t xcom_measurement_;
+  ros::Publisher pub_xcom_measurement_; // Extrapolated center of mass calculated from measurements 
+  com_t pcom_pos_estimate_;
+  ros::Time stamp_pcom_estimate_;
+  ros::Publisher pub_pcom_pos_estimate_; // Center of mass projected onto the ground as estimated by the KF
+  comv_t pcom_vel_estimate_;
+  ros::Publisher pub_pcom_vel_estimate_; // Center of mass projected onto the ground as estimated by the KF
+  com_t xcom_estimate_;
+  ros::Publisher pub_xcom_estimate_; // Extrapolated center of mass calculated from measurements 
+
+  bos_t footprints_[LEFT_RIGHT];
   ros::Publisher pub_footprints_[LEFT_RIGHT];
+  bos_t bos_points_;
   ros::Publisher pub_bos_; // Base of support polygon
+  mos_t mos_;
   ros::Publisher pub_mos_; // Margin of stability
   ros::Publisher pub_mos_values_[3]; // Margin of stability
 
   ros::Publisher pub_ground_clearance_left_; // ground clearance
   ros::Publisher pub_ground_clearance_right_; // ground clearance
   
-
+  // tf
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   tf2::Transform tf_depth_to_global_;
 
-  Differentiator comv_differentiator_x_, comv_differentiator_y_;
-
-  // Params
-  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) param_type param_variable;
-    ROS_PARAM_LIST
-  #undef LIST_ENTRY
+  // comkf
+  com_kf::KalmanFilter comkf_;
+  bool comkf_initialized_;
+  ros::Time stamp_sport_sole_prev_;
+  ros::Time stamp_skeleton_prev_;
+  ros::Time stamp_base_;
 
   // Subject selection
   int32_t sub_id_;
@@ -211,6 +310,10 @@ private:
 private:
   // Helper method for converting a tf2::Vector3 object to a geometry_msgs::Point32 object
   geometry_msgs::Point32 vector3ToPoint32(const tf2::Vector3 & vec);
+  geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const com_t & vec);
+  geometry_msgs::Vector3Stamped constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec);
+  geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp);
+  visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom);
 };
 
 
