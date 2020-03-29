@@ -16,7 +16,6 @@
   <arg name="belt_speed" default="0.0" /> 
 
   <!-- Arguments for sport_sole_publisher -->
-  <arg name="session_name" default="abc" />
   <arg name="watch_sport_sole" default="true" />
 
   <!-- Arguments for goal_generator -->
@@ -48,9 +47,7 @@
   <group unless="$(arg play_bag)">
 
     <!-- sport_sole_publisher -->
-    <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" >
-      <param name="session_name" value="$(arg session_name)" type="str"/>
-    </node>
+    <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" />
     <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sport_sole)/rviz/accel_orient.rviz" if="$(arg watch_sport_sole)"/> -->
 
     <!-- If (static_test==true) -->
