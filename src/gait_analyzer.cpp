@@ -182,6 +182,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   pub_pcom_pos_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_estimate", 1);
   pub_pcom_vel_estimate_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("pcom_vel_estimate", 1);
   pub_xcom_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_estimate", 1);
+  pub_cop_ = private_nh_.advertise<geometry_msgs::PointStamped>("cop", 1);
   
   pub_bos_ = private_nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
   pub_mos_ = private_nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
@@ -394,7 +395,8 @@ void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
   pressures_ = msg.pressures;
 
   // Calculate CoP
-  cop_t cop = sport_sole::getCoP(pressures_, vec_refpoints_, vec_refvecs_);
+  auto & cop = cop_;
+  cop = sport_sole::getCoP(pressures_, vec_refpoints_, vec_refvecs_);
   com_kf::Control u;
   u.copx() = cop.getX();
   u.copy() = cop.getY();
@@ -416,7 +418,7 @@ void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
     comkf_.predict(u, dt);
     stamp_sport_sole_prev_ = stamp_sport_sole_curr;
   }
-
+  pub_cop_.publish(constructPointStampedMessage(stamp_sport_sole_curr, cop));
 }
 
 void GaitAnalyzer::updateGaitState(const uint8_t& gait_state)
@@ -772,7 +774,7 @@ geometry_msgs::Point32 GaitAnalyzer::vector3ToPoint32(const tf2::Vector3 & vec)
   return res;
 }
 
-geometry_msgs::PointStamped GaitAnalyzer::constructPointStampedMessage(const ros::Time & stamp, const com_t & vec) 
+geometry_msgs::PointStamped GaitAnalyzer::constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec) 
 {
   geometry_msgs::PointStamped msg;
   msg.header.frame_id = ga_params_.global_frame;

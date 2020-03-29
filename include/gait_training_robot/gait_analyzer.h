@@ -293,6 +293,9 @@ private:
   com_t xcom_estimate_;
   ros::Publisher pub_xcom_estimate_; // Extrapolated center of mass calculated from measurements 
 
+  cop_t cop_;
+  ros::Publisher pub_cop_; // Center of Pressure
+
   bos_t footprints_[LEFT_RIGHT];
   ros::Publisher pub_footprints_[LEFT_RIGHT];
   bos_t bos_points_;
@@ -322,7 +325,7 @@ private:
 private:
   // Helper method for converting a tf2::Vector3 object to a geometry_msgs::Point32 object
   geometry_msgs::Point32 vector3ToPoint32(const tf2::Vector3 & vec);
-  geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const com_t & vec);
+  geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec);
   geometry_msgs::Vector3Stamped constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec);
   geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp);
   visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom);
