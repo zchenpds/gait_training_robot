@@ -97,9 +97,43 @@ cop_t sport_sole::getCoP(
   return cop;
 }
 
+
+void sport_sole::GaitPhaseFSM::update(const SportSole::_pressures_type & pressures)
+{
+  for (size_t lr : {LEFT, RIGHT}) {
+    size_t i0 = (lr==LEFT ? 0 : 8);
+    double p_hind_sum = pressures[i0 + 5] + pressures[i0 + 6]; // 6~7
+    double p_fore_sum = pressures[i0 + 0] + pressures[i0 + 1] + pressures[i0 + 2] + pressures[i0 + 3] + pressures[i0 + 4]; // 1~5
+
+    auto & gait_phase = gait_phases_[lr];
+    switch (gait_phase) {
+      case GaitPhase::Swing:
+        if (p_hind_sum > p_threshold_) 
+          gait_phase = GaitPhase::Stance1;
+        break;
+      case GaitPhase::Stance1:
+        if (p_fore_sum > p_threshold_) 
+          gait_phase = GaitPhase::Stance2;
+        break;
+      case GaitPhase::Stance2:
+        if (p_hind_sum <= p_threshold_) 
+          gait_phase = GaitPhase::Stance3;
+        break;
+      case GaitPhase::Stance3:
+        if (p_fore_sum <= p_threshold_) 
+          gait_phase = GaitPhase::Swing;
+        break;
+    }
+  }
+}
+
+uint8_t sport_sole::GaitPhaseFSM::getGaitPhase()
+{
+  return static_cast<uint8_t>(gait_phases_[LEFT]) << 2 | static_cast<uint8_t>(gait_phases_[RIGHT]);
+}
+
 GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   com_model_(COM_MODEL_14_SEGMENT), // COM_MODEL_PELVIS, COM_MODEL_14_SEGMENT
-  gait_phase_{GAIT_PHASE_UNKNOWN, GAIT_PHASE_UNKNOWN},
   touches_ground_{
     {true, true}, // Left ankle, right ankle
     {true, true} // Left foot, right foot
@@ -280,7 +314,9 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     }
     else
     {
-      updateGaitState(msg_sport_sole_ptr->gait_state);
+      gait_phase_fsm_.update(msg_sport_sole_ptr->pressures);
+      updateGaitState(gait_phase_fsm_.getGaitPhase());
+      // updateGaitState(msg_sport_sole_ptr->gait_state);
       
       com_kf::Measurement zpv;
       zpv.px() = pcom_pos_measurement_.getX();
@@ -355,7 +391,6 @@ void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
 {
   const auto & stamp_sport_sole_curr = msg.header.stamp;
 
-  // updateGaitState(msg.gait_state);
   pressures_ = msg.pressures;
 
   // Calculate CoP
@@ -715,22 +750,6 @@ void GaitAnalyzer::updateGaitPhase()
     vec_joints_[K4ABT_JOINT_FOOT_RIGHT].getZ() - z_ground_
   };
 
-  for (int i = 0; i < 2; i++)
-  {
-    const double GROUND_CLEARANCE_THREASHOLD = .03;
-    if (ground_clearance[i] < GROUND_CLEARANCE_THREASHOLD)
-    {
-      gait_phase_[i] = GAIT_PHASE_FOOT_FLAT;
-      touches_ground_[FOOT][i] = true;
-      touches_ground_[ANKLE][i] = true;
-    }
-    else
-    {
-      gait_phase_[i] = GAIT_PHASE_SWING;
-      touches_ground_[FOOT][i] = false;
-      touches_ground_[ANKLE][i] = false;
-    }
-  }
   //ROS_INFO_STREAM("clearance: " << ground_clearance[0] << ", " << ground_clearance[1]);
   std_msgs::Float64 msg[2];
   msg[0].data = ground_clearance[0];

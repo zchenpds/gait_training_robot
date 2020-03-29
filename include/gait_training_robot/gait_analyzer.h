@@ -206,6 +206,26 @@ namespace sport_sole {
     const SportSole::_pressures_type & pressures, 
     const vec_refpoints_t & vec_refpoints, 
     const vec_refvecs_t & vec_refvecs);
+
+  class GaitPhaseFSM {
+    enum class GaitPhase : uint8_t {
+      Swing = 0b00, // Swing
+      Stance1 = 0b10, // Heel contact
+      Stance2 = 0b11, // Foot flat
+      Stance3 = 0b01 // Heel off
+    };
+
+    GaitPhase gait_phases_[LEFT_RIGHT];
+    const double p_threshold_ = 100.0;
+    
+  public:
+    GaitPhaseFSM(): 
+      gait_phases_{GaitPhase::Stance2, GaitPhase::Stance2}
+    {}
+      
+    void update(const SportSole::_pressures_type & pressures);
+    uint8_t getGaitPhase();
+  };
 }
 
 class GaitAnalyzer
@@ -230,15 +250,7 @@ private:
     COM_MODEL_14_SEGMENT
   } com_model_;
 
-  // Define the phases in a gait cycle
-  enum gait_phase_t {
-    GAIT_PHASE_UNKNOWN = 0,
-    GAIT_PHASE_HEEL_STRIKE,
-    GAIT_PHASE_FOOT_FLAT,
-    GAIT_PHASE_HEEL_OFF,
-    GAIT_PHASE_SWING
-  } gait_phase_[LEFT_RIGHT];
-
+  sport_sole::GaitPhaseFSM gait_phase_fsm_;
   bool touches_ground_[FOOT_ANKLE][LEFT_RIGHT];
 
   // Internal state
