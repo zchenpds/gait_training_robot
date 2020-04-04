@@ -176,13 +176,14 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
     pub_footprints_[lr] = private_nh_.advertise<geometry_msgs::PolygonStamped>("footprint" + str_lr, 1);
   }
 
+  const size_t buff_size = 10;
   pub_pcom_pos_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_measurement", 1);
   pub_pcom_vel_measurement_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("pcom_vel_measurement", 1);
-  pub_xcom_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_measurement", 1);
+  pub_xcom_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_measurement", buff_size);
   pub_pcom_pos_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_estimate", 1);
   pub_pcom_vel_estimate_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("pcom_vel_estimate", 1);
-  pub_xcom_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_estimate", 1);
-  pub_cop_ = private_nh_.advertise<geometry_msgs::PointStamped>("cop", 1);
+  pub_xcom_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_estimate", buff_size);
+  pub_cop_ = private_nh_.advertise<geometry_msgs::PointStamped>("cop", buff_size);
   
   pub_bos_ = private_nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
   pub_mos_ = private_nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
@@ -556,11 +557,16 @@ void GaitAnalyzer::updateBoS()
       vec[ankle_or_foot][LEFT] + (v0[LEFT] * rho).rotate({0, 0, 1}, phi),
       vec[ankle_or_foot][RIGHT] + (v0[RIGHT] * rho).rotate({0, 0, 1}, -phi)};
     
+    tf2::Vector3 pt2[LEFT_RIGHT] = {
+      vec[ankle_or_foot][LEFT] + (v0[LEFT] * rho*0.8).rotate({0, 0, 1}, phi),
+      vec[ankle_or_foot][RIGHT] + (v0[RIGHT] * rho*0.8).rotate({0, 0, 1}, -phi)};
+
     for (size_t lr : {LEFT, RIGHT}) 
     {
-      footprints_[lr].push_back(pt[lr]);
-      if (touches_ground_[ankle_or_foot][lr])
+      if (touches_ground_[ankle_or_foot][lr]) {
+        footprints_[lr].push_back(pt2[lr]);
         bos_points.push_back(pt[lr]);
+      }
     }
   };
 
