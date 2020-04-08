@@ -98,7 +98,7 @@
   <group if="$(arg static_test)">
     <node name="rosbag_record_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/data 
-                /sport_sole_publisher/sport_sole_markers /sport_sole_publisher/sport_sole
+                /sport_sole_publisher/sport_sole
                 /body_tracking_data /tf /tf_static" 
           if="$(arg record_bag)"/>
   </group>
@@ -106,13 +106,9 @@
   <group unless="$(arg static_test)">
     <node name="rosbag_record_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/data 
-                /sport_sole_publisher/sport_sole_markers /sport_sole_publisher/sport_sole
+                /sport_sole_publisher/sport_sole
                 /body_tracking_data /tf /tf_static
-                /joint_states
-                /kalman_filter/pose_estimate_l
-                /kalman_filter/pose_estimate_r
-                /kalman_filter/pose_measurement_l
-                /kalman_filter/pose_measurement_r" 
+                /joint_states"
           if="$(arg record_bag)"/> 
     
   </group>
@@ -125,10 +121,7 @@
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" />
     <node name="rosbag_record_ga_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/gait_analytics/gait_analytics 
-                /gait_analyzer/pcom 
-                /gait_analyzer/xcom
-                /gait_analyzer/mos
-                /gait_analyzer/bos" 
+                --regex '/gait_analyzer/.*'" 
           if="$(arg record_gait_analytics)"/> 
   </group>
 

@@ -293,6 +293,9 @@ private:
   com_t xcom_estimate_;
   ros::Publisher pub_xcom_estimate_; // Extrapolated center of mass calculated from measurements 
 
+  ros::Publisher pub_ankle_pose_measurements_[LEFT_RIGHT];
+  ros::Publisher pub_foot_pose_measurements_[LEFT_RIGHT];
+
   cop_t cop_;
   ros::Publisher pub_cop_; // Center of Pressure
 

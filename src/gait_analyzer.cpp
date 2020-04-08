@@ -183,6 +183,14 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   pub_pcom_pos_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_estimate", 1);
   pub_pcom_vel_estimate_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("pcom_vel_estimate", 1);
   pub_xcom_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_estimate", buff_size);
+
+  for (auto lr: {LEFT, RIGHT})
+  {
+    auto str_lr = std::string(!lr?"_l": "_r");
+    pub_ankle_pose_measurements_[lr] = private_nh_.advertise<geometry_msgs::PointStamped>("ankle_pose_measurement" + str_lr, 1);
+    pub_foot_pose_measurements_[lr] = private_nh_.advertise<geometry_msgs::PointStamped>("foot_pose_measurement" + str_lr, 1);
+  }
+
   pub_cop_ = private_nh_.advertise<geometry_msgs::PointStamped>("cop", buff_size);
   
   pub_bos_ = private_nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
@@ -256,6 +264,8 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     vec_refvecs_[RIGHT] = vec_joints_[K4ABT_JOINT_FOOT_RIGHT] - vec_joints_[K4ABT_JOINT_ANKLE_RIGHT];
     for (size_t lr : {LEFT, RIGHT})
     {
+      pub_ankle_pose_measurements_[lr].publish(constructPointStampedMessage(stamp_skeleton_curr, vec_refpoints_[ANKLE][lr]));
+      pub_foot_pose_measurements_[lr].publish(constructPointStampedMessage(stamp_skeleton_curr, vec_refpoints_[FOOT][lr]));
       vec_refpoints_[FOOT][lr].setZ(z_ground_);
       vec_refpoints_[ANKLE][lr].setZ(z_ground_);
       vec_refvecs_[lr].setZ(0);
