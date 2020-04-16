@@ -177,6 +177,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   }
 
   const size_t buff_size = 10;
+  pub_gait_state_ = private_nh_.advertise<std_msgs::UInt8>("gait_state", buff_size);
   pub_pcom_pos_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_measurement", 1);
   pub_pcom_vel_measurement_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("pcom_vel_measurement", 1);
   pub_xcom_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_measurement", buff_size);
@@ -196,8 +197,10 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   pub_bos_ = private_nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
   pub_mos_ = private_nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
   for (int i = 0; i < mos_t::mos_count; ++i)
-    pub_mos_values_[i] = private_nh_.advertise<std_msgs::Float64>("mos_values" + std::to_string(i), 1);
-
+  {
+    pub_mos_value_measurements_[i] = private_nh_.advertise<std_msgs::Float64>("mos_value_measurement" + std::to_string(i), 1);
+    pub_mos_value_estimates_[i] = private_nh_.advertise<std_msgs::Float64>("mos_value_estimate" + std::to_string(i), 1);
+  }
   pub_ground_clearance_left_ = private_nh_.advertise<std_msgs::Float64>("ground_clearance_left", 1);
   pub_ground_clearance_right_ = private_nh_.advertise<std_msgs::Float64>("ground_clearance_right", 1);
 }
@@ -327,9 +330,15 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     else
     {
       gait_phase_fsm_.update(msg_sport_sole_ptr->pressures);
-      updateGaitState(gait_phase_fsm_.getGaitPhase());
+      auto gait_state = gait_phase_fsm_.getGaitPhase();
+      updateGaitState(gait_state);
       // updateGaitState(msg_sport_sole_ptr->gait_state);
       
+      // Publish on /gait_analyzer/gait_state
+      std_msgs::UInt8 msg_gait_state;
+      msg_gait_state.data =  gait_state;
+      pub_gait_state_.publish(msg_gait_state);
+
       com_kf::Measurement zpv;
       zpv.px() = pcom_pos_measurement_.getX();
       zpv.py() = pcom_pos_measurement_.getY();
@@ -346,6 +355,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         x0.vx() = pcom_vel_measurement_.getX();
         x0.vy() = pcom_vel_measurement_.getY();
         comkf_.init(x0);
+        updateCoMEstimate(stamp_skeleton_curr, x0);
         ROS_INFO_STREAM("COMKF state initialized to " << x0.transpose());
         comkf_initialized_ = true;
         stamp_sport_sole_prev_ = stamp_skeleton_curr;
@@ -355,23 +365,12 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         updateCoMEstimate(stamp_skeleton_curr, x);
         ROS_INFO_STREAM_THROTTLE(1, "COMKF state updated to " << x.transpose());
       }
-      
 
-      // Publish estimates
+      // Publish posterior estimates
       pub_pcom_pos_estimate_.publish(constructPointStampedMessage(stamp_skeleton_curr, pcom_pos_estimate_));
       pub_pcom_vel_estimate_.publish(constructVector3StampedMessage(stamp_skeleton_curr, pcom_vel_estimate_));
-      pub_xcom_estimate_.publish(constructPointStampedMessage(stamp_skeleton_curr, xcom_estimate_));   
-    }
-
-    // xcom to be used for mos calculation
-    com_t xcom = {};
-    if (stamp_pcom_estimate_ >= stamp_pcom_measurement_) {
-      xcom = xcom_estimate_;
-    }
-    else {
-      xcom = xcom_measurement_;
-      ROS_WARN_STREAM_THROTTLE(5, "Using measured xcom for calculating MoS. comkf skipped.");
-    }
+      pub_xcom_estimate_.publish(constructPointStampedMessage(stamp_skeleton_curr, xcom_estimate_));
+    }    
 
     // Calculate the base of support polygon, as well as update footprint polygons
     updateBoS();
@@ -384,15 +383,28 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         msg_footprint.polygon.points.push_back(vector3ToPoint32(point));
       pub_footprints_[lr].publish(msg_footprint);
     }
-    
-    // Calculate margin of stability
-    updateMoS(xcom);
-    pub_mos_.publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom));
+
+    // Calculate margin of stability (measurement)
+    updateMoS(xcom_measurement_);
+    // pub_mos_.publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom));
     for (size_t i = 0; i < mos_t::mos_count; i++)
     {
       std_msgs::Float64 msg;
       msg.data = mos_.values[i].dist;
-      pub_mos_values_[i].publish(msg);
+      pub_mos_value_measurements_[i].publish(msg);
+    }
+
+    // Calculate margin of stability (estimate)
+    if (msg_sport_sole_ptr)
+    {
+      updateMoS(xcom_estimate_);
+      // pub_mos_.publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom));
+      for (size_t i = 0; i < mos_t::mos_count; i++)
+      {
+        std_msgs::Float64 msg;
+        msg.data = mos_.values[i].dist;
+        pub_mos_value_estimates_[i].publish(msg);
+      }
     }
 
     stamp_skeleton_prev_ = stamp_skeleton_curr;
@@ -546,12 +558,14 @@ void GaitAnalyzer::updateBoS()
 
 #endif
 
+  constexpr double FOOT_LENGTH = 0.205;
   for (size_t lr : {LEFT, RIGHT})
   {
     v0[lr].setZ(0);
     v0[lr] = v0[lr].normalize();
-    vec[FOOT][lr].setZ(z_ground_);
+    // vec[FOOT][lr].setZ(z_ground_);
     vec[ANKLE][lr].setZ(z_ground_);
+    vec[FOOT][lr] = vec[ANKLE][lr] + v0[lr] * FOOT_LENGTH;
     footprints_[lr].clear();
   }
 

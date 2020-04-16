@@ -6,6 +6,7 @@
 #include <vector>
 #include <list>
 
+#include <std_msgs/UInt8.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PolygonStamped.h>
@@ -278,6 +279,8 @@ private:
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
 
   // Publishers
+  ros::Publisher pub_gait_state_;
+
   ros::Time stamp_pcom_measurement_;
   com_t pcom_pos_measurement_;
   ros::Publisher pub_pcom_pos_measurement_; // Center of mass projected onto the ground
@@ -305,7 +308,8 @@ private:
   ros::Publisher pub_bos_; // Base of support polygon
   mos_t mos_;
   ros::Publisher pub_mos_; // Margin of stability
-  ros::Publisher pub_mos_values_[3]; // Margin of stability
+  ros::Publisher pub_mos_value_measurements_[3]; // Margin of stability
+  ros::Publisher pub_mos_value_estimates_[3]; // Margin of stability
 
   ros::Publisher pub_ground_clearance_left_; // ground clearance
   ros::Publisher pub_ground_clearance_right_; // ground clearance

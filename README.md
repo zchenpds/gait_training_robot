@@ -122,3 +122,7 @@ Follow these steps to set up the relevant ROS parameters
 
 8. Teleoperate using wireless keyboard.
   `roslaunch gait_training_robot robot.launch enable_teleop:=true`
+  
+9. Temporary test
+  `roslaunch gait_training_robot test5_comkf.launch record_bag:=false play_bag:=true bag_name:=vicon/test72.bag enable_gait_analyzer:=true record_gait_analytics:=false`
+  `roslaunch gait_training_robot test5_comkf.launch record_bag:=true play_bag:=true bag_name:=vicon/test72.bag enable_gait_analyzer:=true record_gait_analytics:=true`
