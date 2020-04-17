@@ -69,6 +69,16 @@ This ROS package provides a suite of software that performs gait-training tasks 
 
 ## Checklist for the gait analyzer
 1. Install [Azure Kinect ROS Driver](https://github.com/microsoft/Azure_Kinect_ROS_Driver) from source. [Azure Kinect DK](https://docs.microsoft.com/en-us/azure/Kinect-dk/) sensor faces backward and monitors the body movement of the human following the robot.
+  - For Azure Kinect Body Tracking SDK 1.0.1, running the following commands in a terminal would install both the device driver and the body tracking sdk.
+    ```bash
+    sudo apt install libk4abt1.0-dev
+    sudo apt install k4a-tools=1.3.0
+    ```
+  - Remember to update udev rules by copying [this file](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules) to `/etc/udev/rules.d/`. According to [this](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/docs/usage.md#linux-device-setup).
+    ```bash
+    sudo gedit etc/udev/rules.d/99-k4a.rules
+    # Copy and paste the content from the link above, and save the file.
+    ```
 
 ## Two-machine configuration
 Two-machine configuration consists of a desktop computer, a robot computer and wifi router. Both machines are connected to the router to allow for faster communication. To remotely monitor and control the robot computer from the desktop computer, we need to set up ssh and some ROS parameters. The steps for setting up ssh are as follows:
