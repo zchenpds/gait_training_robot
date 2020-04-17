@@ -18,7 +18,6 @@
 #include <tf2/convert.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_msgs/Float64.h>
-#include <utils/differentiator.h>
 
 #include "sport_sole/SportSole.h"
 
