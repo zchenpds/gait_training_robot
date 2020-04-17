@@ -33,6 +33,10 @@ This ROS package provides a suite of software that performs gait-training tasks 
   ```bash
   sudo apt-get install ros-melodic-rtabmap-ros
   ```
+7. Install gsl
+  ```bash
+  sudo apt install libgsl-dev
+  ```
 
 ## Checklist for the robot
 1. Install libaria from source. Package rosaria is dependent on it.

@@ -51,7 +51,6 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
-  <!-- <depend>rosaria</depend> -->
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>std_msgs</depend>
@@ -62,11 +61,18 @@
   <depend>gmapping</depend>
   <depend>hector_trajectory_server</depend>
   <depend>move_base</depend>
-  <depend>rosaria</depend>
   <depend>geometry_msgs</depend>
-  <depend>sport_sole</depend>
   <depend>actionlib</depend>
   <depend>xacro</depend>
+  <depend>rtabmap_ros</depend>
+
+  <!-- rosdep install gait_training_robot -->
+  <!-- git clone https://github.com/microsoft/Azure_Kinect_ROS_Driver.git -->
+  <depend>azure_kinect_ros_driver</depend>
+  <!-- git clone https://github.com/zchenpds/rosaria.git -->
+  <depend>rosaria</depend>
+  <!-- git clone https://github.com/zchenpds/sport_sole.git -->
+  <depend>sport_sole</depend>
   <!-- git clone -b melodic-devel https://github.com/MoriKen254/timed_roslaunch.git -->
   <depend>timed_roslaunch</depend>
   
