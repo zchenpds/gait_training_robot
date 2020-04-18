@@ -1,0 +1,50 @@
+header: 
+  seq: 1
+  stamp: 
+    secs: 1582876912
+    nsecs: 349488834
+  frame_id: "map"
+pose: 
+  position: 
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  orientation: 
+    x: 0.0
+    y: 0.0
+    z: -0.00212733636341
+    w: 0.999997737217
+---
+header: 
+  seq: 2
+  stamp: 
+    secs: 1582876930
+    nsecs: 273929547
+  frame_id: "map"
+pose: 
+  position: 
+    x: 4.6
+    y: 0.0
+    z: 0.0
+  orientation: 
+    x: 0.0
+    y: 0.0
+    z: -0.0108937468676
+    w: 0.999940661379
+---
+header: 
+  seq: 3
+  stamp: 
+    secs: 1582876930
+    nsecs: 273929547
+  frame_id: "map"
+pose: 
+  position: 
+    x: 4.7
+    y: 0.0
+    z: 0.0
+  orientation: 
+    x: 0.0
+    y: 0.0
+    z: -0.0108937468676
+    w: 0.999940661379
