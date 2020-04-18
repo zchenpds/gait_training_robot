@@ -74,7 +74,7 @@ This ROS package provides a suite of software that performs gait-training tasks 
     sudo apt install libk4abt1.0-dev
     sudo apt install k4a-tools=1.3.0
     ```
-  - Remember to update udev rules by copying [this file](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules) to `/etc/udev/rules.d/`. According to [this](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/docs/usage.md#linux-device-setup).
+  - Remember to update udev rules by copying [this file](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules) to `/etc/udev/rules.d/`, according to [this](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/docs/usage.md#linux-device-setup).
     ```bash
     sudo gedit etc/udev/rules.d/99-k4a.rules
     # Copy and paste the content from the link above, and save the file.
