@@ -63,6 +63,11 @@ bool GoalGenerator::readFromYaml(const std::string & file_name)
       try 
       {
         ROS_INFO("Reading pose with seq = %d", node["header"]["seq"].as<int>());
+        if (global_frame_id_.empty())
+        {
+          global_frame_id_ = node["header"]["frame_id"].as<std::string>();
+          ROS_INFO_STREAM("Global frame id set to '" << global_frame_id_ << "'");
+        }
         poses_.push_back(geometry_msgs::Pose());
         const YAML::Node & node_position = node["pose"]["position"];
         const YAML::Node & node_orientation = node["pose"]["orientation"];
@@ -85,6 +90,10 @@ bool GoalGenerator::readFromYaml(const std::string & file_name)
       }
     }
   }
+  if (global_frame_id_.empty())
+  {
+    global_frame_id_ = "map";
+  }
   
 }
 
@@ -96,7 +105,7 @@ void GoalGenerator::previewPoses()
   }
 
   geometry_msgs::PoseArrayPtr msg_pose_array(new geometry_msgs::PoseArray);
-  msg_pose_array->header.frame_id = "map";
+  msg_pose_array->header.frame_id = global_frame_id_;
   msg_pose_array->header.stamp = ros::Time::now();
   
   for (const auto & pose : poses_) {
@@ -117,7 +126,7 @@ void GoalGenerator::setNextGoal()
   ROS_INFO("%u, %zu", pose_index_, poses_.size());
 
   const geometry_msgs::Pose & pose = poses_[pose_index_];
-  cur_goal_.target_pose.header.frame_id = "map";
+  cur_goal_.target_pose.header.frame_id = global_frame_id_;
   cur_goal_.target_pose.header.stamp = ros::Time::now();
   cur_goal_.target_pose.pose.position.x = pose.position.x;
   cur_goal_.target_pose.pose.position.y = pose.position.y;
@@ -139,7 +148,7 @@ void GoalGenerator::setNextGoalCircular()
   static double th = M_PI/2;
   double x = x0 + r * cos(th);
   double y = y0 + r * sin(th);
-  cur_goal_.target_pose.header.frame_id = "map";
+  cur_goal_.target_pose.header.frame_id = global_frame_id_;
   cur_goal_.target_pose.header.stamp = ros::Time::now();
   cur_goal_.target_pose.pose.position.x = x;
   cur_goal_.target_pose.pose.position.y = y;

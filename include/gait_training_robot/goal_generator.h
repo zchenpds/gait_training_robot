@@ -51,6 +51,7 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
   GoalGeneratorParams params_;
+  std::string global_frame_id_;
 
   MoveBaseClient action_client_;
   std::vector<geometry_msgs::Pose> poses_;
