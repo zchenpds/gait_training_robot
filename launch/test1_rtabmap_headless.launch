@@ -69,7 +69,7 @@
     <arg name="file" value="driver.launch" />
     <arg name="value" 
         value="depth_mode:=WFOV_2X2BINNED 
-               body_tracking_enabled:=true fps:=15 rgb_point_cloud:=false
+               body_tracking_enabled:=true fps:=30 rgb_point_cloud:=false
                recording_file:=$(arg recording_file)
                recording_loop_enabled:=$(arg recording_loop_enabled)
                required:=true

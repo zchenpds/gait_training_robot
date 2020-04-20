@@ -57,7 +57,7 @@
       <include file="$(find azure_kinect_ros_driver)/launch/driver.launch" >
         <arg name="depth_mode" value="WFOV_2X2BINNED" />
         <arg name="body_tracking_enabled" value="true" />
-        <arg name="fps" value="15" />
+        <arg name="fps" value="30" />
         <arg name="rgb_point_cloud" value="false" />
         <arg name="recording_file" value="$(arg recording_file)" />
         <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
