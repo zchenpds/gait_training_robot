@@ -19,7 +19,7 @@
   <arg name="watch_sport_sole" default="true" />
 
   <!-- Arguments for goal_generator -->
-  <arg name="max_num_laps" default="1" />
+  <arg name="max_num_laps" default="3" />
 
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
@@ -33,6 +33,7 @@
   <!-- Other arguments -->
   <!-- static_test: is the robot static? -->
   <arg name="static_test" default="false" />
+  <arg name="waypoints_file_suffix" default=""/>
 
   <!-- <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
     <param name="belt_speed" value="$(arg belt_speed)" />
@@ -78,6 +79,7 @@
         <arg name="max_num_laps" value="$(arg max_num_laps)" />
         <arg name="delay_start_secs" value="20.0" />
         <arg name="v_max" value="0.8" />
+        <arg name="waypoints_file" value="$(find gait_training_robot)/data/waypoints$(arg waypoints_file_suffix).yaml"/>
       </include>
     </group>
 

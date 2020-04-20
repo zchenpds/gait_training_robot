@@ -35,6 +35,7 @@
   <arg name="enable_goal_generator" default="false"/>
   <arg name="max_num_laps" default="3"/>
   <arg name="delay_start_secs" default="0.0"/>
+  <arg name="waypoints_file" default="$(find gait_training_robot)/data/waypoints.yaml"/>
 
 
   <!-- Specify the where azure kinect is positioned on the robot.
@@ -96,6 +97,7 @@
   <node pkg="gait_training_robot" type="goal_generator" name="goal_generator" if="$(arg enable_goal_generator)" output="screen" >
     <param name="max_num_laps" value="$(arg max_num_laps)" />
     <param name="delay_start_secs" value="$(arg delay_start_secs)" />
+    <param name="yaml_file_path" value="$(arg waypoints_file)" />
   </node>
 
 
