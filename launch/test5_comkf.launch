@@ -109,7 +109,7 @@
     <node name="rosbag_record_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/data 
                 /sport_sole_publisher/sport_sole
-                /depth/image_raw /rgb/image_raw /imu
+                /imu
                 /body_tracking_data /tf /tf_static
                 /joint_states"
           if="$(arg record_bag)"/> 
