@@ -136,6 +136,16 @@ Follow these steps to set up the relevant ROS parameters
 
 8. Teleoperate using wireless keyboard.
   `roslaunch gait_training_robot robot.launch enable_teleop:=true`
+
+9. Data collection
+  - **Straight walking**. The orientation of the robot will remain constant. Open-loop robot motion control in effect. The endpoint must have an obstacle that can be detected by the SONAR ring. 
+    ```bash
+    roslaunch gait_training_robot test5_comkf.launch bypass_move_base:=true
+    ```
+  - **Curved walking**. The environment must have been mapped. File waypoints.xml will be loaded and goal_generator will publish the goals in sequence.
+    ```bash
+    roslaunch gait_training_robot test5_comkf.launch bypass_move_base:=true
+    ```
   
 9. Temporary test
   `roslaunch gait_training_robot test5_comkf.launch record_bag:=false play_bag:=true bag_name:=vicon/test72.bag enable_gait_analyzer:=true record_gait_analytics:=false`

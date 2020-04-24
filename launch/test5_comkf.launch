@@ -21,6 +21,9 @@
   <!-- Arguments for goal_generator -->
   <arg name="max_num_laps" default="3" />
 
+  <!-- Arguments for distance_controller -->
+  <arg name="bypass_move_base" default="false"/>
+
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
   <arg name="play_bag" default="false" />
@@ -79,6 +82,7 @@
         <arg name="max_num_laps" value="$(arg max_num_laps)" />
         <arg name="delay_start_secs" value="20.0" />
         <arg name="v_max" value="0.8" />
+        <arg name="bypass_move_base" value="$(arg bypass_move_base)" />
         <arg name="waypoints_file" value="$(find gait_training_robot)/data/waypoints$(arg waypoints_file_suffix).yaml"/>
       </include>
     </group>
