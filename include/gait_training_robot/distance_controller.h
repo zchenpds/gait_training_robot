@@ -33,6 +33,7 @@
   LIST_ENTRY(K_i, "The coefficient for the integral control", double, 0.5)    \
   LIST_ENTRY(v_nominal, "The nominal linear velocity", double, 0.5)    \
   LIST_ENTRY(v_max, "The max linear velocity", double, 1.2)    \
+  LIST_ENTRY(bypass_move_base, "If true, go in straight line regardless of input cmd_vel",bool, false)    \
 
 
 

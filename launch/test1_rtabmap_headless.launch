@@ -30,6 +30,7 @@
   <arg name="K_i" default="0.3"/>
   <arg name="v_nominal" default="0.5"/>
   <arg name="v_max" default="0.4"/>
+  <arg name="bypass_move_base" default="false"/>
 
   <!-- goal_generator -->
   <arg name="enable_goal_generator" default="false"/>
@@ -90,6 +91,7 @@
       <param name="K_i" value="$(arg K_i)" />
       <param name="v_nominal" value="$(arg v_nominal)" />
       <param name="v_max" value="$(arg v_max)" />
+      <param name="bypass_move_base" value="$(arg bypass_move_base)" />
     </node>
   </group>
 
