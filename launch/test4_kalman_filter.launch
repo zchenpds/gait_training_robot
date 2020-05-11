@@ -19,7 +19,7 @@
   <arg name="watch_sport_sole" default="true" />
 
   <!-- Arguments for goal_generator -->
-  <arg name="max_num_laps" default="3" />
+  <arg name="max_num_laps" default="1" />
 
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
@@ -103,6 +103,7 @@
         <arg name="enable_goal_generator" value="true" />
         <arg name="max_num_laps" value="$(arg max_num_laps)" />
         <arg name="delay_start_secs" value="20.0" />
+        <arg name="v_max" value="0.8" />
       </include>
     </group>
 

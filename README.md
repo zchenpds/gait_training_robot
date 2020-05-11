@@ -140,11 +140,11 @@ Follow these steps to set up the relevant ROS parameters
 9. Data collection
   - **Straight walking**. The orientation of the robot will remain constant. Open-loop robot motion control in effect. The endpoint must have an obstacle that can be detected by the SONAR ring. 
     ```bash
-    roslaunch gait_training_robot test5_comkf.launch bypass_move_base:=true
+    roslaunch gait_training_robot test5_comkf.launch straight_line_mode:=true
     ```
   - **Curved walking**. The environment must have been mapped. File waypoints.xml will be loaded and goal_generator will publish the goals in sequence.
     ```bash
-    roslaunch gait_training_robot test5_comkf.launch bypass_move_base:=true
+    roslaunch gait_training_robot test5_comkf.launch
     ```
   
 9. Temporary test

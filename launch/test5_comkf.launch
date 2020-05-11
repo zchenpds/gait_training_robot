@@ -21,8 +21,10 @@
   <!-- Arguments for goal_generator -->
   <arg name="max_num_laps" default="3" />
 
-  <!-- Arguments for distance_controller -->
-  <arg name="bypass_move_base" default="false"/>
+  <!-- Arguments for straight line walking -->
+  <arg name="straight_open_loop_enabled" default="true" />
+  <arg name="straight_distance" default="4.0" />
+  <arg name="v_max" default="0.8" />
 
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
@@ -75,14 +77,15 @@
       <include file="$(find gait_training_robot)/launch/test1_rtabmap_headless.launch" >
         <arg name="localization" value="true" />
         <arg name="enable_distance_controller" value="true"/>
+        <arg name="open_loop_controller_enabled" value="$(arg straight_open_loop_enabled)"/>
+        <arg name="open_loop_controller_terminal_distance" value="$(arg straight_distance)"/>
         <arg name="azure_kinect_driver_required" default="true" />
         <arg name="recording_file" value="$(arg recording_file)" />
         <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
         <arg name="enable_goal_generator" value="true" />
         <arg name="max_num_laps" value="$(arg max_num_laps)" />
         <arg name="delay_start_secs" value="20.0" />
-        <arg name="v_max" value="0.8" />
-        <arg name="bypass_move_base" value="$(arg bypass_move_base)" />
+        <arg name="v_max" value="(arg v_max)" />
         <arg name="waypoints_file" value="$(find gait_training_robot)/data/waypoints$(arg waypoints_file_suffix).yaml"/>
       </include>
     </group>

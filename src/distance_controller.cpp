@@ -84,7 +84,7 @@ void DistanceController::cmdVelCB(const geometry_msgs::Twist & cmd_vel_in)
   if (time_since_last_state_update < ros::Duration(params_.timeout_threshold)) 
   {
     // Looks like the human state is up-to-date
-    if (cmd_vel_in.linear.x > params_.v_in_threshold || params_.bypass_move_base)
+    if (cmd_vel_in.linear.x > params_.v_in_threshold)
     {
       // Input linear velocity is large enough.
       // Presumably no obstacles ahead and far from the next goal point.
@@ -98,14 +98,7 @@ void DistanceController::cmdVelCB(const geometry_msgs::Twist & cmd_vel_in)
       u_i = clamp(u_i, -params_.u_i_max, params_.u_i_max);
       double u_p = K_p * error_state_.distance;
       cmd_vel_out.linear.x = clamp(v_nominal + u_p + u_i, 0.0, params_.v_max);
-      if (params_.bypass_move_base)
-      {
-        cmd_vel_out.angular.z = 0;
-      }
-      else
-      {
-        cmd_vel_out.angular.z = cmd_vel_in.angular.z / cmd_vel_in.linear.x * cmd_vel_out.linear.x ;
-      }
+      cmd_vel_out.angular.z = cmd_vel_in.angular.z / cmd_vel_in.linear.x * cmd_vel_out.linear.x ;
       
       
       ROS_INFO_STREAM("u_p: " << u_p << ", u_i: " << u_i 

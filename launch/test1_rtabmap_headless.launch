@@ -30,7 +30,6 @@
   <arg name="K_i" default="0.3"/>
   <arg name="v_nominal" default="0.5"/>
   <arg name="v_max" default="0.4"/>
-  <arg name="bypass_move_base" default="false"/>
 
   <!-- goal_generator -->
   <arg name="enable_goal_generator" default="false"/>
@@ -38,6 +37,15 @@
   <arg name="delay_start_secs" default="0.0"/>
   <arg name="waypoints_file" default="$(find gait_training_robot)/data/waypoints.yaml"/>
 
+  <!-- open_loop_controller -->
+  <arg name="open_loop_controller_enabled" default="false"/>
+  <arg name="open_loop_controller_mode" default="straight"/>
+  <arg name="open_loop_controller_terminal_distance" default="4"/>
+  <node pkg="gait_training_robot" type="open_loop_controller.py" name="open_loop_controller" if="$(arg open_loop_controller_enabled)">
+    <param name="mode" value="$(arg open_loop_controller_mode)"/>
+    <param name="terminal_distance" value="$(arg open_loop_controller_terminal_distance)"/>
+    <param name="v_max" value="$(arg v_max)"/>
+  </node>
 
   <!-- Specify the where azure kinect is positioned on the robot.
     This is needed even if the azure kinect driver is included in the calling launch file -->
@@ -50,7 +58,8 @@
   </node>-->
 
   <!-- move_base -->
-  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+  <!-- Unless open_loop_controller_enabled -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" unless="$(arg open_loop_controller_enabled)">
     <param name="clearing_rotation_allowed" value="false" />
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
     <rosparam file="$(find gait_training_robot)/params/slam/costmap_common_params.yaml" command="load" ns="local_costmap" />
@@ -77,30 +86,32 @@
                output:=screen" />
   </include>
 
-  <!-- If distance controller is enabled: -->
-  <group if="$(arg enable_distance_controller)">
-    <!-- Distance controller node -->
-    <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" output="screen" >
-      <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
-      <param name="dist_desired" value="$(arg dist_desired)" />
-      <param name="use_marker" value="$(arg use_marker)" />
-      <param name="timeout_threshold" value="$(arg timeout_threshold)" />
-      <param name="v_in_threshold" value="$(arg v_in_threshold)" />
-      <param name="u_i_max" value="$(arg u_i_max)" />
-      <param name="K_p" value="$(arg K_p)" />
-      <param name="K_i" value="$(arg K_i)" />
-      <param name="v_nominal" value="$(arg v_nominal)" />
-      <param name="v_max" value="$(arg v_max)" />
-      <param name="bypass_move_base" value="$(arg bypass_move_base)" />
+  <!-- Unless open_loop_controller_enabled -->
+  <group unless="$(arg open_loop_controller_enabled)">
+    <!-- If distance controller is enabled: -->
+    <group if="$(arg enable_distance_controller)">
+      <!-- Distance controller node -->
+      <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" output="screen" >
+        <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
+        <param name="dist_desired" value="$(arg dist_desired)" />
+        <param name="use_marker" value="$(arg use_marker)" />
+        <param name="timeout_threshold" value="$(arg timeout_threshold)" />
+        <param name="v_in_threshold" value="$(arg v_in_threshold)" />
+        <param name="u_i_max" value="$(arg u_i_max)" />
+        <param name="K_p" value="$(arg K_p)" />
+        <param name="K_i" value="$(arg K_i)" />
+        <param name="v_nominal" value="$(arg v_nominal)" />
+        <param name="v_max" value="$(arg v_max)" />
+      </node>
+    </group>
+
+    <!-- goal_generator -->
+    <node pkg="gait_training_robot" type="goal_generator" name="goal_generator" if="$(arg enable_goal_generator)" output="screen" >
+      <param name="max_num_laps" value="$(arg max_num_laps)" />
+      <param name="delay_start_secs" value="$(arg delay_start_secs)" />
+      <param name="yaml_file_path" value="$(arg waypoints_file)" />
     </node>
   </group>
-
-  <!-- goal_generator -->
-  <node pkg="gait_training_robot" type="goal_generator" name="goal_generator" if="$(arg enable_goal_generator)" output="screen" >
-    <param name="max_num_laps" value="$(arg max_num_laps)" />
-    <param name="delay_start_secs" value="$(arg delay_start_secs)" />
-    <param name="yaml_file_path" value="$(arg waypoints_file)" />
-  </node>
 
 
 </launch>
