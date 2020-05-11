@@ -317,6 +317,7 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   tf2::Transform tf_depth_to_global_;
+  tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   // comkf
   com_kf::KalmanFilter comkf_;

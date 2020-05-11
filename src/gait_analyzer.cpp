@@ -250,6 +250,35 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       return;
       //ros::Duration(1.0).sleep();
     }
+
+    // Broadcast some tfs.
+    for (auto joint_id: {K4ABT_JOINT_PELVIS, K4ABT_JOINT_ANKLE_LEFT, K4ABT_JOINT_ANKLE_RIGHT})
+    {
+      const auto & it_joint = it_pelvis_closest + joint_id;
+
+      geometry_msgs::TransformStamped tf_joint;
+      tf_joint.header.stamp = stamp_skeleton_curr;
+      tf_joint.header.frame_id = "depth_camera_link"; // params_.global_frame, "depth_camera_link"
+      switch (joint_id)
+      {
+        case K4ABT_JOINT_PELVIS: 
+          tf_joint.child_frame_id = "joint_pelvis"; break;
+        case K4ABT_JOINT_ANKLE_LEFT: 
+          tf_joint.child_frame_id = "joint_ankle_left"; break;
+        case K4ABT_JOINT_ANKLE_RIGHT: 
+          tf_joint.child_frame_id = "joint_ankle_right"; break;
+        default:
+          tf_joint.child_frame_id = std::string("joint_") + std::to_string(joint_id);
+      }
+      tf_joint.transform.translation.x = it_joint->pose.position.x;
+      tf_joint.transform.translation.y = it_joint->pose.position.y;
+      tf_joint.transform.translation.z = it_joint->pose.position.z;
+      tf_joint.transform.rotation.w = it_joint->pose.orientation.w;
+      tf_joint.transform.rotation.x = it_joint->pose.orientation.x;
+      tf_joint.transform.rotation.y = it_joint->pose.orientation.y;
+      tf_joint.transform.rotation.z = it_joint->pose.orientation.z;
+      tf_broadcaster_.sendTransform(tf_joint);
+    }
     
     // Coordinate Transformation and Projection
     for (int i = 0; i < K4ABT_JOINT_COUNT; i++)
