@@ -6,6 +6,7 @@ import math
 import tf
 import geometry_msgs.msg
 import sport_sole.msg
+import visualization_msgs.msg
 
 def clamp(x, minx, maxx): 
     return max(minx, min(x, maxx))
@@ -35,6 +36,9 @@ def main():
 
     # Wait for sport_sole msg
     if wait_for_sport_sole_msg:
+        rospy.loginfo('Waiting for body_tracking messages...')
+        rospy.wait_for_message('/body_tracking_data', visualization_msgs.msg.MarkerArray)
+        rospy.loginfo('body_tracking_data message received.')
         rospy.loginfo('Waiting for sport_sole messages...')
         rospy.wait_for_message('/sport_sole_publisher/sport_sole', sport_sole.msg.SportSole)
         rospy.loginfo('sport_sole message received!')
