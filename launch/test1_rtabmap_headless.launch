@@ -14,10 +14,12 @@
   </include>
 
   <!-- Kinect1 + rtabmap_ros -->
-  <include file="$(find gait_training_robot)/launch/includes/kinect_rtabmap.launch">
+  <include file="$(find gait_training_robot)/launch/includes/kinect_rtabmap.launch" unless="$(arg open_loop_controller_enabled)">
     <arg name="localization" value="$(arg localization)" />
     <arg name="database_path" value="$(arg database_path)" />
   </include>
+  <node name="rtabmap_dummy" pkg="tf" type="static_transform_publisher"  
+    args="0 0 0 0 0 0 map odom 100" if="$(arg open_loop_controller_enabled)"/>
 
   <!-- distance_controller -->
   <arg name="enable_distance_controller" default="false"/>
@@ -41,10 +43,12 @@
   <arg name="open_loop_controller_enabled" default="false"/>
   <arg name="open_loop_controller_mode" default="straight"/>
   <arg name="open_loop_controller_terminal_distance" default="4.5"/>
+  <arg name="open_loop_controller_wait_for_sport_sole_msg" default="true"/>
   <node pkg="gait_training_robot" type="open_loop_controller.py" name="open_loop_controller" output="screen" 
       if="$(arg open_loop_controller_enabled)">
     <param name="mode" value="$(arg open_loop_controller_mode)"/>
     <param name="terminal_distance" value="$(arg open_loop_controller_terminal_distance)"/>
+    <param name="wait_for_sport_sole_msg" value="$(arg open_loop_controller_wait_for_sport_sole_msg)"/>
     <param name="v_max" value="$(arg v_max)"/>
   </node>
 

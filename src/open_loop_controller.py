@@ -5,6 +5,7 @@ import rospkg
 import math
 import tf
 import geometry_msgs.msg
+import sport_sole.msg
 
 def clamp(x, minx, maxx): 
     return max(minx, min(x, maxx))
@@ -16,6 +17,7 @@ def main():
     mode = rospy.get_param('~mode', default='straight')
     terminal_distance = rospy.get_param('~terminal_distance', default=3.0) # Desired distance
     v_max = rospy.get_param('~v_max', default = 0.7)
+    wait_for_sport_sole_msg = rospy.get_param('~wait_for_sport_sole_msg', default=False)
 
     if mode != 'straight':
         rospy.logerr('Unknown mode %s' % mode)
@@ -26,11 +28,16 @@ def main():
     
     # Create Transform Listener
     listener = tf.TransformListener()
-    distance = 0.0
 
     # Create cmd_vel publisher
     pub_cmd_vel = rospy.Publisher('/cmd_vel', geometry_msgs.msg.Twist, queue_size=1)
     msg_cmd_vel = geometry_msgs.msg.Twist()
+
+    # Wait for sport_sole msg
+    if wait_for_sport_sole_msg:
+        rospy.loginfo('Waiting for sport_sole messages...')
+        rospy.wait_for_message('/sport_sole_publisher/sport_sole', sport_sole.msg.SportSole)
+        rospy.loginfo('sport_sole message received!')
 
     rate = rospy.Rate(10.0)
     while not rospy.is_shutdown():
@@ -55,8 +62,8 @@ def main():
         if stage == 0:
             # Move forward
             e = max(terminal_distance - distance, 0.0)
-            kp = 0.9
-            u = clamp( kp * math.sqrt( 0.9 * 2.0 * 0.3 * e), 0.0, v_max)
+            kp = 0.8
+            u = clamp( math.sqrt( kp * 2.0 * 0.3 * e), 0.0, v_max)
             if e < 0.01:
                 u = 0.0
                 stage += 1
@@ -71,7 +78,7 @@ def main():
             # Move backward
             e = max(terminal_distance - distance, 0.0)
             kp = 0.8
-            u = -clamp( kp * math.sqrt( 2.0 * 0.3 * e), 0.0, v_max/2.0)
+            u = -clamp( math.sqrt( kp * 2.0 * 0.3 * e), 0.0, v_max)
             if e < 0.01:
                 u = 0.0
                 stage += 1
