@@ -23,7 +23,7 @@
 
   <!-- Arguments for straight line walking -->
   <arg name="straight_open_loop_enabled" default="true" />
-  <arg name="straight_distance" default="4.0" />
+  <arg name="straight_distance" default="5.5" />
   <arg name="v_max" default="0.8" />
 
   <!-- Arguments for rosbag record -->
@@ -85,7 +85,7 @@
         <arg name="enable_goal_generator" value="true" />
         <arg name="max_num_laps" value="$(arg max_num_laps)" />
         <arg name="delay_start_secs" value="20.0" />
-        <arg name="v_max" value="(arg v_max)" />
+        <arg name="v_max" value="$(arg v_max)" />
         <arg name="waypoints_file" value="$(find gait_training_robot)/data/waypoints$(arg waypoints_file_suffix).yaml"/>
       </include>
     </group>

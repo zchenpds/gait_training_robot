@@ -40,8 +40,9 @@
   <!-- open_loop_controller -->
   <arg name="open_loop_controller_enabled" default="false"/>
   <arg name="open_loop_controller_mode" default="straight"/>
-  <arg name="open_loop_controller_terminal_distance" default="4"/>
-  <node pkg="gait_training_robot" type="open_loop_controller.py" name="open_loop_controller" if="$(arg open_loop_controller_enabled)">
+  <arg name="open_loop_controller_terminal_distance" default="4.5"/>
+  <node pkg="gait_training_robot" type="open_loop_controller.py" name="open_loop_controller" output="screen" 
+      if="$(arg open_loop_controller_enabled)">
     <param name="mode" value="$(arg open_loop_controller_mode)"/>
     <param name="terminal_distance" value="$(arg open_loop_controller_terminal_distance)"/>
     <param name="v_max" value="$(arg v_max)"/>
