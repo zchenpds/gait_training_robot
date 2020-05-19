@@ -23,7 +23,7 @@
 
   <!-- Arguments for straight line walking -->
   <arg name="straight_open_loop_enabled" default="true" />
-  <arg name="straight_distance" default="5.5" />
+  <arg name="straight_distance" default="5.0" />
   <arg name="v_max" default="0.8" />
 
   <!-- Arguments for rosbag record -->
@@ -117,7 +117,7 @@
     <node name="rosbag_record_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/data 
                 /sport_sole_publisher/sport_sole
-                /imu
+                /imu /odom /cmd_vel
                 /body_tracking_data /tf /tf_static
                 /joint_states"
           if="$(arg record_bag)"/> 

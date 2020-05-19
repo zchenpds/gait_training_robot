@@ -34,6 +34,7 @@ def main():
     pub_cmd_vel = rospy.Publisher('/cmd_vel', geometry_msgs.msg.Twist, queue_size=1)
     msg_cmd_vel = geometry_msgs.msg.Twist()
 
+    a_decel_max = 0.25
     # Wait for sport_sole msg
     if wait_for_sport_sole_msg:
         rospy.loginfo('Waiting for body_tracking messages...')
@@ -46,7 +47,7 @@ def main():
     rate = rospy.Rate(10.0)
     while not rospy.is_shutdown():
         try:
-            (trans,rot) = listener.lookupTransform('/odom', '/base_link', rospy.Time(0))
+            (trans,rot) = listener.lookupTransform('/odom', '/base_link', rospy.Time(0))#rospy.Time.now())# + rospy.Duration(0.1))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             continue
 
@@ -60,29 +61,33 @@ def main():
         else:
             distance = 0
         (trans1, rot1) = (trans, rot)
-        # rospy.loginfo('Distance:  %f; x = %f, y = %f.' % (distance, trans[0], trans[1]) )
+        rospy.loginfo('Distance:  %f; x = %f, y = %f.' % (distance, trans[0], trans[1]) )
 
         # Calculate the desired velocity
         if stage == 0:
             # Move forward
             e = max(terminal_distance - distance, 0.0)
-            kp = 0.8
-            u = clamp( math.sqrt( kp * 2.0 * 0.3 * e), 0.0, v_max)
-            if e < 0.01:
+            # kp = 0.8
+            # u = clamp( math.sqrt( kp * 2.0 * 0.5 * e), 0.0, v_max)
+            # Assume that the maximum speed has been reached.
+            if e < 0.1: # v_max * (v_max / a_decel_max + 0.1 ) / 2.0:
                 u = 0.0
                 stage += 1
                 t0 = rospy.Time.now()
+            else:
+                u = v_max
         elif stage == 1:
             # Wait for 10 secs
             duration_waited = rospy.Time.now() - t0
             if duration_waited.to_sec() > 10.0:
                 stage += 1
+                terminal_distance = distance - 0.04
                 distance = 0
         elif stage == 2:
             # Move backward
             e = max(terminal_distance - distance, 0.0)
             kp = 0.8
-            u = -clamp( math.sqrt( kp * 2.0 * 0.3 * e), 0.0, v_max)
+            u = -clamp( math.sqrt( kp * 2.0 * a_decel_max * e), 0.0, v_max)
             if e < 0.01:
                 u = 0.0
                 stage += 1

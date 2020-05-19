@@ -31,7 +31,7 @@
   <arg name="K_p" default="1.0"/>
   <arg name="K_i" default="0.3"/>
   <arg name="v_nominal" default="0.5"/>
-  <arg name="v_max" default="0.4"/>
+  <arg name="v_max" default="1.2"/>
 
   <!-- goal_generator -->
   <arg name="enable_goal_generator" default="false"/>
@@ -42,8 +42,8 @@
   <!-- open_loop_controller -->
   <arg name="open_loop_controller_enabled" default="false"/>
   <arg name="open_loop_controller_mode" default="straight"/>
-  <arg name="open_loop_controller_terminal_distance" default="4.5"/>
-  <arg name="open_loop_controller_wait_for_sport_sole_msg" default="true"/>
+  <arg name="open_loop_controller_terminal_distance" default="5.0"/>
+  <arg name="open_loop_controller_wait_for_sport_sole_msg" default="false"/>
   <node pkg="gait_training_robot" type="open_loop_controller.py" name="open_loop_controller" output="screen" 
       if="$(arg open_loop_controller_enabled)">
     <param name="mode" value="$(arg open_loop_controller_mode)"/>
