@@ -18,7 +18,7 @@ def main():
     mode = rospy.get_param('~mode', default='straight')
     terminal_distance = rospy.get_param('~terminal_distance', default=3.0) # Desired distance
     v_max = rospy.get_param('~v_max', default = 0.7)
-    wait_for_sport_sole_msg = rospy.get_param('~wait_for_sport_sole_msg', default=False)
+    wait_for_required_msgs = rospy.get_param('~wait_for_required_msgs', default=False)
 
     if mode != 'straight':
         rospy.logerr('Unknown mode %s' % mode)
@@ -36,7 +36,7 @@ def main():
 
     a_decel_max = 0.25
     # Wait for sport_sole msg
-    if wait_for_sport_sole_msg:
+    if wait_for_required_msgs:
         rospy.loginfo('Waiting for body_tracking messages...')
         rospy.wait_for_message('/body_tracking_data', visualization_msgs.msg.MarkerArray)
         rospy.loginfo('body_tracking_data message received.')
