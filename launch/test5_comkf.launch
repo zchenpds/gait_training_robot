@@ -79,7 +79,7 @@
         <arg name="enable_distance_controller" value="true"/>
         <arg name="open_loop_controller_enabled" value="$(arg straight_open_loop_enabled)"/>
         <arg name="open_loop_controller_terminal_distance" value="$(arg straight_distance)"/>
-        <arg name="open_loop_controller_wait_for_sport_sole_msg" value="true"/>
+        <arg name="open_loop_controller_wait_for_required_msgs" value="true"/>
         <arg name="azure_kinect_driver_required" default="true" />
         <arg name="recording_file" value="$(arg recording_file)" />
         <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
