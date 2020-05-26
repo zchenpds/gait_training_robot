@@ -45,7 +45,7 @@
   <arg name="open_loop_controller_terminal_distance" default="5.0"/>
   <arg name="open_loop_controller_wait_for_sport_sole_msg" default="false"/>
   <node pkg="gait_training_robot" type="open_loop_controller.py" name="open_loop_controller" output="screen" 
-      if="$(arg open_loop_controller_enabled)">
+      if="$(arg open_loop_controller_enabled)" required="true">
     <param name="mode" value="$(arg open_loop_controller_mode)"/>
     <param name="terminal_distance" value="$(arg open_loop_controller_terminal_distance)"/>
     <param name="wait_for_sport_sole_msg" value="$(arg open_loop_controller_wait_for_sport_sole_msg)"/>

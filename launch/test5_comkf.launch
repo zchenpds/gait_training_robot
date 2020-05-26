@@ -29,7 +29,7 @@
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
   <arg name="play_bag" default="false" />
-  <arg name="bag_name" default="vicon/test72.bag" />
+  <arg name="bag_name" default="data" />
 
   <!-- Arguments for gait_analyzer -->
   <arg name="enable_gait_analyzer" default="false" />
@@ -96,8 +96,8 @@
   <!-- rosbag play -->
   <group if="$(arg play_bag)">
     <param name="use_sim_time" value="true"/>
-    <node name="rosbag_play_node" pkg="rosbag" type="play"
-          args="--clock $(find gait_training_robot)/bags/$(arg bag_name)"
+    <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
+          args="--clock $(find gait_training_robot)/bags/$(arg bag_name).bag"
           if="$(arg play_bag)" />
     <!-- Robot state publisher -->
     <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
@@ -115,7 +115,7 @@
 
   <group unless="$(arg static_test)">
     <node name="rosbag_record_node" pkg="rosbag" type="record" 
-          args="record -o $(find gait_training_robot)/bags/data 
+          args="record -o $(find gait_training_robot)/bags/$(arg bag_name)
                 /sport_sole_publisher/sport_sole
                 /imu /odom /cmd_vel
                 /body_tracking_data /tf /tf_static
@@ -131,7 +131,7 @@
     </node>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" />
     <node name="rosbag_record_ga_node" pkg="rosbag" type="record" 
-          args="record -o $(find gait_training_robot)/bags/gait_analytics/gait_analytics 
+          args="record -o $(find gait_training_robot)/bags/$(arg bag_name)_ga 
                 --regex '/gait_analyzer/.*'" 
           if="$(arg record_gait_analytics)"/> 
   </group>
