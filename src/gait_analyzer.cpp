@@ -241,7 +241,9 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     try
     {
       // Find the tf from global frame to depth_camera_link frame
-      geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(ga_params_.global_frame, "depth_camera_link", stamp_skeleton_curr);
+      // assert(msg.markers[0].header.frame_id == "depth_camera_link");
+      geometry_msgs::TransformStamped tf_msg = tf_buffer_.lookupTransform(ga_params_.global_frame, "depth_camera_link", stamp_skeleton_curr,
+        ros::Duration(0.2));
       fromMsg(tf_msg.transform, tf_depth_to_global_);
     }
     catch (tf2::TransformException & ex)

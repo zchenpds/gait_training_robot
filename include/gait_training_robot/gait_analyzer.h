@@ -216,7 +216,7 @@ namespace sport_sole {
     };
 
     GaitPhase gait_phases_[LEFT_RIGHT];
-    const double p_threshold_ = 100.0;
+    const double p_threshold_ = 1000.0;
     
   public:
     GaitPhaseFSM(): 
