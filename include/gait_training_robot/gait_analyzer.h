@@ -283,6 +283,8 @@ private:
   ros::Time stamp_pcom_measurement_;
   com_t pcom_pos_measurement_;
   ros::Publisher pub_pcom_pos_measurement_; // Center of mass projected onto the ground
+  com_t pcom_pelvis_measurement_;
+  ros::Publisher pub_pcom_pelvis_measurement_; // Center of mass projected onto the ground
   comv_t pcom_vel_measurement_;
   ros::Publisher pub_pcom_vel_measurement_; // Center of mass velocity projected onto the ground
   com_t xcom_measurement_;

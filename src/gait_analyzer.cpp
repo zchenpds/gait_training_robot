@@ -179,6 +179,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   const size_t buff_size = 10;
   pub_gait_state_ = private_nh_.advertise<std_msgs::UInt8>("gait_state", buff_size);
   pub_pcom_pos_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_measurement", 1);
+  pub_pcom_pelvis_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pelvis_measurement", 1);
   pub_pcom_vel_measurement_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("pcom_vel_measurement", 1);
   pub_xcom_measurement_ = private_nh_.advertise<geometry_msgs::PointStamped>("xcom_measurement", buff_size);
   pub_pcom_pos_estimate_ = private_nh_.advertise<geometry_msgs::PointStamped>("pcom_pos_estimate", 1);
@@ -318,6 +319,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 
     // Publish measurements
     pub_pcom_pos_measurement_.publish(constructPointStampedMessage(stamp_skeleton_curr, pcom_pos_measurement_));
+    pub_pcom_pelvis_measurement_.publish(constructPointStampedMessage(stamp_skeleton_curr, pcom_pelvis_measurement_));
     pub_pcom_vel_measurement_.publish(constructVector3StampedMessage(stamp_skeleton_curr, pcom_vel_measurement_));
     pub_xcom_measurement_.publish(constructPointStampedMessage(stamp_skeleton_curr, xcom_measurement_));
     
@@ -493,6 +495,9 @@ void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp)
   auto com_prev = com_curr;
 
   // Calculate CoM
+  pcom_pelvis_measurement_.setX(vec_joints_[K4ABT_JOINT_PELVIS].getX());
+  pcom_pelvis_measurement_.setY(vec_joints_[K4ABT_JOINT_PELVIS].getY());
+  pcom_pelvis_measurement_.setZ(vec_joints_[K4ABT_JOINT_PELVIS].getZ());
   if (com_model_ == COM_MODEL_PELVIS)
   {
     com_curr.setX(vec_joints_[K4ABT_JOINT_PELVIS].getX());
