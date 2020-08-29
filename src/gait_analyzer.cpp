@@ -77,7 +77,7 @@ cop_t sport_sole::getCoP(
   const vec_refvecs_t & vec_refvecs)
 {
   std::array<cop_t, NUM_2XPSENSOR> psensor_locs = {};
-  cop_t cop = {};
+  cop_t cop(.0, .0, .0);
   double pressure_sum = 0.0;
   for (size_t i = 0; i < NUM_2XPSENSOR; i++) {
     left_right_t lr = (i / NUM_PSENSOR == 0 ? LEFT : RIGHT);
@@ -506,7 +506,7 @@ void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp)
   }
   else if (com_model_ == COM_MODEL_14_SEGMENT)
   {
-    com_t sum{};
+    com_t sum(.0, .0, .0);
     double sum_mass = 0;
     for (const auto & segment: vec_segments)
     {
