@@ -1,5 +1,8 @@
 # gait_training_robot
 This ROS package provides a suite of software that performs gait-training tasks such as engaging people in walkinging exercise, analyzing people's gait, and providing corrective feedback. Some launch files in this package are a good starting point to get [P3-DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf) with a Kinect sensor to perform some generic SLAM/localization/planning tasks. The development of this package is ongoing.
+```bash
+git clone --recurse-submodules https://github.com/gait_training_robot.git
+```
 
 ## Prerequisites
 - [P3-DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf)
