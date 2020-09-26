@@ -79,8 +79,8 @@ git clone --recurse-submodules https://github.com/zchenpds/gait_training_robot.g
     ```
   - Remember to update udev rules by copying [this file](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules) to `/etc/udev/rules.d/`, according to [this](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/docs/usage.md#linux-device-setup).
     ```bash
-    sudo gedit etc/udev/rules.d/99-k4a.rules
-    # Copy and paste the content from the link above, and save the file.
+    cd /etc/udev/rules.d/
+    sudo wget https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules
     ```
 
 ## Two-machine configuration
