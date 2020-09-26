@@ -74,6 +74,9 @@ git clone --recurse-submodules https://github.com/zchenpds/gait_training_robot.g
 1. Install [Azure Kinect ROS Driver](https://github.com/microsoft/Azure_Kinect_ROS_Driver) from source. [Azure Kinect DK](https://docs.microsoft.com/en-us/azure/Kinect-dk/) sensor faces backward and monitors the body movement of the human following the robot.
   - For Azure Kinect Body Tracking SDK 1.0.1, running the following commands in a terminal would install both the device driver and the body tracking sdk.
     ```bash
+    curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+    sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod
+    sudo apt-get update
     sudo apt install libk4abt1.0-dev
     sudo apt install k4a-tools=1.3.0
     ```
