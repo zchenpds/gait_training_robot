@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   geometry_msgs
+  nav_msgs
   tf2_geometry_msgs
   tf2_ros
   pointcloud_to_laserscan
@@ -162,6 +163,7 @@ include_directories(
 #   src/${PROJECT_NAME}/gait_training_robot.cpp
 # )
 add_library(global_planner_lib src/global_planner.cpp)
+add_library(fir_filter src/fir_filter.cpp)
 
 
 ## Add cmake target dependencies of the library
@@ -207,6 +209,7 @@ target_link_libraries(distance_controller
   ${catkin_LIBRARIES}
 )
 target_link_libraries(gait_analyzer
+  fir_filter
   ${catkin_LIBRARIES}
   ${gsl_LIBRARIES}
 )

@@ -5,11 +5,14 @@ import rospkg
 
 rp = rospkg.RosPack()
 path = rp.get_path('gait_training_robot') + '/bags/new/'
-bag_names = ['data' + s for s in [str(i).rjust(3, '0') for i in range(38, 61)]]
+bag_names = ['data' + s for s in [str(i).rjust(3, '0') for i in range(128, 152)]]
 
 def main():
     for bag_name in bag_names:
-        modify_bag(bag_name, bag_name + 'x')
+        try:
+            modify_bag(bag_name, bag_name + 'x')
+        except:
+            print('Cannot open bag: ' + bag_name)
 
 def modify_bag(in_bag_name, out_bag_name):
     in_bag_path = path + in_bag_name + '.bag'

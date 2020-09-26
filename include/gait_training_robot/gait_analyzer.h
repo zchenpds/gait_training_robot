@@ -7,6 +7,7 @@
 #include <list>
 
 #include <std_msgs/UInt8.h>
+#include <nav_msgs/Odometry.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PolygonStamped.h>
@@ -20,6 +21,8 @@
 #include <std_msgs/Float64.h>
 
 #include "sport_sole/SportSole.h"
+
+#include "gait_training_robot/fir_filter.h"
 
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
@@ -232,13 +235,19 @@ class GaitAnalyzer
 {
 public:
   GaitAnalyzer(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
+  void odomCB(const nav_msgs::Odometry & msg);
+  void k4aimuCB(const sensor_msgs::Imu & msg);
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void sportSoleCB(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
-  void updateCoMMeasurement(const ros::Time & stamp);
+  // Update both CoM and CoMv measurements
+  void updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
+  // Update XCoM
+  void updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel);
+  // Update CoM CoMv and XCoM estimates
   void updateCoMEstimate(const ros::Time & stamp, const com_kf::State & x);
-  void updateBoS();
-  void updateMoS(const com_t & xcom);
+  void updateBoS(bos_t & res, const vec_joints_t & vec_joints);
+  void updateMoS(const com_t & xcom, const bos_t & bos_points);
 
   void updateGaitPhase();
 
@@ -254,8 +263,11 @@ private:
   bool touches_ground_[FOOT_ANKLE][LEFT_RIGHT];
 
   // Internal state
+  vec_joints_t vec_joints_k_;
   vec_joints_t vec_joints_;
+  vec_refpoints_t vec_refpoints_k_;
   vec_refpoints_t vec_refpoints_;
+  vec_refvecs_t vec_refvecs_k_;
   vec_refvecs_t vec_refvecs_;
   sport_sole::SportSole::_pressures_type pressures_;
 
@@ -272,7 +284,23 @@ private:
   
   //geometry_msgs::Pose pose_estimates_[LEFT_RIGHT];
 
+  // Filter for angular velocity
+  fir_filter::FirFilter fir_filters_[3];
+  ros::Duration fir_filter_group_delay_;
+  // Angular velocity bias removal
+  ros::Time t0_omega_; 
+  int cnt_omega_bias_ = 0;
+  tf2::Vector3 omega_bias_;
+  // Processed angular velocity
+  tf2::Vector3 omega_filtered_;
+  ros::Publisher pub_omega_filtered_;
+  message_filters::Cache<geometry_msgs::Vector3Stamped> cache_omega_filtered_;
+  float vel_robot_filtered_ = 0.0f;
+
+
   // Subscribers
+  ros::Subscriber sub_odom_;
+  ros::Subscriber sub_k4aimu_;
   ros::Subscriber sub_skeletons_;
   message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
@@ -280,13 +308,16 @@ private:
   // Publishers
   ros::Publisher pub_gait_state_;
 
-  ros::Time stamp_pcom_measurement_;
+  com_t pcom_pos_measurement_k_; // Center of mass in Kinect frame
   com_t pcom_pos_measurement_;
   ros::Publisher pub_pcom_pos_measurement_; // Center of mass projected onto the ground
   com_t pcom_pelvis_measurement_;
   ros::Publisher pub_pcom_pelvis_measurement_; // Center of mass projected onto the ground
+  comv_t pcom_vel_measurement_k_;
   comv_t pcom_vel_measurement_;
   ros::Publisher pub_pcom_vel_measurement_; // Center of mass velocity projected onto the ground
+  ros::Publisher pub_pcom_vel_measurement2_; // Center of mass velocity projected onto the ground
+  com_t xcom_measurement_k_;
   com_t xcom_measurement_;
   ros::Publisher pub_xcom_measurement_; // Extrapolated center of mass calculated from measurements 
   com_t pcom_pos_estimate_;
@@ -301,10 +332,13 @@ private:
   ros::Publisher pub_foot_pose_measurements_[LEFT_RIGHT];
 
   cop_t cop_;
+  cop_t cop_bias_;
   ros::Publisher pub_cop_; // Center of Pressure
 
+  bos_t footprints_k_[LEFT_RIGHT];
   bos_t footprints_[LEFT_RIGHT];
   ros::Publisher pub_footprints_[LEFT_RIGHT];
+  bos_t bos_points_k_;
   bos_t bos_points_;
   ros::Publisher pub_bos_; // Base of support polygon
   mos_t mos_;
@@ -319,6 +353,8 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   tf2::Transform tf_depth_to_global_;
+  tf2::Transform tf_depth_to_local_; // from depth to camera_mount_top
+  tf2::Transform tf_imu_to_local_; // from imu to depth
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   // comkf
@@ -334,17 +370,28 @@ private:
 private:
   // Helper method for converting a tf2::Vector3 object to a geometry_msgs::Point32 object
   geometry_msgs::Point32 vector3ToPoint32(const tf2::Vector3 & vec);
-  geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec);
-  geometry_msgs::Vector3Stamped constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec);
-  geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp);
+  geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec, const std::string & frame_id = "");
+  geometry_msgs::Vector3Stamped constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec, const std::string & frame_id = "");
+  geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp, const bos_t & bos_points, const std::string & frame_id = "");
   visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom);
+
+  // Calculate refpoints
+  void updateRefpoints(vec_refpoints_t & vec_refpoints, vec_refvecs_t & vec_refvecs_k_, const vec_joints_t & vec_joints);
 };
 
 
 
-std::ostream & operator<<(std::ostream & lhs, tf2::Vector3 v)
+std::ostream & operator<<(std::ostream & lhs, const tf2::Vector3 & v)
 {
   return lhs << "(" << v.getX() << ", " << v.getY() << ", " << v.getZ() << ")";
 }
+
+tf2::Matrix3x3 constructCrossProdMatrix(const tf2::Vector3 & v) {
+  return tf2::Matrix3x3( 0.0,   -v.z(),  v.y(),
+                         v.z(),  0.0,   -v.x(),
+                        -v.y(),  v.x(),  0.0   );
+}
+
+#define PUBLISH_GLOBAL_FRAME_REFERENCED_DATA 1
 
 #endif

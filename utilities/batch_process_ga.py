@@ -4,7 +4,7 @@ import os
 
 rp = rospkg.RosPack()
 path = rp.get_path('gait_training_robot') + '/bags/new/'
-bag_number_list = range(28,38)
+bag_number_list = range(28, 152)
 suffix = 'x'
 
 for bag_number in bag_number_list:
