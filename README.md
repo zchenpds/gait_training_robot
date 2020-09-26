@@ -10,6 +10,7 @@ git clone --recurse-submodules https://github.com/zchenpds/gait_training_robot.g
 - [ROS Melodic](http://wiki.ros.org/melodic/Installation/Ubuntu)
 - [Aria](https://github.com/zchenpds/Aria.git) MobileRobots' Advanced Robot Interface for Applications (ARIA) is a C++ library/SDK for all MobileRobots/ActivMedia platforms.
 - [rosaria](https://github.com/amor-ros-pkg/rosaria) (A ROS wrapper for ARIA)
+- [sport_sole](https://github.com/zchenpds/sport_sole) A ROS node for communicating with the insole sensor.
 
 ## Checklist for Kinect v1
 1. Install pointcloud_to_laserscan. This package converts pointcloud data to laserscan data so that gmapping can use it to build a map. Required only if gmapi
