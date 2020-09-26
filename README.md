@@ -1,7 +1,7 @@
 # gait_training_robot
 This ROS package provides a suite of software that performs gait-training tasks such as engaging people in walkinging exercise, analyzing people's gait, and providing corrective feedback. Some launch files in this package are a good starting point to get [P3-DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf) with a Kinect sensor to perform some generic SLAM/localization/planning tasks. The development of this package is ongoing.
 ```bash
-git clone --recurse-submodules https://github.com/gait_training_robot.git
+git clone --recurse-submodules https://github.com/zchenpds/gait_training_robot.git
 ```
 
 ## Prerequisites
@@ -10,6 +10,7 @@ git clone --recurse-submodules https://github.com/gait_training_robot.git
 - [ROS Melodic](http://wiki.ros.org/melodic/Installation/Ubuntu)
 - [Aria](https://github.com/zchenpds/Aria.git) MobileRobots' Advanced Robot Interface for Applications (ARIA) is a C++ library/SDK for all MobileRobots/ActivMedia platforms.
 - [rosaria](https://github.com/amor-ros-pkg/rosaria) (A ROS wrapper for ARIA)
+- [sport_sole](https://github.com/zchenpds/sport_sole) A ROS node for communicating with the insole sensor.
 
 ## Checklist for Kinect v1
 1. Install pointcloud_to_laserscan. This package converts pointcloud data to laserscan data so that gmapping can use it to build a map. Required only if gmapi
@@ -74,13 +75,16 @@ git clone --recurse-submodules https://github.com/gait_training_robot.git
 1. Install [Azure Kinect ROS Driver](https://github.com/microsoft/Azure_Kinect_ROS_Driver) from source. [Azure Kinect DK](https://docs.microsoft.com/en-us/azure/Kinect-dk/) sensor faces backward and monitors the body movement of the human following the robot.
   - For Azure Kinect Body Tracking SDK 1.0.1, running the following commands in a terminal would install both the device driver and the body tracking sdk.
     ```bash
+    curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+    sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod
+    sudo apt-get update
     sudo apt install libk4abt1.0-dev
     sudo apt install k4a-tools=1.3.0
     ```
   - Remember to update udev rules by copying [this file](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules) to `/etc/udev/rules.d/`, according to [this](https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/docs/usage.md#linux-device-setup).
     ```bash
-    sudo gedit etc/udev/rules.d/99-k4a.rules
-    # Copy and paste the content from the link above, and save the file.
+    cd /etc/udev/rules.d/
+    sudo wget https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/release/1.4.x/scripts/99-k4a.rules
     ```
 
 ## Two-machine configuration
