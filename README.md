@@ -159,65 +159,69 @@ Follow these steps to set up the relevant ROS parameters
   `roslaunch gait_training_robot test5_comkf.launch record_bag:=true play_bag:=true bag_name:=new/data028 enable_gait_analyzer:=true record_gait_analytics:=true`
 
   # ROS Topics
-
 Published topics:
- * /gait_analyzer/pcom_pelvis_measurement [geometry_msgs/PointStamped] 1 publisher
- * /gait_analyzer/cop [geometry_msgs/PointStamped] 1 publisher
- * /tf [tf2_msgs/TFMessage] 3 publishers
+ * /body_tracking_data [visualization_msgs/MarkerArray] 1 publisher
  * /clicked_point [geometry_msgs/PointStamped] 1 publisher
- * /odom [nav_msgs/Odometry] 1 publisher
- * /move_base_simple/goal [geometry_msgs/PoseStamped] 1 publisher
- * /gait_analyzer/pcom_vel_estimate [geometry_msgs/Vector3Stamped] 1 publisher
- * /gait_analyzer/foot_pose_measurement_r [geometry_msgs/PointStamped] 1 publisher
- * /gait_analyzer/foot_pose_measurement_l [geometry_msgs/PointStamped] 1 publisher
- * /tf_static [tf2_msgs/TFMessage] 2 publishers
- * /gait_analyzer/mos_value_measurement1 [std_msgs/Float64] 1 publisher
- * /imu [sensor_msgs/Imu] 1 publisher
- * /sport_sole_publisher/sport_sole [sport_sole/SportSole] 1 publisher
- * /gait_analyzer/bos [geometry_msgs/PolygonStamped] 1 publisher
- * /gait_analyzer/pcom_pos_measurement [geometry_msgs/PointStamped] 1 publisher
+ * /clock [rosgraph_msgs/Clock] 1 publisher
  * /cmd_vel [geometry_msgs/Twist] 1 publisher
- * /gait_analyzer/xcom_estimate [geometry_msgs/PointStamped] 1 publisher
- * /gait_analyzer/xcom_measurement [geometry_msgs/PointStamped] 1 publisher
- * /gait_analyzer/mos_value_measurement2 [std_msgs/Float64] 1 publisher
+ * /gait_analyzer/ankle_pose_measurement_l [geometry_msgs/PointStamped] 1 publisher
  * /gait_analyzer/ankle_pose_measurement_r [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/bos [geometry_msgs/PolygonStamped] 1 publisher
+ * /gait_analyzer/cop [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/foot_pose_measurement_l [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/foot_pose_measurement_r [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/footprint_l [geometry_msgs/PolygonStamped] 1 publisher
+ * /gait_analyzer/footprint_r [geometry_msgs/PolygonStamped] 1 publisher
  * /gait_analyzer/gait_state [std_msgs/UInt8] 1 publisher
- * /gait_analyzer/mos_value_measurement0 [std_msgs/Float64] 1 publisher
- * /joint_states [sensor_msgs/JointState] 1 publisher
- * /rosout [rosgraph_msgs/Log] 4 publishers
+ * /gait_analyzer/ground_clearance_left [std_msgs/Float64] 1 publisher
+ * /gait_analyzer/ground_clearance_right [std_msgs/Float64] 1 publisher
+ * /gait_analyzer/mos [visualization_msgs/MarkerArray] 1 publisher
+ * /gait_analyzer/mos_value_estimate0 [std_msgs/Float64] 1 publisher
  * /gait_analyzer/mos_value_estimate1 [std_msgs/Float64] 1 publisher
  * /gait_analyzer/mos_value_estimate2 [std_msgs/Float64] 1 publisher
- * /initialpose [geometry_msgs/PoseWithCovarianceStamped] 1 publisher
- * /gait_analyzer/mos_value_estimate0 [std_msgs/Float64] 1 publisher
- * /rosout_agg [rosgraph_msgs/Log] 1 publisher
- * /gait_analyzer/ground_clearance_left [std_msgs/Float64] 1 publisher
- * /gait_analyzer/mos [visualization_msgs/MarkerArray] 1 publisher
- * /gait_analyzer/footprint_r [geometry_msgs/PolygonStamped] 1 publisher
- * /gait_analyzer/ankle_pose_measurement_l [geometry_msgs/PointStamped] 1 publisher
- * /body_tracking_data [visualization_msgs/MarkerArray] 1 publisher
- * /clock [rosgraph_msgs/Clock] 1 publisher
- * /gait_analyzer/footprint_l [geometry_msgs/PolygonStamped] 1 publisher
- * /gait_analyzer/ground_clearance_right [std_msgs/Float64] 1 publisher
- * /gait_analyzer/pcom_vel_measurement [geometry_msgs/Vector3Stamped] 1 publisher
+ * /gait_analyzer/mos_value_measurement0 [std_msgs/Float64] 1 publisher
+ * /gait_analyzer/mos_value_measurement1 [std_msgs/Float64] 1 publisher
+ * /gait_analyzer/mos_value_measurement2 [std_msgs/Float64] 1 publisher
+ * /gait_analyzer/mos_vec [geometry_msgs/Vector3Stamped] 1 publisher
+ * /gait_analyzer/omega_filtered [geometry_msgs/Vector3Stamped] 1 publisher
+ * /gait_analyzer/pcom_pelvis_measurement [geometry_msgs/PointStamped] 1 publisher
  * /gait_analyzer/pcom_pos_estimate [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/pcom_pos_measurement [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/pcom_vel_estimate [geometry_msgs/Vector3Stamped] 1 publisher
+ * /gait_analyzer/pcom_vel_measurement [geometry_msgs/Vector3Stamped] 1 publisher
+ * /gait_analyzer/pcom_vel_measurement2 [geometry_msgs/Vector3Stamped] 1 publisher
+ * /gait_analyzer/xcom_estimate [geometry_msgs/PointStamped] 1 publisher
+ * /gait_analyzer/xcom_measurement [geometry_msgs/PointStamped] 1 publisher
+ * /imu [sensor_msgs/Imu] 1 publisher
+ * /initialpose [geometry_msgs/PoseWithCovarianceStamped] 1 publisher
+ * /joint_states [sensor_msgs/JointState] 1 publisher
+ * /move_base_simple/goal [geometry_msgs/PoseStamped] 1 publisher
+ * /odom [nav_msgs/Odometry] 1 publisher
+ * /rosout [rosgraph_msgs/Log] 5 publishers
+ * /rosout_agg [rosgraph_msgs/Log] 1 publisher
+ * /sport_sole_publisher/sport_sole [sport_sole/SportSole] 1 publisher
+ * /tf [tf2_msgs/TFMessage] 3 publishers
+ * /tf_static [tf2_msgs/TFMessage] 2 publishers
 
 Subscribed topics:
- * /move_base/global_costmap/costmap_updates [map_msgs/OccupancyGridUpdate] 1 subscriber
- * /trajectory [nav_msgs/Path] 1 subscriber
- * /tf [tf2_msgs/TFMessage] 2 subscribers
- * /scan [sensor_msgs/LaserScan] 1 subscriber
- * /gait_analyzer/xcom_estimate [geometry_msgs/PointStamped] 1 subscriber
- * /tf_static [tf2_msgs/TFMessage] 2 subscribers
- * /imu [sensor_msgs/Imu] 1 subscriber
- * /map_updates [map_msgs/OccupancyGridUpdate] 1 subscriber
- * /sport_sole_publisher/sport_sole [sport_sole/SportSole] 1 subscriber
- * /gait_analyzer/bos [geometry_msgs/PolygonStamped] 1 subscriber
- * /map [nav_msgs/OccupancyGrid] 1 subscriber
- * /move_base/global_costmap/footprint [geometry_msgs/PolygonStamped] 1 subscriber
- * /joint_states [sensor_msgs/JointState] 1 subscriber
- * /rosout [rosgraph_msgs/Log] 1 subscriber
- * /gait_analyzer/footprint_r [geometry_msgs/PolygonStamped] 1 subscriber
  * /body_tracking_data [visualization_msgs/MarkerArray] 1 subscriber
  * /clock [rosgraph_msgs/Clock] 4 subscribers
- * /move_base/global_costmap/costmap [nav_msgs/OccupancyGrid] 1 subscriber
+ * /gait_analyzer/bos [geometry_msgs/PolygonStamped] 1 subscriber
  * /gait_analyzer/footprint_l [geometry_msgs/PolygonStamped] 1 subscriber
+ * /gait_analyzer/footprint_r [geometry_msgs/PolygonStamped] 1 subscriber
+ * /gait_analyzer/xcom_estimate [geometry_msgs/PointStamped] 1 subscriber
+ * /imu [sensor_msgs/Imu] 1 subscriber
+ * /joint_states [sensor_msgs/JointState] 1 subscriber
+ * /map [nav_msgs/OccupancyGrid] 1 subscriber
+ * /map_updates [map_msgs/OccupancyGridUpdate] 1 subscriber
+ * /move_base/global_costmap/costmap [nav_msgs/OccupancyGrid] 1 subscriber
+ * /move_base/global_costmap/costmap_updates [map_msgs/OccupancyGridUpdate] 1 subscriber
+ * /move_base/global_costmap/footprint [geometry_msgs/PolygonStamped] 1 subscriber
+ * /odom [nav_msgs/Odometry] 1 subscriber
+ * /rosout [rosgraph_msgs/Log] 1 subscriber
+ * /scan [sensor_msgs/LaserScan] 1 subscriber
+ * /sport_sole_publisher/sport_sole [sport_sole/SportSole] 1 subscriber
+ * /tf [tf2_msgs/TFMessage] 2 subscribers
+ * /tf_static [tf2_msgs/TFMessage] 2 subscribers
+ * /trajectory [nav_msgs/Path] 1 subscriber
+

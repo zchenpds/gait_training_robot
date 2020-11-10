@@ -219,7 +219,7 @@ namespace sport_sole {
     };
 
     GaitPhase gait_phases_[LEFT_RIGHT];
-    const double p_threshold_ = 1000.0;
+    const double p_threshold_ = 500.0;
     
   public:
     GaitPhaseFSM(): 
@@ -230,6 +230,24 @@ namespace sport_sole {
     uint8_t getGaitPhase();
   };
 }
+
+template<typename Vector>
+class FIRSmoother {
+  bool initialized;
+  Vector x_1;
+public:
+  FIRSmoother():initialized(false){}
+  Vector operator()(const Vector & x) {
+    if (!initialized) {
+      x_1 = x;
+      return x;
+      initialized = true;
+    }
+    Vector res = 0.5 * x_1 + 0.5 * x;
+    x_1 = x;
+    return res;
+  }
+};
 
 class GaitAnalyzer
 {
@@ -308,6 +326,8 @@ private:
   // Publishers
   ros::Publisher pub_gait_state_;
 
+  FIRSmoother<com_t> pcom_pos_smoother_;
+  FIRSmoother<comv_t> pcom_vel_smoother_;
   com_t pcom_pos_measurement_k_; // Center of mass in Kinect frame
   com_t pcom_pos_measurement_;
   ros::Publisher pub_pcom_pos_measurement_; // Center of mass projected onto the ground
@@ -343,6 +363,7 @@ private:
   ros::Publisher pub_bos_; // Base of support polygon
   mos_t mos_;
   ros::Publisher pub_mos_; // Margin of stability
+  ros::Publisher pub_mos_vector_; // Margin of stability
   ros::Publisher pub_mos_value_measurements_[3]; // Margin of stability
   ros::Publisher pub_mos_value_estimates_[3]; // Margin of stability
 
@@ -393,5 +414,6 @@ tf2::Matrix3x3 constructCrossProdMatrix(const tf2::Vector3 & v) {
 }
 
 #define PUBLISH_GLOBAL_FRAME_REFERENCED_DATA 1
-
+// #define PUBLISH_MOS_MEASUREMENT
+// #define PRINT_MOS_DELAY
 #endif

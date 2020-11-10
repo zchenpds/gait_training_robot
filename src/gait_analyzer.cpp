@@ -135,7 +135,7 @@ uint8_t sport_sole::GaitPhaseFSM::getGaitPhase()
 }
 
 GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
-  com_model_(COM_MODEL_14_SEGMENT), // COM_MODEL_PELVIS, COM_MODEL_14_SEGMENT
+  com_model_(COM_MODEL_PELVIS), // COM_MODEL_PELVIS, COM_MODEL_14_SEGMENT
   touches_ground_{
     {true, true}, // Left ankle, right ankle
     {true, true} // Left foot, right foot
@@ -205,6 +205,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   
   pub_bos_ = private_nh_.advertise<geometry_msgs::PolygonStamped>("bos", 1);
   pub_mos_ = private_nh_.advertise<visualization_msgs::MarkerArray>("mos", 1);
+  pub_mos_vector_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("mos_vec", 1);
   for (int i = 0; i < mos_t::mos_count; ++i)
   {
     pub_mos_value_measurements_[i] = private_nh_.advertise<std_msgs::Float64>("mos_value_measurement" + std::to_string(i), 1);
@@ -386,7 +387,9 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     pcom_pelvis_measurement_.setX(vec_joints_[K4ABT_JOINT_PELVIS].getX());
     pcom_pelvis_measurement_.setY(vec_joints_[K4ABT_JOINT_PELVIS].getY());
     pcom_pelvis_measurement_.setZ(vec_joints_[K4ABT_JOINT_PELVIS].getZ());
+    pcom_pos_measurement_ = pcom_pos_smoother_(pcom_pos_measurement_);
     updateCoMMeasurement(stamp_skeleton_curr, pcom_pos_measurement_, pcom_vel_measurement_, vec_joints_);
+    pcom_vel_measurement_ = pcom_vel_smoother_(pcom_vel_measurement_);
     updateXCoM(xcom_measurement_, pcom_pos_measurement_, pcom_vel_measurement_);
 
     updateCoMMeasurement(stamp_skeleton_curr, pcom_pos_measurement_k_, pcom_vel_measurement_k_, vec_joints_k_);
@@ -411,7 +414,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       pcom_vel_measurement_k_ += omega_filtered_cross * pcom_pos_measurement_k_; ///// todo: new formula
     }
     
-    ROS_INFO_STREAM("pcom_vel_measurement_k_" << pcom_vel_measurement_k_);
+    // ROS_INFO_STREAM("pcom_vel_measurement_k_" << pcom_vel_measurement_k_);
     updateXCoM(xcom_measurement_k_, pcom_pos_measurement_k_, pcom_vel_measurement_k_);
 
     // Publish measurements
@@ -526,9 +529,18 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     }
 
     // Calculate margin of stability (measurement)
-    updateMoS(xcom_measurement_k_,bos_points_k_);
+    updateMoS(xcom_measurement_,bos_points_);
     // updateMoS(xcom_measurement_,bos_points_);
     // pub_mos_.publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom));
+#ifdef PRINT_MOS_DELAY
+    std::cout << (ros::Time::now() - stamp_skeleton_curr).toSec() << std::endl;
+#endif
+#ifdef PUBLISH_MOS_MEASUREMENT
+    pub_mos_vector_.publish(constructVector3StampedMessage(stamp_skeleton_curr, tf2::Vector3(
+      mos_.values[mos_t::mos_shortest].dist, 
+      mos_.values[mos_t::mos_anteroposterior].dist, 
+      mos_.values[mos_t::mos_mediolateral].dist )));
+#endif
     for (size_t i = 0; i < mos_t::mos_count; i++)
     {
       std_msgs::Float64 msg;
@@ -541,6 +553,12 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     {
       updateMoS(xcom_estimate_, bos_points_);
       // pub_mos_.publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom));
+#ifndef PUBLISH_MOS_MEASUREMENT
+      pub_mos_vector_.publish(constructVector3StampedMessage(stamp_skeleton_curr, tf2::Vector3(
+        mos_.values[mos_t::mos_shortest].dist, 
+        mos_.values[mos_t::mos_anteroposterior].dist, 
+        mos_.values[mos_t::mos_mediolateral].dist )));
+#endif
       for (size_t i = 0; i < mos_t::mos_count; i++)
       {
         std_msgs::Float64 msg;
@@ -672,7 +690,7 @@ void GaitAnalyzer::updateCoMEstimate(const ros::Time & stamp, const com_kf::Stat
 void GaitAnalyzer::updateBoS(bos_t & res, const vec_joints_t & vec_joints)
 {
   bos_t bos_points;
-  res.clear();
+   res.clear();
   
 #if 1
   // Define unit foot orientation vectors v0[]
