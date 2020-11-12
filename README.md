@@ -158,6 +158,12 @@ Follow these steps to set up the relevant ROS parameters
   `roslaunch gait_training_robot test5_comkf.launch record_bag:=false play_bag:=true bag_name:=new/data028 enable_gait_analyzer:=true record_gait_analytics:=false`
   `roslaunch gait_training_robot test5_comkf.launch record_bag:=true play_bag:=true bag_name:=new/data028 enable_gait_analyzer:=true record_gait_analytics:=true`
 
+10. Synchronization between insole and Kinect
+  Record data
+  `roslaunch gait_training_robot sync_kinect_and_insole.launch`
+  Use recorded data
+  `roslaunch gait_training_robot sync_kinect_and_insole.launch play_bag:=true record_bag:=false bag_name:=data_sync01`
+
   # ROS Topics
 Published topics:
  * /body_tracking_data [visualization_msgs/MarkerArray] 1 publisher
