@@ -48,7 +48,7 @@ def lag_finder(y1, y2):
 
     delay_arr = np.linspace(-0.5*n/insoleFreq, 0.5*n/insoleFreq, n)
     delay = delay_arr[np.argmax(corr)]
-    rospy.loginfo('Insole timestamp is ' + str(delay) + ' behind Kinect IMU timestamp')
+    rospy.loginfo('Insole timestamp is ' + str(delay) + ' ahead of Kinect IMU timestamp')
 
 def main():
     rospy.init_node('sync_kinect_and_insole')
@@ -72,7 +72,6 @@ def main():
 
     wKinect = []
     wInsole = []
-    wInsoleSum = 0.0
 
     rospy.sleep(cacheLength)
 
