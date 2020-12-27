@@ -1,0 +1,29 @@
+<launch>
+  <arg name="bag_filename" default="/tmp/eas102_02.bag" />
+  <!-- use_2d must be true -->
+  <arg name="use_2d" default="true" />
+  <param name="/use_sim_time" value="true" />
+
+  <group if="$(arg use_2d)" >
+    <node pkg="rosbag" type="play" name="bag_player" 
+          args="--clock $(arg bag_filename) --topics /odom /scan /tf" />
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find gait_training_robot)/rviz/cartographer.rviz" />
+    <node name="cartographer_node" pkg="cartographer_ros"
+          type="cartographer_node" args="
+              -configuration_directory $(find gait_training_robot)/configuration_files
+              -configuration_basename cartographer_2d.lua"
+          output="screen">
+    </node>
+  </group>
+
+  <node name="cartographer_occupancy_grid_node" pkg="cartographer_ros"
+      type="cartographer_occupancy_grid_node" args="-resolution 0.05" />
+
+  <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+  <node name="joint_state_publisher_gtr2" pkg="joint_state_publisher" type="joint_state_publisher" />
+	<node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher" />
+  <node name="kinect1_broadcaster1" pkg="tf" type="static_transform_publisher" 
+        args="0.0 -0.02 0.0 -1.5708 0.0 -1.5707 camera_link camera_depth_optical_frame 100" />
+
+
+</launch>
