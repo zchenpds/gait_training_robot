@@ -8,6 +8,10 @@
 #include <gait_training_robot/goal_generator.h>
 #include <yaml-cpp/yaml.h>
 #include <ros/package.h>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 void GoalGeneratorParams::print()
 {
@@ -48,6 +52,53 @@ action_client_("move_base", true)
     pub_goal_poses_ = private_nh_.advertise<geometry_msgs::PoseArray>("goal_poses", 1);
     ros::Duration(0.5).sleep();
     previewPoses();
+    for (std::string line; 
+         std::cout << "Please provide changes to make: {q|{x|y|h} <0-" << poses_.size() - 1 << "> <float>}: " , 
+         std::cout.flush(), std::cin >> std::ws, 
+         std::getline(std::cin, line);)
+    {
+      std::istringstream iss(line);
+
+      char command;
+      double * field = nullptr;
+      if (!(iss >> command)) continue;
+      if (command == 'q')
+      {
+        std::cout << "Quitting." << std::endl;
+        break;
+      }
+      if (command != 'x' && command != 'y' && command != 'h')
+      {
+        std::cout << "Invalid input." << std::endl; continue;
+      }
+
+      int seq = 0;
+      if (!(iss >> seq) || seq < 0 || seq >= poses_.size())
+      {
+        std::cout << "Invalid input." << std::endl; continue;
+      }
+
+      double change = 0.0;
+      if (!(iss >> change))
+      {
+        std::cout << "Invalid input." << std::endl; continue;
+      }
+
+
+      if (command == 'x') poses_[seq].position.x += change;
+      else if (command == 'y') poses_[seq].position.y += change;
+      else
+      {
+        double yaw = atan2(poses_[seq].orientation.z, poses_[seq].orientation.w) * 2.0;
+        yaw += change * M_PI / 180;
+        poses_[seq].orientation.z = sin(yaw / 2.0);
+        poses_[seq].orientation.w = cos(yaw / 2.0);
+      }
+      previewPoses();
+    }
+    writeToYaml(params_.yaml_file_path);
+    ros::shutdown();
+
   }
   
 }
@@ -75,6 +126,7 @@ bool GoalGenerator::readFromYaml(const std::string & file_name)
         {
           poses_.back().position.x = node_position["x"].as<double>();
           poses_.back().position.y = node_position["y"].as<double>();
+          poses_.back().position.z = 0.0;
           poses_.back().orientation.z = node_orientation["z"].as<double>();
           poses_.back().orientation.w = node_orientation["w"].as<double>();
         }
@@ -95,6 +147,59 @@ bool GoalGenerator::readFromYaml(const std::string & file_name)
     global_frame_id_ = "map";
   }
   
+}
+
+void GoalGenerator::writeToYaml(const std::string &file_name)
+{
+  YAML::Emitter out;
+  int i = 0;
+  for (const auto & pose : poses_)
+  {
+    // Begin waypoint
+    out << YAML::BeginMap;
+
+    // header
+    out << YAML::Key << "header";
+    out << YAML::BeginMap;
+    out << YAML::Key << "seq";
+    out << YAML::Value << i;
+    out << YAML::Key << "frame_id";
+    out << YAML::Value << global_frame_id_;
+    out << YAML::EndMap;
+
+    // Begin pose
+    out << YAML::Key << "pose";
+    out << YAML::BeginMap;
+    
+    // position
+    out << YAML::Key << "position";
+    out << YAML::BeginMap;
+    out << YAML::Key << "x";
+    out << YAML::Value << pose.position.x;
+    out << YAML::Key << "y";
+    out << YAML::Value << pose.position.y;
+    out << YAML::EndMap;
+
+    // orientation
+    out << YAML::Key << "orientation";
+    out << YAML::BeginMap;
+    out << YAML::Key << "z";
+    out << YAML::Value << pose.orientation.z;
+    out << YAML::Key << "w";
+    out << YAML::Value << pose.orientation.w;
+    out << YAML::EndMap;
+    
+    // End pose
+    out << YAML::EndMap;
+
+    // End waypoint
+    out << YAML::EndMap;
+
+    ++i;
+  }
+
+  std::ofstream fout(file_name);
+  fout << out.c_str();
 }
 
 void GoalGenerator::previewPoses()

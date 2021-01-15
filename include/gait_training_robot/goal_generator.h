@@ -63,6 +63,7 @@ private:
 
 protected:
   bool readFromYaml(const std::string &file_name);
+  void writeToYaml(const std::string &file_name);
   void previewPoses();
 
 public:
