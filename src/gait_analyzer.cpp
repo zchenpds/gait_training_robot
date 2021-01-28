@@ -271,7 +271,6 @@ void GaitAnalyzer::k4aimuCB(const sensor_msgs::Imu & msg)
 void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 {  
   double dist_min_pelvis = 100.0;
-  //double idx = -1; // body id with the min dist of pelvis from camera center
   auto it_pelvis_closest = msg.markers.end();// iterator of the pelvis marker of the closest body
 
   // Find the closest body, K4ABT_JOINT_PELVIS = 0
@@ -280,7 +279,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       // The coordinates are in expressed in /depth_camera_link
       double dist_pelvis = hypot(it->pose.position.x, it->pose.position.z);
       if (dist_pelvis < dist_min_pelvis) {
-        dist_pelvis = dist_min_pelvis;
+        dist_min_pelvis = dist_pelvis;
         it_pelvis_closest = it;
         sub_id_ = it_pelvis_closest->id / 100;
       }
