@@ -1,0 +1,142 @@
+#!/usr/bin/python
+
+import yaml
+import rospy
+import rospkg
+import math
+import sys
+
+from tf.transformations import quaternion_from_euler
+
+ds = 0.5
+frame_id = "map" # map, odom
+
+def getWaypoint(x, y, th, seq):
+    q = quaternion_from_euler(0.0, 0.0, th)
+    # print("The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3]))
+    return {
+        "header": {
+            "seq": seq,
+            "frame_id": frame_id,
+        },
+        "pose": {
+            "position": {
+                "x": float(x),
+                "y": float(y),
+            },
+            "orientation": {
+                "z": float(q[2]),
+                "w": float(q[3]),
+            }
+        }
+
+    }
+
+def appendCircularPath(path, xc, yc, radius, th0, th1):
+    radius = math.fabs(radius)
+    if radius < 1.0:
+        print("Radius too small.")
+        return path
+    dth = ds / radius * math.copysign(1.0, th1 - th0)
+    if dth == 0:
+        return path
+
+    th = th0
+    seq = 0
+    if path:
+        appendStraightPath(path, xc + radius * math.cos(th), yc + radius * math.sin(th))
+        seq = path[-1]["header"]["seq"] + 1
+    while dth * (th - th1) < 0:
+        x = xc + radius * math.cos(th)
+        y = yc + radius * math.sin(th)
+        tangent = th + math.copysign(math.pi / 2.0, dth)
+        path.append(getWaypoint(x, y, tangent, seq))
+        seq += 1
+        th += dth
+    return path
+    
+    
+
+
+def appendStraightPath(path, x1, y1):
+    if not path:
+        print("Cannot append when path is empty.")
+        return path
+    x0 = path[-1]["pose"]["position"]["x"]
+    y0 = path[-1]["pose"]["position"]["y"]
+    seq = path[-1]["header"]["seq"] + 1
+    th = math.atan2(y1 - y0, x1 - x0)
+    dx = ds * math.cos(th)
+    dy = ds * math.sin(th)
+    x, y, s = x0, y0, 0.0
+    s1 = math.hypot(y1 - y0, x1 - x0)
+    while s + ds < s1:
+        x += dx
+        y += dy
+        s += ds
+        path.append(getWaypoint(x, y, th, seq))
+        seq += 1
+    return path
+
+def closePath(path):
+    if len(path) < 2:
+        print("Cannot close path. Too few waypoints.")
+        return path
+    x1 = path[0]["pose"]["position"]["x"]
+    y1 = path[0]["pose"]["position"]["y"]
+    appendStraightPath(path, x1, y1)
+    return path
+
+def writeYaml(path, suffix):
+    rp = rospkg.RosPack()
+    with open(rp.get_path('gait_training_robot') + '/data/waypoints' + suffix + '.yaml', 'w') as outfile:
+        for wp in path:
+            yaml.dump(wp, outfile, default_flow_style=False, explicit_start=True)
+
+
+r = 1.3
+R = 3.9
+alpha = math.pi * 0.2
+PI = math.pi
+
+
+def main():
+    dx = (R - r) * math.cos(alpha)
+    dy = (R - r) * math.sin(alpha)
+    xc1, yc1 = 4.0, 1.2
+    xc2, yc2 = 4.0, -2.7
+    path = []
+    # Upper semicircle
+    appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI, PI - alpha)
+    appendCircularPath(path, xc1, yc1, r, PI - alpha, alpha)
+    appendCircularPath(path, xc1 - dx, yc1 - dy, R, alpha, 0.0)
+    # Lower semicircle
+    appendCircularPath(path, xc2 - dx, yc2 + dy, R, 0.0, -alpha)
+    appendCircularPath(path, xc2, yc2, r, -alpha, -PI + alpha)
+    appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI + alpha, -PI)
+    closePath(path)
+    suffix = '_cw'
+    writeYaml(path, suffix)
+
+    dx = (R - r) * math.cos(alpha)
+    dy = (R - r) * math.sin(alpha)
+    xc1, yc1 = 4.1, 1.2
+    xc2, yc2 = 4.1, -2.7
+    path = []
+    # Lower semicircle
+    appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI, -PI + alpha)
+    appendCircularPath(path, xc2, yc2, r, -PI + alpha, -alpha)
+    appendCircularPath(path, xc2 - dx, yc2 + dy, R, -alpha, 0.0)
+    # Upper semicircle
+    appendCircularPath(path, xc1 - dx, yc1 - dy, R, 0.0, alpha)
+    appendCircularPath(path, xc1, yc1, r, alpha, PI - alpha)
+    appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI - alpha, PI)
+    closePath(path)
+    suffix = '_ccw'
+    writeYaml(path, suffix)
+
+    
+
+
+if __name__ == '__main__':
+    main()

@@ -35,6 +35,9 @@ action_client_("move_base", true)
     ROS_PARAM_LIST
   #undef LIST_ENTRY
 
+  params_.yaml_file_path.insert(params_.yaml_file_path.size() - 5, params_.suffix);
+  params_.print();
+
   readFromYaml(params_.yaml_file_path);
   
   if (params_.preview == false)

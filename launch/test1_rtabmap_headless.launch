@@ -2,21 +2,26 @@
   <arg name="localization"      default="false"/>
   <arg name="database_path"     default="rtabmap.db"/>
   <arg name="com_port" default="/dev/ttyUSB0"/>
+  <arg name="preview" default="false"/>
+  <arg name="wired_sync_enabled" default="false"/>
 
   <!-- Arguments for Kinect driver -->
   <arg name="azure_kinect_driver_required" default="false" />
   <arg name="recording_file" default="" />
   <arg name="recording_loop_enabled" default="true" />
+  <arg name="open_loop_controller_enabled" default="false"/>
   
   <!-- rosaria -->
   <include file="$(find gait_training_robot)/launch/includes/robot.launch">
     <arg name="com_port" value="$(arg com_port)"/>
+    <arg name="preview" value="$(arg preview)"/>
   </include>
 
   <!-- Kinect1 + rtabmap_ros -->
   <include file="$(find gait_training_robot)/launch/includes/kinect_rtabmap.launch" unless="$(arg open_loop_controller_enabled)">
     <arg name="localization" value="$(arg localization)" />
     <arg name="database_path" value="$(arg database_path)" />
+    <arg name="preview" value="$(arg preview)" />
   </include>
   <node name="rtabmap_dummy" pkg="tf" type="static_transform_publisher"  
     args="0 0 0 0 0 0 map odom 100" if="$(arg open_loop_controller_enabled)"/>
@@ -37,10 +42,9 @@
   <arg name="enable_goal_generator" default="false"/>
   <arg name="max_num_laps" default="3"/>
   <arg name="delay_start_secs" default="0.0"/>
-  <arg name="waypoints_file" default="$(find gait_training_robot)/data/waypoints.yaml"/>
+  <arg name="suffix" default="_cw"/>
 
   <!-- open_loop_controller -->
-  <arg name="open_loop_controller_enabled" default="false"/>
   <arg name="open_loop_controller_mode" default="straight"/>
   <arg name="open_loop_controller_terminal_distance" default="5.0"/>
   <arg name="open_loop_controller_wait_for_required_msgs" default="false"/>
@@ -76,20 +80,39 @@
 
   <!-- Kinect driver launch file -->
   <!-- Have to delay-launch this because openni will not work -->
-  <include file="$(find timed_roslaunch)/launch/timed_roslaunch.launch"
-           if="$(eval arg('enable_distance_controller') or 
-                      arg('azure_kinect_driver_required'))">
-    <arg name="time" value="2" />
-    <arg name="pkg" value="azure_kinect_ros_driver" />
-    <arg name="file" value="driver.launch" />
-    <arg name="value" 
-        value="depth_mode:=WFOV_2X2BINNED 
-               body_tracking_enabled:=true fps:=30 rgb_point_cloud:=false
-               recording_file:=$(arg recording_file)
-               recording_loop_enabled:=$(arg recording_loop_enabled)
-               required:=true
-               output:=screen" />
-  </include>
+  <group unless="$(arg wired_sync_enabled)">
+    <include file="$(find timed_roslaunch)/launch/timed_roslaunch.launch"
+            if="$(eval arg('enable_distance_controller') or 
+                        arg('azure_kinect_driver_required'))">
+      <arg name="time" value="2" />
+      <arg name="pkg" value="azure_kinect_ros_driver" />
+      <arg name="file" value="driver.launch" />
+      <arg name="value" 
+          value="depth_mode:=WFOV_2X2BINNED
+                body_tracking_enabled:=true fps:=30 rgb_point_cloud:=false
+                recording_file:=$(arg recording_file)
+                recording_loop_enabled:=$(arg recording_loop_enabled)
+                required:=true
+                output:=screen" />
+    </include>
+  </group>
+  <group if="$(arg wired_sync_enabled)">
+    <include file="$(find timed_roslaunch)/launch/timed_roslaunch.launch"
+            if="$(eval arg('enable_distance_controller') or 
+                        arg('azure_kinect_driver_required'))">
+      <arg name="time" value="2" />
+      <arg name="pkg" value="azure_kinect_ros_driver" />
+      <arg name="file" value="driver.launch" />
+      <arg name="value" 
+          value="depth_mode:=WFOV_2X2BINNED
+                body_tracking_enabled:=true fps:=30 rgb_point_cloud:=false
+                wired_sync_mode:=2 subordinate_delay_off_master_usec:=800
+                recording_file:=$(arg recording_file)
+                recording_loop_enabled:=$(arg recording_loop_enabled)
+                required:=true
+                output:=screen" />
+    </include>
+  </group>
 
   <!-- Unless open_loop_controller_enabled -->
   <group unless="$(arg open_loop_controller_enabled)">
@@ -114,7 +137,7 @@
     <node pkg="gait_training_robot" type="goal_generator" name="goal_generator" if="$(arg enable_goal_generator)" output="screen" >
       <param name="max_num_laps" value="$(arg max_num_laps)" />
       <param name="delay_start_secs" value="$(arg delay_start_secs)" />
-      <param name="yaml_file_path" value="$(arg waypoints_file)" />
+      <param name="suffix" value="$(arg suffix)" />
     </node>
   </group>
 

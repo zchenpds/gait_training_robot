@@ -26,6 +26,7 @@ typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseCl
 // LIST_ENTRY(sensor_sn, "The serial number of the sensor this node should connect with", std::string, std::string(""))
 #define ROS_PARAM_LIST                                                                                                      \
   LIST_ENTRY(yaml_file_path, "The path to the yaml file where the list of goals is stored", std::string, ros::package::getPath("gait_training_robot") + "/data/waypoints.yaml")    \
+  LIST_ENTRY(suffix, "YAML file name suffix", std::string, std::string())    \
   LIST_ENTRY(interpolation_enabled, "Smooth the paths between waypoints by adding more waypoints", bool, false)    \
   LIST_ENTRY(dist_tolerance, "The critical distance between the current and the goal robot positions, below which the robot will start pursuing the next goal in the sequence.", float, 1.0f)    \
   LIST_ENTRY(preview, "If true, the goal will not be executed.", bool, false)    \
