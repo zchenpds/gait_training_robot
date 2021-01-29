@@ -3,6 +3,7 @@
   <arg name="database_path"     default="rtabmap.db"/>
   <arg     if="$(arg localization)" name="args"  default=""/>
   <arg unless="$(arg localization)" name="args"  default="--delete_db_on_start"/>
+  <arg name="preview" default="false" />
 
   <!-- <node name="kinect1_broadcaster" pkg="tf" type="static_transform_publisher" args="0.15 0 0.3 0 0 0 1 base_link camera_link 100" /> -->
   
@@ -15,7 +16,7 @@
     <remap from="scan" to="scan" />
   </node>
 
-  <include file="$(find openni_launch)/launch/openni.launch">
+  <include file="$(find openni_launch)/launch/openni.launch" unless="$(arg preview)">
     <arg name="depth_registration" value="true"/>
   </include>
 
