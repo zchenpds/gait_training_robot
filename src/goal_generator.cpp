@@ -13,6 +13,8 @@
 #include <sstream>
 #include <string>
 
+#include <signal.h>
+
 void GoalGeneratorParams::print()
 {
   #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val)         \
@@ -106,6 +108,19 @@ action_client_("move_base", true)
   
 }
 
+void GoalGenerator::sigintHandler(int sig)
+{
+  if (params_.preview == false)
+  {
+    if (action_client_.isServerConnected())
+    {
+      action_client_.cancelAllGoals();
+    }
+    // Wait in case the robot is running at full speed before killing rosaria
+    system("sleep 4; rosnode kill -a");
+  }
+  ros::shutdown();
+}
 
 bool GoalGenerator::readFromYaml(const std::string & file_name)
 {
@@ -272,8 +287,7 @@ void GoalGenerator::sendGoal()
   printPoseMessage("Sending goal [%.2f m, %.2f m, %.2f rad]", cur_goal_.target_pose.pose);
 
   if (num_laps_ >= params_.max_num_laps) {
-    action_client_.cancelAllGoals();
-    ros::shutdown();
+    sigintHandler(SIGTERM);
   }
   else
   {
@@ -315,12 +329,20 @@ void GoalGenerator::feedbackCB(const move_base_msgs::MoveBaseFeedbackConstPtr & 
   }
 }
 
-
+// https://www.cs.technion.ac.il/users/yechiel/c++-faq/memfnptr-vs-fnptr.html
+GoalGenerator * gg_ptr = nullptr;
+void sigintHandlerWrapper(int sig)
+{
+  if (gg_ptr) gg_ptr->sigintHandler(sig);
+}
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "goal_generator");
+  ros::init(argc, argv, "goal_generator", ros::init_options::NoSigintHandler);
 
   GoalGenerator gg;
+  gg_ptr = &gg;
+
+  signal(SIGINT, sigintHandlerWrapper);
   
 
   ros::spin();

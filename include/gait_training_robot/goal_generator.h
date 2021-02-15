@@ -70,6 +70,7 @@ protected:
 public:
   GoalGenerator(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   ~GoalGenerator() {}
+  void sigintHandler(int sig);
   void setNextGoal();
   void setNextGoalCircular();
   void sendGoal();

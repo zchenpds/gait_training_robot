@@ -7,8 +7,10 @@ import math
 import sys
 
 from tf.transformations import quaternion_from_euler
+from tf.transformations import euler_from_quaternion
 
 ds = 0.5
+yaw_degrees = 0
 frame_id = "map" # map, odom
 
 def getWaypoint(x, y, th, seq):
@@ -31,6 +33,11 @@ def getWaypoint(x, y, th, seq):
         }
 
     }
+
+def getYawFromWaypoint(waypoint):
+    quat = [0.0, 0.0, waypoint['pose']['orientation']['z'], waypoint['pose']['orientation']['w']]
+    euler = euler_from_quaternion(quat)
+    return euler[2]
 
 def appendCircularPath(path, xc, yc, radius, th0, th1):
     radius = math.fabs(radius)
@@ -87,6 +94,25 @@ def closePath(path):
     appendStraightPath(path, x1, y1)
     return path
 
+def rotateAround(path, xc, yc, yaw):
+    s = math.sin(yaw)
+    c = math.cos(yaw)
+    for waypoint in path:
+        x = waypoint["pose"]["position"]["x"]
+        y = waypoint["pose"]["position"]["y"]
+        x -= xc
+        y -= yc
+        x = x * c - y * s
+        y = x * s + y * c
+        waypoint["pose"]["position"]["x"] = x + xc
+        waypoint["pose"]["position"]["y"] = y + yc
+        th = getYawFromWaypoint(waypoint) + yaw
+        q = quaternion_from_euler(0.0, 0.0, th)
+        waypoint['pose']['orientation']['z'] = float(q[2])
+        waypoint['pose']['orientation']['w'] = float(q[3])
+    
+        
+
 def writeYaml(path, suffix):
     rp = rospkg.RosPack()
     with open(rp.get_path('gait_training_robot') + '/data/waypoints' + suffix + '.yaml', 'w') as outfile:
@@ -94,7 +120,7 @@ def writeYaml(path, suffix):
             yaml.dump(wp, outfile, default_flow_style=False, explicit_start=True)
 
 
-r = 1.3
+r = 1.4
 R = 3.9
 alpha = math.pi * 0.2
 PI = math.pi
@@ -115,13 +141,14 @@ def main():
     appendCircularPath(path, xc2, yc2, r, -alpha, -PI + alpha)
     appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI + alpha, -PI)
     closePath(path)
+    rotateAround(path, 4.0, -0.75, -yaw_degrees * math.pi / 180.0)
     suffix = '_cw'
     writeYaml(path, suffix)
 
     dx = (R - r) * math.cos(alpha)
     dy = (R - r) * math.sin(alpha)
-    xc1, yc1 = 4.1, 1.2
-    xc2, yc2 = 4.1, -2.7
+    xc1, yc1 = 4.2, 1.2
+    xc2, yc2 = 4.2, -2.7
     path = []
     # Lower semicircle
     appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI, -PI + alpha)
@@ -132,6 +159,7 @@ def main():
     appendCircularPath(path, xc1, yc1, r, alpha, PI - alpha)
     appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI - alpha, PI)
     closePath(path)
+    rotateAround(path, 4.0, -0.75, yaw_degrees * math.pi / 180.0)
     suffix = '_ccw'
     writeYaml(path, suffix)
 

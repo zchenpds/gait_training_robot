@@ -28,14 +28,14 @@
 
   <!-- distance_controller -->
   <arg name="enable_distance_controller" default="false"/>
-  <arg name="dist_desired" default="1.7"/>
+  <arg name="dist_desired" default="1.4"/>
   <arg name="use_marker" default="true"/>
   <arg name="timeout_threshold" default="0.8"/>
   <arg name="v_in_threshold" default="0.2"/>
-  <arg name="u_i_max" default="0.3"/>
-  <arg name="K_p" default="1.0"/>
-  <arg name="K_i" default="0.3"/>
-  <arg name="v_nominal" default="0.5"/>
+  <arg name="u_i_max" default="0.2"/>
+  <arg name="K_p" default="0.6"/>
+  <arg name="K_i" default="0.13"/>
+  <arg name="v_nominal" default="0.8"/>
   <arg name="v_max" default="1.2"/>
 
   <!-- goal_generator -->

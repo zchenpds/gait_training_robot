@@ -24,7 +24,7 @@
   <!-- Arguments for straight line walking -->
   <arg name="straight_open_loop_enabled" default="false" />
   <arg name="straight_distance" default="5.0" />
-  <arg name="v_max" default="0.8" />
+  <arg name="v_max" default="1.2" />
 
   <!-- Arguments for rosbag record -->
   <arg name="record_bag" default="true" />
@@ -33,6 +33,7 @@
 
   <!-- Arguments for gait_analyzer -->
   <arg name="enable_gait_analyzer" default="false" />
+  <arg name="gait_analyzer_global_frame" default="odom" />
   <arg name="record_gait_analytics" default="true" />
 
   <!-- Other arguments -->
@@ -40,6 +41,7 @@
   <arg name="static_test" default="false" />
   <arg name="waypoints_file_suffix" default="_cw"/>
   <arg name="disable_rviz" default="false"/>
+  <arg name="database_path" default="rtabmap.db"/>
 
   <!-- <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
     <param name="belt_speed" value="$(arg belt_speed)" />
@@ -91,6 +93,7 @@
         <arg name="v_max" value="$(arg v_max)" />
         <arg name="suffix" value="$(arg waypoints_file_suffix)"/>
         <arg name="wired_sync_enabled" value="true" />
+        <param name="database_path" type="string" value="$(arg database_path)"/>
       </include>
     </group>
 
@@ -104,7 +107,7 @@
           if="$(arg play_bag)" />
     <!-- Robot state publisher -->
     <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
-	  <node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="state_publisher" unless="$(arg disable_rviz)"/>
+	  <node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher" unless="$(arg disable_rviz)"/>
   </group>
 
   <!-- rosbag record -->
@@ -131,11 +134,12 @@
   <group if="$(arg enable_gait_analyzer)" >
     <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
       <param name="belt_speed" value="$(arg belt_speed)" />
+      <param name="global_frame" value="$(arg gait_analyzer_global_frame)" />
     </node>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" />
     <node name="rosbag_record_ga_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/$(arg bag_name)_ga 
-                --regex '/gait_analyzer/.*'" 
+                --regex '(/gait_analyzer/.*|/kinect_pose_estimator/.*)'" 
           if="$(arg record_gait_analytics)"/> 
   </group>
 
