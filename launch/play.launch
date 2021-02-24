@@ -1,0 +1,24 @@
+<launch>
+	<arg name="bag_name" default="optitrack/data226b"/>
+	<arg name="plot_robot_vx" default="false"/>
+	<arg name="plot_robot_th" default="false"/>
+	<arg name="plot_robot_x" default="false"/>
+	<arg name="plot_robot_y" default="false"/>
+
+	<include file="$(find gait_training_robot)/launch/test5_comkf.launch">
+		<arg name="play_bag" value="true"/>
+		<arg name="record_bag" value="false"/>
+		<arg name="bag_name" value="$(arg bag_name)"/>
+	</include>
+	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen"/>
+
+	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"/>
+	<node name="plot_robot_vx" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_vx)"
+    args="/kinect_pose_estimator/odom/twist/twist/linear/x odom/twist/twist/linear/x" />
+	<node name="plot_robot_th" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_th)"
+    args="/kinect_pose_estimator/odom/pose/pose/orientation/z odom/pose/pose/orientation/z" />
+	<node name="plot_robot_x" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_x)"
+    args="/kinect_pose_estimator/odom/pose/pose/position/x odom/pose/pose/position/x" />
+	<node name="plot_robot_y" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_y)"
+    args="/kinect_pose_estimator/odom/pose/pose/position/y odom/pose/pose/position/y" />
+</launch>

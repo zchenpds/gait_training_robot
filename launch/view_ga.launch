@@ -1,0 +1,12 @@
+<launch>
+	<arg name="bag_name" default="optitrack/data204b"/>
+	<include file="$(find gait_training_robot)/launch/test5_comkf.launch">
+    <arg name="gait_analyzer_global_frame" default="odom" />
+		<arg name="play_bag" value="true"/>
+		<arg name="record_bag" value="false"/>
+		<arg name="bag_name" value="$(arg bag_name)"/>
+    <arg name="enable_gait_analyzer" value="true"/>
+    <arg name="record_gait_analytics" value="false"/>
+	</include>
+	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"/>
+</launch>
