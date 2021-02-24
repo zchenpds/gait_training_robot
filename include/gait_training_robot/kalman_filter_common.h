@@ -16,7 +16,7 @@
  */
 template<class StateType>
 void setModelCovariance(Kalman::StandardBase<StateType>& model, 
-  const std::array<T, StateType::RowsAtCompileTime>& var_vec)
+  const std::array<typename StateType::Scalar, StateType::RowsAtCompileTime>& var_vec)
 {
   auto cov = decltype(model.getCovariance()){};
   cov.setZero();
