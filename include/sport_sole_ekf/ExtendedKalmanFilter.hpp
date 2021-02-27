@@ -1,6 +1,7 @@
 #ifndef SPORT_SOLE_EXTENDEDKALMANFILTER_HPP_
 #define SPORT_SOLE_EXTENDEDKALMANFILTER_HPP_
 
+#include <iostream>
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include "SystemModel.hpp"
 #include "AccelMeasurementModel.hpp"
@@ -9,6 +10,7 @@
 #include "VelocityMeasurementModel.hpp"
 #include "QuatMeasurementModel.hpp"
 #include "YawMeasurementModel.hpp"
+#include "VAMeasurementModel.hpp"
 
 namespace sport_sole
 {
@@ -22,6 +24,7 @@ namespace sport_sole
     VelocityMeasurementModel<T> vmm;
     QuatMeasurementModel<T> qmm;
     YawMeasurementModel<T> ymm;
+    VAMeasurementModel<T> vamm;
 
     typedef State<T> S;
     typedef Control<T> C;
@@ -31,6 +34,7 @@ namespace sport_sole
     typedef VelocityMeasurement<T> ZV;
     typedef QuatMeasurement<T> ZQ;
     typedef YawMeasurement<T> ZY;
+    typedef VAMeasurement<T> ZVA;
 
     using Kalman::ExtendedKalmanFilter<S>::x;
     using Kalman::ExtendedKalmanFilter<S>::P;
@@ -106,6 +110,11 @@ namespace sport_sole
       return this->getState();
     }
 
+    const S& update(const ZVA& z)
+    {
+      return update(vamm, z);
+    }
+
     void repairQuaternion()
     {
       // repair quaternion
@@ -115,6 +124,23 @@ namespace sport_sole
     }
 
     bool initialized = false;
+
+    void reducePVA()
+    {
+      for (auto xyz : {0, 1, 2})
+      {
+        P(S::PX + xyz, S::VX + xyz) /= 1e5;
+        P(S::VX + xyz, S::PX + xyz) /= 1e5;
+        P(S::PX + xyz, S::AX + xyz) /= 1e5;
+        P(S::AX + xyz, S::PX + xyz) /= 1e5;
+      }
+    }
+
+    void printP()
+    {
+      return;
+      std::cout << "P =\n" << P << "\n\n";
+    }
     
   };
 

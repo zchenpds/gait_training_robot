@@ -260,6 +260,7 @@ public:
   void updateGaitState(const uint8_t& msgs);
   // Update both CoM and CoMv measurements
   void updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
+  void updateCoMMeasurementK(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
   // Update XCoM
   void updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel);
   // Update CoM CoMv and XCoM estimates
@@ -313,7 +314,7 @@ private:
   tf2::Vector3 omega_filtered_;
   ros::Publisher pub_omega_filtered_;
   message_filters::Cache<geometry_msgs::Vector3Stamped> cache_omega_filtered_;
-  float vel_robot_filtered_ = 0.0f;
+  tf2::Vector3 vel_robot_filtered_{0.0, 0.0, 0.0};
 
 
   // Subscribers
@@ -322,6 +323,8 @@ private:
   ros::Subscriber sub_skeletons_;
   message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
+  message_filters::Subscriber<nav_msgs::Odometry> sub_fused_odom_;
+  message_filters::Cache<nav_msgs::Odometry> cache_fused_odom_;
 
   // Publishers
   ros::Publisher pub_gait_state_;

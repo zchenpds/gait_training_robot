@@ -84,9 +84,9 @@ public:
 
         M measurement;
         measurement << 
-            q0sq + q1sq - q2sq - q3sq,
-            2*q1*q2 - 2*q0*q3,
-            2*q0*q2 + 2*q1*q3;
+            2*q0*q3 + 2*q1*q2,
+            q0sq - q1sq + q2sq - q3sq,
+            2*q2*q3 - 2*q0*q1;
         return measurement;
     }
 
@@ -105,9 +105,9 @@ protected:
         const T& q3 = x.q3();
 
         this->H.template block<3, 4>(M::X, S::Q0) <<
-             2*q0,  2*q1, -2*q2, -2*q3,
-            -2*q3,  2*q2,  2*q1, -2*q0,
-             2*q2,  2*q3,  2*q0,  2*q1;
+             2*q3,  2*q2,  2*q1,  2*q0,
+             2*q0, -2*q1,  2*q2, -2*q3,
+            -2*q2, -2*q0,  2*q3,  2*q2;
     }
 
 };

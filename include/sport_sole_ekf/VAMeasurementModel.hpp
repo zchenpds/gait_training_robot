@@ -1,5 +1,5 @@
-#ifndef SPORT_SOLE_GYROMEASUREMENTMODEL_HPP_
-#define SPORT_SOLE_GYROMEASUREMENTMODEL_HPP_
+#ifndef SPORT_SOLE_VAMEASUREMENTMODEL_HPP_
+#define SPORT_SOLE_VAMEASUREMENTMODEL_HPP_
 
 #include <kalman/LinearizedMeasurementModel.hpp>
 #include <sport_sole_ekf/SystemModel.hpp>
@@ -8,27 +8,39 @@ namespace sport_sole
 {
 
 /**
- * @brief Measurement vector measuring the sport sole IMU position with Kinect
+ * @brief Measurement vector measuring the sport sole acceleration with sport sole Kinect
  *
  * @param T Numeric scalar type
  */
 template<typename T>
-class GyroMeasurement : public Kalman::Vector<T, 3>
+class VAMeasurement : public Kalman::Vector<T, 6>
 {
 public:
-    KALMAN_VECTOR(GyroMeasurement, T, 3)
+    KALMAN_VECTOR(VAMeasurement, T, 6)
     
-    static constexpr size_t X = 0;
-    static constexpr size_t Y = 1;
-    static constexpr size_t Z = 2;
+    static constexpr size_t VX = 0;
+    static constexpr size_t VY = 1;
+    static constexpr size_t VZ = 2;
     
-    T  x() const { return (*this)[ X ]; }
-    T  y() const { return (*this)[ Y ]; }
-    T  z() const { return (*this)[ Z ]; }
+    static constexpr size_t AX = 3;
+    static constexpr size_t AY = 4;
+    static constexpr size_t AZ = 5;
     
-    T& x()       { return (*this)[ X ]; }
-    T& y()       { return (*this)[ Y ]; }
-    T& z()       { return (*this)[ Z ]; }
+    T vx() const { return (*this)[ VX ]; }
+    T vy() const { return (*this)[ VY ]; }
+    T vz() const { return (*this)[ VZ ]; }
+    
+    T ax() const { return (*this)[ AX ]; }
+    T ay() const { return (*this)[ AY ]; }
+    T az() const { return (*this)[ AZ ]; }
+    
+    T& vx()      { return (*this)[ VX ]; }
+    T& vy()      { return (*this)[ VY ]; }
+    T& vz()      { return (*this)[ VZ ]; }
+    
+    T& ax()      { return (*this)[ AX ]; }
+    T& ay()      { return (*this)[ AY ]; }
+    T& az()      { return (*this)[ AZ ]; }
 };
 
 /**
@@ -40,25 +52,24 @@ public:
  *                       coveriace square root (SquareRootBase))
  */
 template<typename T, template<class> class CovarianceBase = Kalman::StandardBase>
-class GyroMeasurementModel : public Kalman::LinearizedMeasurementModel<State<T>, GyroMeasurement<T>, CovarianceBase>
+class VAMeasurementModel : public Kalman::LinearizedMeasurementModel<State<T>, VAMeasurement<T>, CovarianceBase>
 {
 public:
     //! State type shortcut definition
     typedef  sport_sole::State<T> S;
     
     //! Measurement type shortcut definition
-    typedef  sport_sole::GyroMeasurement<T> M;
+    typedef  sport_sole::VAMeasurement<T> M;
     
     /**
      * @brief Constructor
      */
-    GyroMeasurementModel()
-    {   
+    VAMeasurementModel()
+    {
+
         // Linear measurement model
         this->H.setZero();
-
-        this->H.template block<3, 3>(M::X, S::WX).setIdentity();
-        this->H.template block<3, 3>(M::X, S::WBX).setIdentity();
+        this->H.template block<3, 3>(M::VX, S::VX) = this->H.template block<3, 3>(M::AX, S::AX) = Kalman::SquareMatrix<T, 3>::Identity();
 
         // Setup noise jacobian. As this one is static, we can define it once
         // and do not need to update it dynamically
@@ -73,8 +84,9 @@ public:
      */
     M h(const S& x) const
     {
-        M measurement = x.template segment<3>(S::WX) + x.template segment<3>(S::WBX);
-        // M measurement = x.template segment<3>(S::WX);
+        M measurement;
+        measurement << x.v(), x.a();
+        
         return measurement;
     }
 

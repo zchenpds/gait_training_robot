@@ -25,6 +25,17 @@ void setModelCovariance(Kalman::StandardBase<StateType>& model,
   model.setCovariance(cov);
 }
 
+template<class StateType>
+void setModelCovariance(Kalman::StandardBase<StateType>& model, typename StateType::Scalar sigma)
+{
+  auto cov = decltype(model.getCovariance()){};
+  cov.setZero();
+  for (size_t i = 0; i < StateType::RowsAtCompileTime; i++)
+    cov(i, i) = sigma;
+  model.setCovariance(cov);
+}
+
+
 template<class VectorType>
 struct Average {
   VectorType sum;

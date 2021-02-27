@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0)
 project(gait_training_robot)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -22,6 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
   sport_sole
   actionlib
   azure_kinect_ros_driver
+  # PCL
 )
 
 find_package(yaml-cpp REQUIRED)
@@ -80,11 +81,13 @@ add_custom_target(media_files ALL DEPENDS ${urdf_files})
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   message1.msg
-# )
+# Generate messages in the 'msg' folder
+add_message_files(
+  FILES
+  SportSoleEkfState.msg
+  SportSoleEkfSportSoleMeasurement.msg
+  SportSoleEkfKinectMeasurement.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -137,10 +140,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+ INCLUDE_DIRS include
 #  LIBRARIES gait_training_robot
 CATKIN_DEPENDS message_runtime rosaria roscpp rospy std_msgs
-#  DEPENDS system_lib
+ DEPENDS sport_sole
 )
 
 ###########
@@ -154,7 +157,6 @@ include_directories(
   external/EKF/include/
   external/EKF/examples/
   ${catkin_INCLUDE_DIRS}
-  /usr/include/pcl-1.7
   ${Eigen3_INCLUDE_DIR}
 )
 
@@ -181,6 +183,7 @@ add_executable(distance_controller src/distance_controller.cpp)
 add_executable(gait_analyzer src/gait_analyzer.cpp)
 add_executable(foot_pose_estimator src/foot_pose_estimator.cpp)
 add_executable(kinect_pose_estimator src/kinect_pose_estimator.cpp)
+add_executable(test_sport_sole_ekf test/test_sport_sole_ekf.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -216,7 +219,7 @@ target_link_libraries(gait_analyzer
   ${gsl_LIBRARIES}
 )
 
-target_link_libraries(foot_pose_estimator 
+target_link_libraries(foot_pose_estimator
   ${catkin_LIBRARIES}
 )
 

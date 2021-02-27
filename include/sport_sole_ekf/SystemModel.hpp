@@ -50,31 +50,38 @@ public:
     static constexpr size_t WBY = 20;
     static constexpr size_t WBZ = 21;
     
+    Kalman::Vector<T, 4> q() const { return this->template segment<4>(Q0); }
     T q0()   const { return (*this)[ Q0 ]; }
     T q1()   const { return (*this)[ Q1 ]; }
     T q2()   const { return (*this)[ Q2 ]; }
     T q3()   const { return (*this)[ Q3 ]; }
     
+    Kalman::Vector<T, 3> w() const { return this->template segment<3>(WX); }
     T wx()   const { return (*this)[ WX ]; }
     T wy()   const { return (*this)[ WY ]; }
     T wz()   const { return (*this)[ WZ ]; }
     
+    Kalman::Vector<T, 3> p() const { return this->template segment<3>(PX); }
     T px()   const { return (*this)[ PX ]; }
     T py()   const { return (*this)[ PY ]; }
     T pz()   const { return (*this)[ PZ ]; }
     
+    Kalman::Vector<T, 3> v() const { return this->template segment<3>(VX); }
     T vx()   const { return (*this)[ VX ]; }
     T vy()   const { return (*this)[ VY ]; }
     T vz()   const { return (*this)[ VZ ]; }
     
+    Kalman::Vector<T, 3> a() const { return this->template segment<3>(AX); }
     T ax()   const { return (*this)[ AX ]; }
     T ay()   const { return (*this)[ AY ]; }
     T az()   const { return (*this)[ AZ ]; }
     
+    Kalman::Vector<T, 3> ab() const { return this->template segment<3>(ABX); }
     T abx()  const { return (*this)[ ABX ]; }
     T aby()  const { return (*this)[ ABY ]; }
     T abz()  const { return (*this)[ ABZ ]; }
     
+    Kalman::Vector<T, 3> wb() const { return this->template segment<3>(WBX); }
     T wbx()  const { return (*this)[ WBX ]; }
     T wby()  const { return (*this)[ WBY ]; }
     T wbz()  const { return (*this)[ WBZ ]; }
@@ -180,13 +187,13 @@ public:
         x_.template segment<4>(S::Q0).normalize();
         if (x_.q0() < 0) x_.template segment<4>(S::Q0) *= -1;
 
-        x_.px() += x.vx() * dt;
-        x_.py() += x.vy() * dt;
-        x_.pz() += x.vz() * dt;
-
         x_.vx() += x.ax() * dt;
         x_.vy() += x.ay() * dt;
         x_.vz() += x.az() * dt;
+
+        x_.px() += x.vx() * dt;
+        x_.py() += x.vy() * dt;
+        x_.pz() += x.vz() * dt;
         
         // Return transitioned state vector
         return x_;

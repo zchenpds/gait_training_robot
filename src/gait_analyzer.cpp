@@ -146,8 +146,10 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   comkf_nh_(private_nh_, "comkf"),
   omega_bias_(0.0, 0.0, 0.0),
   cache_omega_filtered_(3000),
-  sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 1),
+  sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 5),
   cache_sport_sole_(sub_sport_sole_, 100),
+  sub_fused_odom_(nh_, "/kinect_pose_estimator/odom", 5),
+  cache_fused_odom_(sub_fused_odom_, 100),
   cop_bias_(-0.1, 0.0, 0.0),
   tf_listener_(tf_buffer_),
   comkf_initialized_(false),
@@ -217,12 +219,14 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
 void GaitAnalyzer::odomCB(const nav_msgs::Odometry & msg)
 {
-  vel_robot_filtered_ = msg.twist.twist.linear.x;
+  tf2::Vector3 vel;
+  tf2::fromMsg(msg.twist.twist.linear, vel);
+  vel_robot_filtered_ = vel;
+  // printf("\rRobot velocity: %8.5f, %8.5f, %8.5f", vel.getX(), vel.getY(), vel.getZ()); fflush(stdout);
 }
 
 void GaitAnalyzer::k4aimuCB(const sensor_msgs::Imu & msg)
 {
-  return;
 #if 0
   // Apply a low-pass FIR filter with a 15 Hz cut-off frequency
   fir_filters_[0].put(msg.angular_velocity.x);
@@ -391,27 +395,8 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     pcom_vel_measurement_ = pcom_vel_smoother_(pcom_vel_measurement_);
     updateXCoM(xcom_measurement_, pcom_pos_measurement_, pcom_vel_measurement_);
 
-    updateCoMMeasurement(stamp_skeleton_curr, pcom_pos_measurement_k_, pcom_vel_measurement_k_, vec_joints_k_);
-
-    // Take into account the linear velocity of the robot
-    pcom_vel_measurement_k_.setX(pcom_vel_measurement_k_.getX() + vel_robot_filtered_);
+    updateCoMMeasurementK(stamp_skeleton_curr, pcom_pos_measurement_k_, pcom_vel_measurement_k_, vec_joints_k_);
     pub_pcom_vel_measurement2_.publish(constructVector3StampedMessage(stamp_skeleton_curr, pcom_vel_measurement_k_, "camera_mount_top"));
-
-    // Take into account the angular velocity of the robot
-    // auto omega_filtered_cross = constructCrossProdMatrix(omega_filtered_);
-    auto msg_ptrs = cache_omega_filtered_.getInterval(stamp_skeleton_prev_ + fir_filter_group_delay_, stamp_skeleton_curr + fir_filter_group_delay_);
-    if (msg_ptrs.size() > 2) {
-      tf2::Vector3 delta_omega(0.0, 0.0, 0.0);
-      tf2Scalar delta_t_omega = ((*msg_ptrs.rbegin())->header.stamp - msg_ptrs[0]->header.stamp).toSec() / (msg_ptrs.size() - 1);
-      for (const auto & msg_ptr : msg_ptrs) {
-        tf2::Vector3 omega_sample;
-        tf2::fromMsg(msg_ptr->vector, omega_sample);
-        delta_omega += omega_sample;
-      }
-      delta_omega *= delta_t_omega;
-      auto omega_filtered_cross = constructCrossProdMatrix(delta_omega / (stamp_skeleton_curr - stamp_skeleton_prev_).toSec());
-      pcom_vel_measurement_k_ += omega_filtered_cross * pcom_pos_measurement_k_; ///// todo: new formula
-    }
     
     // ROS_INFO_STREAM("pcom_vel_measurement_k_" << pcom_vel_measurement_k_);
     updateXCoM(xcom_measurement_k_, pcom_pos_measurement_k_, pcom_vel_measurement_k_);
@@ -494,21 +479,21 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         x0.vy() = pcom_vel_measurement_.getY();
         comkf_.init(x0);
         updateCoMEstimate(stamp_skeleton_curr, x0);
-        ROS_INFO_STREAM("COMKF state initialized to " << x0.transpose());
+        ROS_DEBUG_STREAM("COMKF state initialized to " << x0.transpose());
         comkf_initialized_ = true;
         stamp_sport_sole_prev_ = stamp_skeleton_curr;
       }
       else {
         const auto & x = comkf_.update(zpv);
         updateCoMEstimate(stamp_skeleton_curr, x);
-        ROS_INFO_STREAM_THROTTLE(1, "COMKF state updated to " << x.transpose());
+        ROS_DEBUG_STREAM_THROTTLE(1, "COMKF state updated to " << x.transpose());
       }
 
       // Publish posterior estimates
       pub_pcom_pos_estimate_.publish(constructPointStampedMessage(stamp_skeleton_curr, pcom_pos_estimate_));
       pub_pcom_vel_estimate_.publish(constructVector3StampedMessage(stamp_skeleton_curr, pcom_vel_estimate_));
       pub_xcom_estimate_.publish(constructPointStampedMessage(stamp_skeleton_curr, xcom_estimate_));
-    }    
+    }
 
     // Calculate the base of support polygon, as well as update footprint polygons
     updateBoS(bos_points_k_, vec_joints_k_);
@@ -528,8 +513,8 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     }
 
     // Calculate margin of stability (measurement)
-    updateMoS(xcom_measurement_,bos_points_);
     // updateMoS(xcom_measurement_,bos_points_);
+    updateMoS(xcom_measurement_k_,bos_points_k_);
     // pub_mos_.publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom));
 #ifdef PRINT_MOS_DELAY
     std::cout << (ros::Time::now() - stamp_skeleton_curr).toSec() << std::endl;
@@ -663,6 +648,60 @@ void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp, com_t & com_cur
     com_vel.setX(com_vel.getX() - ga_params_.belt_speed);
   }
   
+}
+
+void GaitAnalyzer::updateCoMMeasurementK(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints)
+{
+  updateCoMMeasurement(stamp, com_curr, com_vel, vec_joints);
+
+  // printf("\rCoMv 1: %8.5f, %8.5f, %8.5f", com_vel.getX(), com_vel.getY(), com_vel.getZ()); fflush(stdout);
+
+
+  // Calculate CoMv by discrete difference.
+  auto delta_t = (stamp - stamp_skeleton_prev_).toSec();
+
+  // Take into account the linear velocity of the robot
+  auto msg_odom_ptrs = cache_fused_odom_.getInterval(stamp_skeleton_prev_, stamp);
+  if (msg_odom_ptrs.size() >= 1)
+  {
+    tf2::Vector3 vx_sum(0.0, 0.0, 0.0);
+    for (const auto & msg_ptr: msg_odom_ptrs)
+    {
+      tf2::Vector3 vx_sample;
+      tf2::fromMsg(msg_ptr->twist.twist.linear, vx_sample);
+      vx_sum += vx_sample;
+    }
+    tf2::Vector3 vx_mean = vx_sum / msg_odom_ptrs.size();
+    com_vel += vx_mean;
+    
+    vx_mean -= vel_robot_filtered_;
+    printf("\rRobot vel error: %8.5f, %8.5f, %8.5f", vx_mean.getX(), vx_mean.getY(), vx_mean.getZ());fflush(stdout);
+  }
+  else
+  {
+    com_vel += vel_robot_filtered_;
+  }
+
+  // printf(" %2lu", msg_odom_ptrs.size());
+  // static int cnt; if (++cnt % 5 == 0) printf("\r"); fflush(stdout);
+
+  
+  // Take into account the angular velocity of the robot
+  auto msg_omega_ptrs = cache_omega_filtered_.getInterval(stamp_skeleton_prev_, stamp);
+  if (msg_omega_ptrs.size() > 2)
+  {
+    tf2::Vector3 omega_sum(0.0, 0.0, 0.0);
+    for (const auto & msg_ptr : msg_omega_ptrs)
+    {
+      tf2::Vector3 omega_sample;
+      tf2::fromMsg(msg_ptr->vector, omega_sample);
+      omega_sum += omega_sample;
+    }
+    tf2::Vector3 omega_mean = omega_sum / msg_omega_ptrs.size();
+    auto delta_comv = constructCrossProdMatrix(omega_mean) * pcom_pos_measurement_k_;
+    com_vel += delta_comv; 
+    // printf("\rOmega_mean * com_k: %8.5f, %8.5f, %8.5f", delta_comv.getX(), delta_comv.getY(), delta_comv.getZ());fflush(stdout);
+  }
 }
 
 void GaitAnalyzer::updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel)

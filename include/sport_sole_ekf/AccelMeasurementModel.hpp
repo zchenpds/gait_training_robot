@@ -81,18 +81,15 @@ public:
         T q1sq = q1 * q1;
         T q2sq = q2 * q2;
         T q3sq = q3 * q3;
-        const T& gnavx = grav_vector(0);
-        const T& gnavy = grav_vector(1);
-        const T& gnavz = grav_vector(2);
-        T ax = x.ax();
-        T ay = x.ay();
-        T az = x.az();
+        T ax = x.ax() + grav_vector(0);
+        T ay = x.ay() + grav_vector(1);
+        T az = x.az() + grav_vector(2);
 
         M measurement;
         measurement << 
-            x.abx()*0 - (ax - gnavx)*(q0sq + q1sq - q2sq - q3sq) + (az - gnavz)*(2*q0*q2 - 2*q1*q3) - (ay - gnavy)*(2*q0*q3 + 2*q1*q2),
-            x.aby()*0 - (ay - gnavy)*(q0sq - q1sq + q2sq - q3sq) - (az - gnavz)*(2*q0*q1 + 2*q2*q3) + (ax - gnavx)*(2*q0*q3 - 2*q1*q2),
-            x.abz()*0 - (az - gnavz)*(q0sq - q1sq - q2sq + q3sq) + (ay - gnavy)*(2*q0*q1 - 2*q2*q3) - (ax - gnavx)*(2*q0*q2 + 2*q1*q3);        
+            x.abx() + ax*(q0sq + q1sq - q2sq - q3sq) + ay*2*(q0*q3 + q1*q2)           + az*2*(q1*q3 - q0*q2),
+            x.aby() + ax*2*(q1*q2 - q0*q3)           + ay*(q0sq - q1sq + q2sq - q3sq) + az*2*(q0*q1 + q2*q3),
+            x.abz() + ax*2*(q0*q2 + q1*q3)           + ay*2*(q2*q3 - q0*q1)           + az*(q0sq - q1sq - q2sq + q3sq);        
         return measurement;
     }
 
@@ -113,23 +110,20 @@ protected:
         T q1sq = q1 * q1;
         T q2sq = q2 * q2;
         T q3sq = q3 * q3;
-        const T& gnavx = grav_vector(0);
-        const T& gnavy = grav_vector(1);
-        const T& gnavz = grav_vector(2);
-        T ax = x.ax();
-        T ay = x.ay();
-        T az = x.az();
+        T ax = x.ax() + grav_vector(0);
+        T ay = x.ay() + grav_vector(1);
+        T az = x.az() + grav_vector(2);
 
         this->H.template block<3, 4>(M::X, S::Q0) <<
-            2*q2*(az - gnavz) - 2*q3*(ay - gnavy) - 2*q0*(ax - gnavx), - 2*q3*(az - gnavz) - 2*q2*(ay - gnavy) - 2*q1*(ax - gnavx),   2*q0*(az - gnavz) - 2*q1*(ay - gnavy) + 2*q2*(ax - gnavx),   2*q3*(ax - gnavx) - 2*q0*(ay - gnavy) - 2*q1*(az - gnavz),
-            2*q3*(ax - gnavx) - 2*q0*(ay - gnavy) - 2*q1*(az - gnavz),   2*q1*(ay - gnavy) - 2*q0*(az - gnavz) - 2*q2*(ax - gnavx), - 2*q3*(az - gnavz) - 2*q2*(ay - gnavy) - 2*q1*(ax - gnavx),   2*q3*(ay - gnavy) - 2*q2*(az - gnavz) + 2*q0*(ax - gnavx),
-            2*q1*(ay - gnavy) - 2*q0*(az - gnavz) - 2*q2*(ax - gnavx),   2*q1*(az - gnavz) + 2*q0*(ay - gnavy) - 2*q3*(ax - gnavx),   2*q2*(az - gnavz) - 2*q3*(ay - gnavy) - 2*q0*(ax - gnavx), - 2*q3*(az - gnavz) - 2*q2*(ay - gnavy) - 2*q1*(ax - gnavx);
+              2*q0*ax + 2*q3*ay - 2*q2*az, + 2*q1*ax + 2*q2*ay + 2*q3*az, - 2*q2*ax + 2*q1*ay - 2*q0*az, - 2*q3*ax + 2*q0*ay + 2*q1*az,
+            - 2*q3*ax + 2*q0*ay + 2*q1*az, + 2*q2*ax - 2*q1*ay + 2*q0*az, + 2*q1*ax + 2*q2*ay + 2*q3*az, - 2*q0*ax - 2*q3*ay + 2*q2*az,
+              2*q2*ax - 2*q1*ay + 2*q0*az, + 2*q3*ax - 2*q0*ay - 2*q1*az, + 2*q0*ax + 2*q3*ay - 2*q2*az, + 2*q1*ax + 2*q2*ay + 2*q3*az;
  
         this->H.template block<3, 3>(M::X, S::AX) <<
-            - q0sq - q1sq + q2sq + q3sq,         - 2*q0*q3 - 2*q1*q2,           2*q0*q2 - 2*q1*q3,
-                      2*q0*q3 - 2*q1*q2, - q0sq + q1sq - q2sq + q3sq,         - 2*q0*q1 - 2*q2*q3,
-                    - 2*q0*q2 - 2*q1*q3,           2*q0*q1 - 2*q2*q3, - q0sq + q1sq + q2sq - q3sq;
-
+            q0sq + q1sq - q2sq - q3sq,       + 2*q0*q3 + 2*q1*q2,       - 2*q0*q2 + 2*q1*q3,
+                  - 2*q0*q3 + 2*q1*q2, q0sq - q1sq + q2sq - q3sq,         2*q0*q1 + 2*q2*q3,
+                    2*q0*q2 + 2*q1*q3,       - 2*q0*q1 + 2*q2*q3, q0sq - q1sq - q2sq + q3sq;
+        
         // this->H.template block<3, 3>(M::X, S::ABX).setIdentity();
     }
 

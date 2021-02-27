@@ -1,6 +1,8 @@
 #include "gait_training_robot/foot_pose_estimator.h"
 #include "gait_training_robot/kalman_filter_common.h"
 
+using namespace sport_sole;
+
 void FootPoseEstimatorParams::print()
 {
   #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val)     \
@@ -50,6 +52,7 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   const auto& sigma_zv = pow(params_.measurement_noise_v, 2);
   const auto& sigma_zq = pow(params_.measurement_noise_q, 2);
   const auto& sigma_zy = pow(params_.measurement_noise_y, 2);
+  const auto& sigma_zva= pow(params_.measurement_noise_va,2);
 
   for (auto lr : {LEFT, RIGHT})
   {
@@ -58,12 +61,13 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
         {sigma_q, sigma_q, sigma_q, sigma_q, sigma_w, sigma_w, sigma_w,                   // q, w
          sigma_p, sigma_p, sigma_p, sigma_v, sigma_v, sigma_v, sigma_a, sigma_a, sigma_a, // p, v, a
          sigma_ab, sigma_ab, sigma_ab, sigma_wb, sigma_wb, sigma_wb});                    // ab wb
-    setModelCovariance(ekf.pmm, {sigma_zp, sigma_zp, sigma_zp});
-    setModelCovariance(ekf.vmm, {sigma_zv, sigma_zv, sigma_zv});
-    setModelCovariance(ekf.amm, {sigma_za, sigma_za, sigma_za});
-    setModelCovariance(ekf.gmm, {sigma_zg, sigma_zg, sigma_zg});
-    setModelCovariance(ekf.qmm, {sigma_zq, sigma_zq, sigma_zq, sigma_zq});
-    setModelCovariance(ekf.ymm, {sigma_zy, sigma_zy, sigma_zy});
+    setModelCovariance(ekf.pmm,  pow(params_.measurement_noise_p,  2));
+    setModelCovariance(ekf.vmm,  pow(params_.measurement_noise_v,  2));
+    setModelCovariance(ekf.amm,  pow(params_.measurement_noise_a,  2));
+    setModelCovariance(ekf.gmm,  pow(params_.measurement_noise_g,  2));
+    setModelCovariance(ekf.qmm,  pow(params_.measurement_noise_q,  2));
+    setModelCovariance(ekf.ymm,  pow(params_.measurement_noise_y,  2));
+    setModelCovariance(ekf.vamm, pow(params_.measurement_noise_va, 2));
   }
 
   // Initialize publishers
@@ -72,6 +76,9 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
     std::string str_lr = (lr == LEFT ? "l" : "r");
     pub_fused_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("fused_pose_" + str_lr, 5);
     pub_measured_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("measured_pose_" + str_lr, 5);
+    pub_ekf_state_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfState>("state_" + str_lr, 5);
+    pub_ekf_sport_sole_measurement_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfSportSoleMeasurement>("sport_sole_measurement_" + str_lr, 20);
+    pub_ekf_kinect_measurement_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfKinectMeasurement>("kinect_measurement_" + str_lr, 5);
   }
 
 }
@@ -264,6 +271,11 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
 { 
   double dt = (msg_ptr->header.stamp - ts_sport_sole_last_).toSec();
 
+  gait_training_robot::SportSoleEkfSportSoleMeasurement msg_measurement;
+  gait_training_robot::SportSoleEkfState msg_state;
+  msg_measurement.header.stamp = msg_state.header.stamp = msg_ptr->header.stamp;
+  msg_measurement.header.frame_id = msg_state.header.frame_id = "odom";
+  
   for (auto lr: {LEFT, RIGHT})
   {
     ekf_t& ekf = ekf_[lr];
@@ -272,18 +284,57 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
     printDebugMessage("Predicted", msg_ptr->header.stamp, lr);
 
     ekf_t::ZA za;
-    za.x() = msg_ptr->raw_acceleration[lr].linear.x;
-    za.y() = -msg_ptr->raw_acceleration[lr].linear.y;
-    za.z() = -msg_ptr->raw_acceleration[lr].linear.z;
+    za.x() = msg_measurement.a.x = msg_ptr->raw_acceleration[lr].linear.x;
+    za.y() = msg_measurement.a.y = -msg_ptr->raw_acceleration[lr].linear.y;
+    za.z() = msg_measurement.a.z = -msg_ptr->raw_acceleration[lr].linear.z;
     ekf.update(za);
     printDebugMessage("Accel update", msg_ptr->header.stamp, lr);
 
     ekf_t::ZG zg;
-    zg.x() = msg_ptr->angular_velocity[lr].x;
-    zg.y() = -msg_ptr->angular_velocity[lr].y;
-    zg.z() = -msg_ptr->angular_velocity[lr].z;
+    zg.x() = msg_measurement.w.x = msg_ptr->angular_velocity[lr].x;
+    zg.y() = msg_measurement.w.y = -msg_ptr->angular_velocity[lr].y;
+    zg.z() = msg_measurement.w.z = -msg_ptr->angular_velocity[lr].z;
     ekf.update(zg);
     printDebugMessage("Gyro update", msg_ptr->header.stamp, lr);
+
+    // Update gait phase
+    previous_gait_phase_[lr] = current_gait_phase_[lr];
+    current_gait_phase_[lr] = getGaitPhaseLR(msg_ptr->gait_state, lr);
+    if (current_gait_phase_[lr] == GaitPhase::Stance1 || current_gait_phase_[lr] == GaitPhase::Stance2)
+    {
+      ekf_t::ZVA zva;
+      zva << ekf_t::ZVA::Zero();
+      if (previous_gait_phase_[lr] == GaitPhase::Swing) 
+      {
+        ekf.printP(); // debug
+      }
+      ekf.reducePVA();
+      ekf.update(zva);
+      printDebugMessage("Zero VA update", msg_ptr->header.stamp, lr);
+      if (previous_gait_phase_[lr] == GaitPhase::Swing) {ekf.printP();}  // debug
+    }
+
+    // Publish sport_sole measurement message
+    if (pub_ekf_sport_sole_measurement_[lr].getNumSubscribers())
+    {
+      pub_ekf_sport_sole_measurement_[lr].publish(msg_measurement);
+    }
+
+    // Publishe a priori state estimate
+    if (pub_ekf_state_[lr].getNumSubscribers())
+    {
+      msg_state.q.w = ekf.x.q0();
+      msg_state.q.x = ekf.x.q1();
+      msg_state.q.y = ekf.x.q2();
+      msg_state.q.z = ekf.x.q3();
+      assignVector3(msg_state.w, ekf.x.w());
+      assignVector3(msg_state.p, ekf.x.p());
+      assignVector3(msg_state.v, ekf.x.v());
+      assignVector3(msg_state.a, ekf.x.a());
+      assignVector3(msg_state.ab, ekf.x.ab());
+      assignVector3(msg_state.wb, ekf.x.wb());
+      pub_ekf_state_[lr].publish(msg_state);
+    }
   }
   ts_sport_sole_last_ = msg_ptr->header.stamp;
 }
@@ -291,29 +342,38 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
 void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
                                geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT])
 {
+  gait_training_robot::SportSoleEkfKinectMeasurement msg_measurement;
+  gait_training_robot::SportSoleEkfState msg_state;
+  msg_measurement.header.frame_id = msg_state.header.frame_id = "odom";
+
   for (auto lr : {LEFT, RIGHT})
   {
     ekf_t& ekf = ekf_[lr];
     auto msg_kinect_ptr = msg_ptrs[lr];
+    msg_measurement.header.stamp = msg_state.header.stamp = msg_kinect_ptr->header.stamp;
     printDebugMessage("Updating", msg_kinect_ptr->header.stamp, lr);
 
-    ekf_t::ZP zp;
-    zp.x() = msg_kinect_ptr->transform.translation.x;
-    zp.y() = msg_kinect_ptr->transform.translation.y;
-    zp.z() = msg_kinect_ptr->transform.translation.z;
-    ekf.update(zp);
-    printDebugMessage("Position update", msg_kinect_ptr->header.stamp, lr);
+    // Position update
+    // if(current_gait_phase_[lr] != GaitPhase::Swing)
+    {
+      ekf_t::ZP zp;
+      zp.x() = msg_kinect_ptr->transform.translation.x;
+      zp.y() = msg_kinect_ptr->transform.translation.y;
+      zp.z() = msg_kinect_ptr->transform.translation.z;
+      ekf.update(zp);
+      printDebugMessage("Position update", msg_kinect_ptr->header.stamp, lr);
+    }
 
-    auto prev_msg_kinect_ptr = msg_ptrs[lr];
-    if (prev_msg_kinect_ptr)
+    auto prev_msg_kinect_ptr = prev_msg_ptrs[lr];
+    if (prev_msg_kinect_ptr && current_gait_phase_[lr] == GaitPhase::Swing) //(prev_msg_kinect_ptr)
     {
       double dt = (msg_kinect_ptr->header.stamp - prev_msg_kinect_ptr->header.stamp).toSec();
       if (dt > 1e-3)
       {
         ekf_t::ZV zv;
-        zv.x() = (msg_kinect_ptr->transform.translation.x - prev_msg_kinect_ptr->transform.translation.x) / dt;
-        zv.y() = (msg_kinect_ptr->transform.translation.y - prev_msg_kinect_ptr->transform.translation.y) / dt;
-        zv.z() = (msg_kinect_ptr->transform.translation.z - prev_msg_kinect_ptr->transform.translation.z) / dt;
+        zv.x() = msg_measurement.v.x = (msg_kinect_ptr->transform.translation.x - prev_msg_kinect_ptr->transform.translation.x) / dt;
+        zv.y() = msg_measurement.v.y = (msg_kinect_ptr->transform.translation.y - prev_msg_kinect_ptr->transform.translation.y) / dt;
+        zv.z() = msg_measurement.v.z = (msg_kinect_ptr->transform.translation.z - prev_msg_kinect_ptr->transform.translation.z) / dt;
         ekf.update(zv);
         printDebugMessage("Velocity update", msg_kinect_ptr->header.stamp, lr);
       }
@@ -330,12 +390,36 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
     ekf_t::ZY zy;
     tf2::Quaternion quat;
     tf2::fromMsg(msg_kinect_ptr->transform.rotation, quat);
-    tf2::Vector3 zy_ros  = tf2::quatRotate(quat.inverse(), {1.0, 0.0, 0.0});
+    tf2::Vector3 zy_ros  = tf2::quatRotate(quat.inverse(), {0.0, 1.0, 0.0});
     zy.x() = zy_ros.x();
     zy.y() = zy_ros.y();
     zy.z() = zy_ros.z();
     ekf.update(zy);
     printDebugMessage("Yaw update", msg_kinect_ptr->header.stamp, lr);
+    
+    // Publish kinect_measurement message
+    if (pub_ekf_kinect_measurement_[lr].getNumSubscribers())
+    {
+      msg_measurement.p = msg_kinect_ptr->transform.translation;
+      msg_measurement.y = tf2::toMsg(zy_ros);
+      pub_ekf_kinect_measurement_[lr].publish(msg_measurement);
+    }
+
+    // Publishe posteriori state estimate
+    if (pub_ekf_state_[lr].getNumSubscribers())
+    {
+      msg_state.q.w = ekf.x.q0();
+      msg_state.q.x = ekf.x.q1();
+      msg_state.q.y = ekf.x.q2();
+      msg_state.q.z = ekf.x.q3();
+      assignVector3(msg_state.w, ekf.x.w());
+      assignVector3(msg_state.p, ekf.x.p());
+      assignVector3(msg_state.v, ekf.x.v());
+      assignVector3(msg_state.a, ekf.x.a());
+      assignVector3(msg_state.ab, ekf.x.ab());
+      assignVector3(msg_state.wb, ekf.x.wb());
+      pub_ekf_state_[lr].publish(msg_state);
+    }
   }
 
   // Update for next iteration
