@@ -105,7 +105,7 @@ protected:
         const T& q3 = x.q3();
 
         this->H.template block<3, 4>(M::X, S::Q0) <<
-             2*q0,  2*q1,  2*q2,  2*q3,
+             2*q0,  2*q1, -2*q2, -2*q3,
             -2*q3,  2*q2,  2*q1, -2*q0,
              2*q2,  2*q3,  2*q0,  2*q1;
     }
