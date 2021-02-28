@@ -99,6 +99,8 @@ private:
   sport_sole::GaitPhase current_gait_phase_[LEFT_RIGHT] = {sport_sole::GaitPhase::Stance2,sport_sole::GaitPhase::Stance2};
   sport_sole::GaitPhase previous_gait_phase_[LEFT_RIGHT] = {sport_sole::GaitPhase::Stance2,sport_sole::GaitPhase::Stance2};
 
+  sport_sole::IncidentCounter incident_counter_[LEFT_RIGHT];
+
   // ts
   ros::Time ts_kinect_last_;
   ros::Time ts_sport_sole_last_;

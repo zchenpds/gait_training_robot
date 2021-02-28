@@ -275,7 +275,7 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
   gait_training_robot::SportSoleEkfState msg_state;
   msg_measurement.header.stamp = msg_state.header.stamp = msg_ptr->header.stamp;
   msg_measurement.header.frame_id = msg_state.header.frame_id = "odom";
-  
+
   for (auto lr: {LEFT, RIGHT})
   {
     ekf_t& ekf = ekf_[lr];
@@ -297,9 +297,30 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
     ekf.update(zg);
     printDebugMessage("Gyro update", msg_ptr->header.stamp, lr);
 
+    // Convert quaternion to euler angles
+    double yaw, pitch, roll;
+    tf2::Matrix3x3(tf2::Quaternion(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0())).getEulerYPR(yaw, pitch, roll);
+
     // Update gait phase
     previous_gait_phase_[lr] = current_gait_phase_[lr];
     current_gait_phase_[lr] = getGaitPhaseLR(msg_ptr->gait_state, lr);
+
+    // Check sticky pressure sensor issue
+    std::string str_lr = (lr == LEFT ? "L" : "R");
+    if (pitch > 0.5 && (current_gait_phase_[lr] == GaitPhase::Stance1 || current_gait_phase_[lr] == GaitPhase::Stance2) )
+    {
+      ++incident_counter_[lr].StickyForefootPressureSensor;
+      ROS_WARN_STREAM_THROTTLE(5, "Sticky Forefoot" << str_lr << " pressure sensor incidents: "
+        << incident_counter_[lr].StickyForefootPressureSensor);
+    }
+    else if (pitch < -0.5 && (current_gait_phase_[lr] == GaitPhase::Stance1 || current_gait_phase_[lr] == GaitPhase::Stance2))
+    {
+      ++incident_counter_[lr].StickyHindfootPressureSensor;
+      ROS_WARN_STREAM_THROTTLE(5, "Sticky Hindfoot" << str_lr << " pressure sensor incidents: " 
+        << incident_counter_[lr].StickyHindfootPressureSensor);
+    }
+
+    // Zero velocity update
     if (current_gait_phase_[lr] == GaitPhase::Stance1 || current_gait_phase_[lr] == GaitPhase::Stance2)
     {
       ekf_t::ZVA zva;
@@ -327,6 +348,9 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
       msg_state.q.x = ekf.x.q1();
       msg_state.q.y = ekf.x.q2();
       msg_state.q.z = ekf.x.q3();
+      msg_state.rpy.x = roll;
+      msg_state.rpy.y = pitch;
+      msg_state.rpy.z = yaw;
       assignVector3(msg_state.w, ekf.x.w());
       assignVector3(msg_state.p, ekf.x.p());
       assignVector3(msg_state.v, ekf.x.v());
@@ -353,30 +377,40 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
     msg_measurement.header.stamp = msg_state.header.stamp = msg_kinect_ptr->header.stamp;
     printDebugMessage("Updating", msg_kinect_ptr->header.stamp, lr);
 
-    // Position update
-    // if(current_gait_phase_[lr] != GaitPhase::Swing)
-    {
-      ekf_t::ZP zp;
-      zp.x() = msg_kinect_ptr->transform.translation.x;
-      zp.y() = msg_kinect_ptr->transform.translation.y;
-      zp.z() = msg_kinect_ptr->transform.translation.z;
-      ekf.update(zp);
-      printDebugMessage("Position update", msg_kinect_ptr->header.stamp, lr);
-    }
-
     auto prev_msg_kinect_ptr = prev_msg_ptrs[lr];
-    if (prev_msg_kinect_ptr && current_gait_phase_[lr] == GaitPhase::Swing) //(prev_msg_kinect_ptr)
+    ekf_t::ZV zv;
+    bool zv_ready = false;
+    if (prev_msg_kinect_ptr) //(prev_msg_kinect_ptr)
     {
       double dt = (msg_kinect_ptr->header.stamp - prev_msg_kinect_ptr->header.stamp).toSec();
       if (dt > 1e-3)
       {
-        ekf_t::ZV zv;
+        zv_ready = true;
         zv.x() = msg_measurement.v.x = (msg_kinect_ptr->transform.translation.x - prev_msg_kinect_ptr->transform.translation.x) / dt;
         zv.y() = msg_measurement.v.y = (msg_kinect_ptr->transform.translation.y - prev_msg_kinect_ptr->transform.translation.y) / dt;
         zv.z() = msg_measurement.v.z = (msg_kinect_ptr->transform.translation.z - prev_msg_kinect_ptr->transform.translation.z) / dt;
-        ekf.update(zv);
-        printDebugMessage("Velocity update", msg_kinect_ptr->header.stamp, lr);
+        
+        if (current_gait_phase_[lr] == GaitPhase::Swing)
+        {
+          ekf.update(zv);
+          printDebugMessage("Velocity update", msg_kinect_ptr->header.stamp, lr);
+        }
       }
+    }
+
+    // Position update
+    ekf_t::ZP zp;
+    zp.x() = msg_kinect_ptr->transform.translation.x;
+    zp.y() = msg_kinect_ptr->transform.translation.y;
+    zp.z() = msg_kinect_ptr->transform.translation.z;
+    if(current_gait_phase_[lr] == GaitPhase::Stance2 && zv.norm() > 0.2 && (zp - ekf.x.p()).norm() > 0.2)
+    {
+      ROS_DEBUG("Kinect measurement outlier detected. Not updating!");
+    }
+    else
+    {
+      ekf.update(zp);
+      printDebugMessage("Position update", msg_kinect_ptr->header.stamp, lr);
     }
 
     // ekf_t::ZQ zq;
@@ -412,6 +446,13 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
       msg_state.q.x = ekf.x.q1();
       msg_state.q.y = ekf.x.q2();
       msg_state.q.z = ekf.x.q3();
+
+      // Convert quaternion to euler angles
+      double yaw, pitch, roll;
+      tf2::Matrix3x3(tf2::Quaternion(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0())).getEulerYPR(yaw, pitch, roll);
+      msg_state.rpy.x = roll;
+      msg_state.rpy.y = pitch;
+      msg_state.rpy.z = yaw;
       assignVector3(msg_state.w, ekf.x.w());
       assignVector3(msg_state.p, ekf.x.p());
       assignVector3(msg_state.v, ekf.x.v());
