@@ -98,7 +98,13 @@ private:
   ros::Publisher pub_ekf_kinect_measurement_[LEFT_RIGHT];
   sport_sole::GaitPhase current_gait_phase_[LEFT_RIGHT] = {sport_sole::GaitPhase::Stance2,sport_sole::GaitPhase::Stance2};
   sport_sole::GaitPhase previous_gait_phase_[LEFT_RIGHT] = {sport_sole::GaitPhase::Stance2,sport_sole::GaitPhase::Stance2};
+  tf2::Vector3 refUnitY[LEFT_RIGHT] = {{0.0, 1.0, 0.0}, {0.0, 1.0, 0.0}};
 
+  gait_training_robot::SportSoleEkfSportSoleMeasurement msg_sport_sole_measurement_[LEFT_RIGHT];
+  gait_training_robot::SportSoleEkfKinectMeasurement msg_kinect_measurement_[LEFT_RIGHT];
+  gait_training_robot::SportSoleEkfState msg_state_[LEFT_RIGHT];
+
+  // Incident counter
   sport_sole::IncidentCounter incident_counter_[LEFT_RIGHT];
 
   // ts
