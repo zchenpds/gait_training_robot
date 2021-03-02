@@ -21,14 +21,15 @@
 #include <std_msgs/Float64.h>
 
 #include "sport_sole/SportSole.h"
-
-#include "gait_training_robot/fir_filter.h"
+#include "sport_sole/GaitState.h"
 
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
 
 #include "COMKF/SystemModel.hpp"
 #include "COMKF/PVMeasurementModel.hpp"
+#include "sport_sole/sport_sole_common.h"
 
 typedef float T;
 #include "kalman_filter_common.h"
@@ -100,10 +101,6 @@ namespace com_kf {
   };
 }
 
-enum left_right_t {LEFT = 0, RIGHT, LEFT_RIGHT};
-enum ankle_foot_t {FOOT = 0, ANKLE, FOOT_ANKLE};
-
-
 struct GaitAnalyzerParams 
 {
   // Print the value of all parameters
@@ -170,7 +167,7 @@ const std::array<BodySegment, 25> vec_segments =
 };
 
 typedef std::array<tf2::Vector3,K4ABT_JOINT_COUNT> vec_joints_t;
-typedef std::array<std::array<tf2::Vector3, LEFT_RIGHT>, FOOT_ANKLE> vec_refpoints_t;
+typedef std::array<std::array<tf2::Vector3, LEFT_RIGHT>, FORE_HIND> vec_refpoints_t;
 typedef std::array<tf2::Vector3, LEFT_RIGHT> vec_refvecs_t;
 typedef tf2::Vector3 com_t;
 typedef tf2::Vector3 comv_t;
@@ -179,12 +176,20 @@ typedef std::vector<tf2::Vector3> bos_t;
 // Margin of stability struct
 struct mos_t
 {
-  enum {
+  enum mos_name_t {
     mos_anteroposterior = 0, 
     mos_mediolateral, 
     mos_shortest,
     mos_count
   };
+
+  static std::string toString(int i)
+  {
+    mos_name_t name = static_cast<mos_name_t>(i);
+    if (name == mos_anteroposterior) return "mos_ap";
+    else if (name == mos_mediolateral) return "mos_ml";
+    else return "mos";
+  }
 
   struct {
     // The point on the BoS polygon with the shortest distance to XCoM
@@ -199,35 +204,56 @@ typedef tf2::Vector3 cop_t;
 
 // Regex to be replaced with commas: (?<![{\n )+])   (?=[ -])
 namespace sport_sole {
-  constexpr size_t NUM_PSENSOR = 8;
-  constexpr size_t NUM_2XPSENSOR = NUM_PSENSOR * 2;
-  std::array<double, NUM_2XPSENSOR> 
-    Rho = {0.2106, 0.1996, 0.1648, 0.1562, 0.1497, 0.0174, 0.0128, 0.0865, 0.2106, 0.1996, 0.1648, 0.1562, 0.1497, 0.0174, 0.0128, 0.0865}, 
-    Theta = {-0.1064, 0.0662,-0.1415, 0.0465, 0.2570,-1.1735, 1.0175, 0.2395, 0.1064,-0.0662, 0.1415,-0.0465,-0.2570, 1.1735,-1.0175,-0.2395};
 
   cop_t getCoP(
     const SportSole::_pressures_type & pressures, 
     const vec_refpoints_t & vec_refpoints, 
     const vec_refvecs_t & vec_refvecs);
 
-  class GaitPhaseFSM {
-    enum class GaitPhase : uint8_t {
-      Swing = 0b00, // Swing
-      Stance1 = 0b10, // Heel contact
-      Stance2 = 0b11, // Foot flat
-      Stance3 = 0b01 // Heel off
-    };
+  class GaitPhaseFSM2 {
 
     GaitPhase gait_phases_[LEFT_RIGHT];
-    const double p_threshold_ = 500.0;
+    double p_threshold_;
     
   public:
-    GaitPhaseFSM(): 
-      gait_phases_{GaitPhase::Stance2, GaitPhase::Stance2}
+    GaitPhaseFSM2(double p_threshold = 100.0): 
+      gait_phases_{GaitPhase::Stance2, GaitPhase::Stance2},
+      p_threshold_(p_threshold)
     {}
       
-    void update(const SportSole::_pressures_type & pressures);
-    uint8_t getGaitPhase();
+    void update(const SportSole::_pressures_type & pressures)
+    {
+      for (size_t lr : {LEFT, RIGHT}) {
+        size_t i0 = (lr==LEFT ? 0 : 8);
+        double p_hind_sum = pressures[i0 + 5] + pressures[i0 + 6]; // 6~7
+        double p_fore_sum = pressures[i0 + 0] + pressures[i0 + 1] + pressures[i0 + 2] + pressures[i0 + 3] + pressures[i0 + 4]; // 1~5
+
+        auto & gait_phase = gait_phases_[lr];
+        switch (gait_phase) {
+          case GaitPhase::Swing:
+            if (p_hind_sum > p_threshold_) 
+              gait_phase = GaitPhase::Stance1;
+            break;
+          case GaitPhase::Stance1:
+            if (p_fore_sum > p_threshold_) 
+              gait_phase = GaitPhase::Stance2;
+            break;
+          case GaitPhase::Stance2:
+            if (p_hind_sum <= p_threshold_) 
+              gait_phase = GaitPhase::Stance3;
+            break;
+          case GaitPhase::Stance3:
+            if (p_fore_sum <= p_threshold_) 
+              gait_phase = GaitPhase::Swing;
+            break;
+        }
+      }
+    }
+
+    uint8_t getGaitState() const
+    {
+      return static_cast<uint8_t>(gait_phases_[LEFT]) << 2 | static_cast<uint8_t>(gait_phases_[RIGHT]);
+    }
   };
 }
 
@@ -260,13 +286,12 @@ public:
   void updateGaitState(const uint8_t& msgs);
   // Update both CoM and CoMv measurements
   void updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
-  void updateCoMMeasurementK(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
   // Update XCoM
   void updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel);
   // Update CoM CoMv and XCoM estimates
   void updateCoMEstimate(const ros::Time & stamp, const com_kf::State & x);
   void updateBoS(bos_t & res, const vec_joints_t & vec_joints);
-  void updateMoS(const com_t & xcom, const bos_t & bos_points);
+  void updateMoS(mos_t & res, const com_t & xcom, const bos_t & bos_points);
 
   void updateGaitPhase();
 
@@ -278,8 +303,8 @@ private:
     COM_MODEL_14_SEGMENT
   } com_model_;
 
-  sport_sole::GaitPhaseFSM gait_phase_fsm_;
-  bool touches_ground_[FOOT_ANKLE][LEFT_RIGHT];
+  sport_sole::GaitPhaseFSM2 gait_phase_fsm_;
+  bool touches_ground_[FORE_HIND][LEFT_RIGHT];
 
   // Internal state
   vec_joints_t vec_joints_k_;
@@ -301,11 +326,6 @@ private:
   ros::NodeHandle comkf_nh_;
   com_kf::KalmanFilterParams comkf_params_;
   
-  //geometry_msgs::Pose pose_estimates_[LEFT_RIGHT];
-
-  // Filter for angular velocity
-  fir_filter::FirFilter fir_filters_[3];
-  ros::Duration fir_filter_group_delay_;
   // Angular velocity bias removal
   ros::Time t0_omega_; 
   int cnt_omega_bias_ = 0;
@@ -317,58 +337,48 @@ private:
   tf2::Vector3 vel_robot_filtered_{0.0, 0.0, 0.0};
 
 
+  enum measurement_estimate_t{
+    MEASUREMENT=0,
+    ESTIMATE,
+    MEASUREMENT_ESTIMATE
+  };
+  
   // Subscribers
   ros::Subscriber sub_odom_;
   ros::Subscriber sub_k4aimu_;
   ros::Subscriber sub_skeletons_;
-  message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
-  message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
-  message_filters::Subscriber<nav_msgs::Odometry> sub_fused_odom_;
-  message_filters::Cache<nav_msgs::Odometry> cache_fused_odom_;
+  message_filters::Subscriber<sport_sole::SportSole>                    sub_sport_sole_;
+  message_filters::Cache     <sport_sole::SportSole>                  cache_sport_sole_;
+  message_filters::Subscriber<nav_msgs::Odometry>                       sub_fused_odom_;
+  message_filters::Cache     <nav_msgs::Odometry>                     cache_fused_odom_;
 
   // Publishers
   ros::Publisher pub_gait_state_;
 
   FIRSmoother<com_t> pcom_pos_smoother_;
   FIRSmoother<comv_t> pcom_vel_smoother_;
-  com_t pcom_pos_measurement_k_; // Center of mass in Kinect frame
-  com_t pcom_pos_measurement_;
-  ros::Publisher pub_pcom_pos_measurement_; // Center of mass projected onto the ground
-  com_t pcom_pelvis_measurement_;
-  ros::Publisher pub_pcom_pelvis_measurement_; // Center of mass projected onto the ground
-  comv_t pcom_vel_measurement_k_;
-  comv_t pcom_vel_measurement_;
-  ros::Publisher pub_pcom_vel_measurement_; // Center of mass velocity projected onto the ground
-  ros::Publisher pub_pcom_vel_measurement2_; // Center of mass velocity projected onto the ground
-  com_t xcom_measurement_k_;
-  com_t xcom_measurement_;
-  ros::Publisher pub_xcom_measurement_; // Extrapolated center of mass calculated from measurements 
-  com_t pcom_pos_estimate_;
-  ros::Time stamp_pcom_estimate_;
-  ros::Publisher pub_pcom_pos_estimate_; // Center of mass projected onto the ground as estimated by the KF
-  comv_t pcom_vel_estimate_;
-  ros::Publisher pub_pcom_vel_estimate_; // Center of mass projected onto the ground as estimated by the KF
-  com_t xcom_estimate_;
-  ros::Publisher pub_xcom_estimate_; // Extrapolated center of mass calculated from measurements 
 
-  ros::Publisher pub_ankle_pose_measurements_[LEFT_RIGHT];
-  ros::Publisher pub_foot_pose_measurements_[LEFT_RIGHT];
+  com_t               com_[MEASUREMENT_ESTIMATE];
+  ros::Publisher  pub_com_[MEASUREMENT_ESTIMATE];  // Center of mass projected onto the ground
+  comv_t             comv_[MEASUREMENT_ESTIMATE];
+  ros::Publisher pub_comv_[MEASUREMENT_ESTIMATE]; // Center of mass velocity projected onto the ground
+  com_t              xcom_[MEASUREMENT_ESTIMATE];
+  ros::Publisher pub_xcom_[MEASUREMENT_ESTIMATE];  // Extrapolated center of mass calculated from measurements 
 
-  cop_t cop_;
-  cop_t cop_bias_;
-  ros::Publisher pub_cop_; // Center of Pressure
+  ros::Publisher pub_hindfoot_refpoint_[LEFT_RIGHT];
+  ros::Publisher pub_forefoot_refpoint_[LEFT_RIGHT];
 
-  bos_t footprints_k_[LEFT_RIGHT];
-  bos_t footprints_[LEFT_RIGHT];
+  cop_t               cop_;
+  cop_t               cop_bias_;
+  ros::Publisher  pub_cop_; // Center of Pressure
+
+  bos_t              footprints_[LEFT_RIGHT];
   ros::Publisher pub_footprints_[LEFT_RIGHT];
-  bos_t bos_points_k_;
-  bos_t bos_points_;
+  bos_t              bos_points_;
   ros::Publisher pub_bos_; // Base of support polygon
-  mos_t mos_;
-  ros::Publisher pub_mos_; // Margin of stability
-  ros::Publisher pub_mos_vector_; // Margin of stability
-  ros::Publisher pub_mos_value_measurements_[3]; // Margin of stability
-  ros::Publisher pub_mos_value_estimates_[3]; // Margin of stability
+  mos_t              mos_       [MEASUREMENT_ESTIMATE];
+  ros::Publisher pub_mos_       [MEASUREMENT_ESTIMATE]; // Margin of stability
+  ros::Publisher pub_mos_vector_[MEASUREMENT_ESTIMATE]; // Margin of stability
 
   ros::Publisher pub_ground_clearance_left_; // ground clearance
   ros::Publisher pub_ground_clearance_right_; // ground clearance
@@ -377,7 +387,6 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   tf2::Transform tf_depth_to_global_;
-  tf2::Transform tf_depth_to_local_; // from depth to camera_mount_top
   tf2::Transform tf_imu_to_local_; // from imu to depth
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
@@ -397,7 +406,7 @@ private:
   geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec, const std::string & frame_id = "");
   geometry_msgs::Vector3Stamped constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec, const std::string & frame_id = "");
   geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp, const bos_t & bos_points, const std::string & frame_id = "");
-  visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom);
+  visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom, const mos_t & mos);
 
   // Calculate refpoints
   void updateRefpoints(vec_refpoints_t & vec_refpoints, vec_refvecs_t & vec_refvecs_k_, const vec_joints_t & vec_joints);
@@ -416,7 +425,6 @@ tf2::Matrix3x3 constructCrossProdMatrix(const tf2::Vector3 & v) {
                         -v.y(),  v.x(),  0.0   );
 }
 
-#define PUBLISH_GLOBAL_FRAME_REFERENCED_DATA 1
 // #define PUBLISH_MOS_MEASUREMENT
 // #define PRINT_MOS_DELAY
 #endif
