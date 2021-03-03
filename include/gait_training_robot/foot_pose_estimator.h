@@ -92,7 +92,7 @@ private:
   // SportSoleEKF
   ekf_t ekf_[LEFT_RIGHT];
   ros::Publisher pub_fused_poses_[LEFT_RIGHT];
-  ros::Publisher pub_measured_poses_[LEFT_RIGHT];
+  ros::Publisher pub_raw_poses_[LEFT_RIGHT];
   ros::Publisher pub_ekf_state_[LEFT_RIGHT];
   ros::Publisher pub_ekf_sport_sole_measurement_[LEFT_RIGHT];
   ros::Publisher pub_ekf_kinect_measurement_[LEFT_RIGHT];

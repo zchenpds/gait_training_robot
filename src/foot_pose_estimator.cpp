@@ -39,28 +39,21 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   // std::cout << "Waiting for /body_tracking_data" << std::flush;
 
   // Load parameters
-  const auto& sigma_q  = pow(params_.system_noise_q,      2);
-  const auto& sigma_w  = pow(params_.system_noise_w,      2);
-  const auto& sigma_p  = pow(params_.system_noise_p,      2);
-  const auto& sigma_v  = pow(params_.system_noise_v,      2);
-  const auto& sigma_a  = pow(params_.system_noise_a,      2);
-  const auto& sigma_ab = pow(params_.system_noise_ab,     2);
-  const auto& sigma_wb = pow(params_.system_noise_wb,     2);
-  const auto& sigma_za = pow(params_.measurement_noise_a, 2);
-  const auto& sigma_zg = pow(params_.measurement_noise_g, 2);
-  const auto& sigma_zp = pow(params_.measurement_noise_p, 2);
-  const auto& sigma_zv = pow(params_.measurement_noise_v, 2);
-  const auto& sigma_zq = pow(params_.measurement_noise_q, 2);
-  const auto& sigma_zy = pow(params_.measurement_noise_y, 2);
-  const auto& sigma_zva= pow(params_.measurement_noise_va,2);
+  const auto& var_q  = pow(params_.system_noise_q,      2);
+  const auto& var_w  = pow(params_.system_noise_w,      2);
+  const auto& var_p  = pow(params_.system_noise_p,      2);
+  const auto& var_v  = pow(params_.system_noise_v,      2);
+  const auto& var_a  = pow(params_.system_noise_a,      2);
+  const auto& var_ab = pow(params_.system_noise_ab,     2);
+  const auto& var_wb = pow(params_.system_noise_wb,     2);
 
   for (auto lr : {LEFT, RIGHT})
   {
     auto& ekf = ekf_[lr];
     setModelCovariance(ekf.sys, 
-        {sigma_q, sigma_q, sigma_q, sigma_q, sigma_w, sigma_w, sigma_w,                   // q, w
-         sigma_p, sigma_p, sigma_p, sigma_v, sigma_v, sigma_v, sigma_a, sigma_a, sigma_a, // p, v, a
-         sigma_ab, sigma_ab, sigma_ab, sigma_wb, sigma_wb, sigma_wb});                    // ab wb
+        {var_q, var_q, var_q, var_q, var_w, var_w, var_w,                   // q, w
+         var_p, var_p, var_p, var_v, var_v, var_v, var_a, var_a, var_a, // p, v, a
+         var_ab, var_ab, var_ab, var_wb, var_wb, var_wb});                    // ab wb
     setModelCovariance(ekf.pmm,  pow(params_.measurement_noise_p,  2));
     setModelCovariance(ekf.vmm,  pow(params_.measurement_noise_v,  2));
     setModelCovariance(ekf.amm,  pow(params_.measurement_noise_a,  2));
@@ -75,7 +68,7 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   {
     std::string str_lr = (lr == LEFT ? "l" : "r");
     pub_fused_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("fused_pose_" + str_lr, 5);
-    pub_measured_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("measured_pose_" + str_lr, 5);
+    pub_raw_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("raw_pose_" + str_lr, 5);
     pub_ekf_state_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfState>("state_" + str_lr, 5);
     pub_ekf_sport_sole_measurement_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfSportSoleMeasurement>("sport_sole_measurement_" + str_lr, 20);
     pub_ekf_kinect_measurement_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfKinectMeasurement>("kinect_measurement_" + str_lr, 5);
@@ -200,7 +193,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       pose_measured.header.frame_id = "odom";
       tf2::toMsg(position, pose_measured.pose.pose.position);
       pose_measured.pose.pose.orientation = tf2::toMsg(quat);
-      pub_measured_poses_[lr].publish(pose_measured);
+      pub_raw_poses_[lr].publish(pose_measured);
 
     } // End of lr
     
