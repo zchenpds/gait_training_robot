@@ -648,13 +648,13 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/PointStamped
       Color: 245; 121; 0
-      Enabled: true
+      Enabled: false
       History Length: 100
       Name: PointStamped
       Radius: 0.05000000074505806
       Topic: /gait_analyzer/estimate/xcom
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: false
       Marker Topic: /gait_analyzer/mos
@@ -696,7 +696,7 @@ Visualization Manager:
       History Length: 50
       Name: PointStamped
       Radius: 0.05000000074505806
-      Topic: /gait_analyzer/xcom_measurement
+      Topic: /gait_analyzer/estimate/com
       Unreliable: false
       Value: false
   Enabled: true
@@ -758,5 +758,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 3773
-  X: 1987
+  X: 67
   Y: 27

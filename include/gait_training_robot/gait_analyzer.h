@@ -27,11 +27,10 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include "COMKF/SystemModel.hpp"
-#include "COMKF/PVMeasurementModel.hpp"
+#include "comkf/comkf.hpp"
 #include "sport_sole/sport_sole_common.h"
 
-typedef float T;
+typedef double T;
 #include "kalman_filter_common.h"
 // The format of these list entries is :
 //
@@ -47,26 +46,21 @@ typedef float T;
 #define GA_PARAM_LIST \
   LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0) \
   LIST_ENTRY(global_frame, "The global frame ID, e.g. map or odom.", std::string, std::string("odom")) \
+  LIST_ENTRY(foot_pose_topic, "The topic name for foot poses.", std::string, std::string("/foot_pose_estimator/fused_pose_")) \
 
 
 #define COMKF_PARAM_LIST \
-  LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", float, 0.01f)    \
-  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", float, 0.0f)          \
-  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", float, 0.09f)        \
-  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", float, 0.06f)                  \
-  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", float, 0.1f)                  \
+  LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", T, 0.01)     \
+  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", T, 1e-4)          \
+  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 1e-1)          \
+  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 0.01)                  \
+  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 0.1)                   \
 
 
-namespace com_kf {
-  using State = KalmanExamples::COMKF::State<T>;
-  using Control = KalmanExamples::COMKF::Control<T>;
-  using SystemModel = KalmanExamples::COMKF::SystemModel<T>;
-
-  using Measurement = KalmanExamples::COMKF::PVMeasurement<T>;
-  using MeasurementModel = KalmanExamples::COMKF::PVMeasurementModel<T>;
-
-  using ExtendedKalmanFilter = Kalman::ExtendedKalmanFilter<State>;
-
+namespace comkf {
+  using S = State<T>;
+  using C = Control<T>;
+  using ZPV = PVMeasurement<T>;
   struct KalmanFilterParams 
   {
     // Print the value of all parameters
@@ -78,27 +72,6 @@ namespace com_kf {
     #undef LIST_ENTRY
   };
 
-  struct KalmanFilter: public ExtendedKalmanFilter
-  {
-    KalmanFilter();
-    
-    /**
-     * @brief Predict the state with customized step length
-     * 
-     * @param u The control input vector.
-     * @param dt The step length. Will be ignored if negative.
-     */
-    const State& predict(const Control & u, T dt = T(-1.0));
-    const State& update(const Measurement& zpv);
-
-    // Set covariance matrices
-    void setSystemCov(T sigma_p, T sigma_v, T sampling_period);
-    void setMeasurementCov(T sigma_p, T sigma_v);
-
-
-    static SystemModel sys;
-    static MeasurementModel mm;
-  };
 }
 
 struct GaitAnalyzerParams 
@@ -275,13 +248,21 @@ public:
   }
 };
 
+constexpr double FOOT_LENGTH = 0.205;
+
 class GaitAnalyzer
 {
+
 public:
+  using PoseType   = geometry_msgs::PoseWithCovarianceStamped;
+  using PointType  = geometry_msgs::PointStamped;
+  using VectorType = geometry_msgs::Vector3Stamped;
+
   GaitAnalyzer(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   void odomCB(const nav_msgs::Odometry & msg);
   void k4aimuCB(const sensor_msgs::Imu & msg);
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
+  void timeSynchronizerCB(const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
   void sportSoleCB(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
   // Update both CoM and CoMv measurements
@@ -289,8 +270,8 @@ public:
   // Update XCoM
   void updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel);
   // Update CoM CoMv and XCoM estimates
-  void updateCoMEstimate(const ros::Time & stamp, const com_kf::State & x);
-  void updateBoS(bos_t & res, const vec_joints_t & vec_joints);
+  void updateCoMEstimate(const ros::Time & stamp, const comkf::S & x);
+  void updateBoS(bos_t & res);
   void updateMoS(mos_t & res, const com_t & xcom, const bos_t & bos_points);
 
   void updateGaitPhase();
@@ -307,11 +288,8 @@ private:
   bool touches_ground_[FORE_HIND][LEFT_RIGHT];
 
   // Internal state
-  vec_joints_t vec_joints_k_;
   vec_joints_t vec_joints_;
-  vec_refpoints_t vec_refpoints_k_;
   vec_refpoints_t vec_refpoints_;
-  vec_refvecs_t vec_refvecs_k_;
   vec_refvecs_t vec_refvecs_;
   sport_sole::SportSole::_pressures_type pressures_;
 
@@ -324,7 +302,7 @@ private:
   ros::NodeHandle private_nh_;
   GaitAnalyzerParams ga_params_;
   ros::NodeHandle comkf_nh_;
-  com_kf::KalmanFilterParams comkf_params_;
+  comkf::KalmanFilterParams comkf_params_;
   
   // Angular velocity bias removal
   ros::Time t0_omega_; 
@@ -347,10 +325,12 @@ private:
   ros::Subscriber sub_odom_;
   ros::Subscriber sub_k4aimu_;
   ros::Subscriber sub_skeletons_;
-  message_filters::Subscriber<sport_sole::SportSole>                    sub_sport_sole_;
-  message_filters::Cache     <sport_sole::SportSole>                  cache_sport_sole_;
-  message_filters::Subscriber<nav_msgs::Odometry>                       sub_fused_odom_;
-  message_filters::Cache     <nav_msgs::Odometry>                     cache_fused_odom_;
+  message_filters::Subscriber<sport_sole::SportSole>                            sub_sport_sole_;
+  message_filters::Cache     <sport_sole::SportSole>                          cache_sport_sole_;
+  message_filters::Subscriber<nav_msgs::Odometry>                               sub_fused_odom_;
+  message_filters::Cache     <nav_msgs::Odometry>                             cache_fused_odom_;
+  message_filters::Subscriber<PoseType>                                         sub_foot_poses_[LEFT_RIGHT];
+  message_filters::TimeSynchronizer<PoseType, PoseType, PointType, VectorType>  time_synchronizer_;
 
   // Publishers
   ros::Publisher pub_gait_state_;
@@ -391,7 +371,7 @@ private:
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   // comkf
-  com_kf::KalmanFilter comkf_;
+  comkf::KalmanFilter<T> comkf_;
   bool comkf_initialized_;
   ros::Time stamp_sport_sole_prev_;
   ros::Time stamp_skeleton_prev_;
@@ -403,13 +383,18 @@ private:
 private:
   // Helper method for converting a tf2::Vector3 object to a geometry_msgs::Point32 object
   geometry_msgs::Point32 vector3ToPoint32(const tf2::Vector3 & vec);
-  geometry_msgs::PointStamped constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec, const std::string & frame_id = "");
-  geometry_msgs::Vector3Stamped constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec, const std::string & frame_id = "");
+  geometry_msgs::PointStampedPtr constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec, const std::string & frame_id = "");
+  geometry_msgs::Vector3StampedPtr constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec, const std::string & frame_id = "");
   geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp, const bos_t & bos_points, const std::string & frame_id = "");
   visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom, const mos_t & mos);
 
-  // Calculate refpoints
-  void updateRefpoints(vec_refpoints_t & vec_refpoints, vec_refvecs_t & vec_refvecs_k_, const vec_joints_t & vec_joints);
+  inline tf2::Vector3 constructMosVector(const mos_t& mos)
+  {
+    return tf2::Vector3(
+      mos.values[mos_t::mos_shortest].dist,
+      mos.values[mos_t::mos_anteroposterior].dist,
+      mos.values[mos_t::mos_mediolateral].dist );
+  }
 };
 
 

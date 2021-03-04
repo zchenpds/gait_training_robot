@@ -1,6 +1,6 @@
 <launch>
 	<arg name="bag_name" default="optitrack/data212b"/>
-  <arg name="enable_kinect_pose_estimator" default="false"/>
+  <arg name="enable_kinect_pose_estimator" default="true"/>
 	<include file="$(find gait_training_robot)/launch/test5_comkf.launch">
 		<arg name="play_bag" value="true"/>
 		<arg name="record_bag" value="false"/>
@@ -10,4 +10,5 @@
 	</include>
 	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"
     if="$(arg enable_kinect_pose_estimator)"/>
+	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator"/>
 </launch>
