@@ -67,7 +67,6 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   private_nh_(p),
   comkf_nh_(private_nh_, "comkf"),
   sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 20), cache_sport_sole_(sub_sport_sole_, 100),
-  sub_fused_odom_(nh_, "/kinect_pose_estimator/odom", 5),      cache_fused_odom_(sub_fused_odom_, 100),
   time_synchronizer_(100),
   tf_listener_(tf_buffer_),
   comkf_initialized_(false),

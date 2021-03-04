@@ -165,7 +165,6 @@ include_directories(
 #   src/${PROJECT_NAME}/gait_training_robot.cpp
 # )
 add_library(global_planner_lib src/global_planner.cpp)
-add_library(fir_filter src/fir_filter.cpp)
 
 
 ## Add cmake target dependencies of the library
@@ -214,7 +213,6 @@ target_link_libraries(distance_controller
   ${catkin_LIBRARIES}
 )
 target_link_libraries(gait_analyzer
-  fir_filter
   ${catkin_LIBRARIES}
   ${gsl_LIBRARIES}
 )

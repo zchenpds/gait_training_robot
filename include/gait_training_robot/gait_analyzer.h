@@ -260,8 +260,6 @@ public:
   using VectorType = geometry_msgs::Vector3Stamped;
 
   GaitAnalyzer(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
-  void odomCB(const nav_msgs::Odometry & msg);
-  void k4aimuCB(const sensor_msgs::Imu & msg);
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void timeSynchronizerCB(const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
   void sportSoleCB(const sport_sole::SportSole& msg);
@@ -316,8 +314,6 @@ private:
   ros::Subscriber sub_skeletons_;
   message_filters::Subscriber<sport_sole::SportSole>                            sub_sport_sole_;
   message_filters::Cache     <sport_sole::SportSole>                          cache_sport_sole_;
-  message_filters::Subscriber<nav_msgs::Odometry>                               sub_fused_odom_;
-  message_filters::Cache     <nav_msgs::Odometry>                             cache_fused_odom_;
   message_filters::Subscriber<PoseType>                                         sub_foot_poses_[LEFT_RIGHT];
   message_filters::TimeSynchronizer<PoseType, PoseType, PointType, VectorType>  time_synchronizer_;
 
