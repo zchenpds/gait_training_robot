@@ -13,15 +13,15 @@ class KalmanFilter;
 /**
  * @brief System state vector-type body CoM (Center of Mass)
  *
- * System consists of 4 states
+ * System consists of 6 states
  *
  * @param T Numeric scalar type
  */
 template<typename T>
-class State : public Kalman::Vector<T, 4>
+class State : public Kalman::Vector<T, 6>
 {
 public:
-    KALMAN_VECTOR(State, T, 4)
+    KALMAN_VECTOR(State, T, 6)
     
     //! X-position
     static constexpr size_t PX = 0;
@@ -33,7 +33,12 @@ public:
     //! Y-Velocity
     static constexpr size_t VY = 3;
 
-    // position
+    //! X-Bias
+    static constexpr size_t BX = 4;
+    //! Y-Bias
+    static constexpr size_t BY = 5;
+
+    // CoM position
     Kalman::Vector<T, 2> p() const { return this->template segment<2>(PX); }
     T px()       const { return (*this)[ PX ]; }
     T py()       const { return (*this)[ PY ]; }
@@ -42,6 +47,11 @@ public:
     Kalman::Vector<T, 2> v() const { return this->template segment<2>(VX); }
     T vx()       const { return (*this)[ VX ]; }
     T vy()       const { return (*this)[ VY ]; }
+
+    // CoM bias
+    Kalman::Vector<T, 2> b() const { return this->template segment<2>(BX); }
+    T bx()       const { return (*this)[ BX ]; }
+    T by()       const { return (*this)[ BY ]; }
     
     T& px()      { return (*this)[ PX ]; }
     T& py()      { return (*this)[ PY ]; }
@@ -49,6 +59,8 @@ public:
     T& vx()      { return (*this)[ VX ]; }
     T& vy()      { return (*this)[ VY ]; }
 
+    T& bx()      { return (*this)[ BX ]; }
+    T& by()      { return (*this)[ BY ]; }
 };
 
 /**
@@ -127,6 +139,7 @@ public:
         S x_;
         x_.template segment<2>(S::PX) = x.p() + x.v() * dt_;// + 0.5 * acc * dt * dt;
         x_.template segment<2>(S::VX) = x.v() + acc * dt_;
+        x_.template segment<2>(S::BX) = x.b();
         
         // Return transitioned state vector
         return x_;
@@ -163,6 +176,8 @@ protected:
 
         this->F.template block<2, 2>(S::VX, S::VX) = Kalman::Matrix<T, 2, 2>::Identity();
         this->F.template block<2, 2>(S::VX, S::PX) = Kalman::Matrix<T, 2, 2>::Identity() * (omega0sq_ * dt_);
+
+        this->F.template block<2, 2>(S::BX, S::BX).setIdentity();
         
         // W = df/dw (Jacobian of state transition w.r.t. the process noise)
         this->W.setIdentity();

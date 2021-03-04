@@ -52,9 +52,10 @@ typedef double T;
 #define COMKF_PARAM_LIST \
   LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", T, 0.01)     \
   LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", T, 1e-4)          \
-  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 1e-1)          \
-  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 0.01)                  \
-  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 0.1)                   \
+  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 1e-2)          \
+  LIST_ENTRY(system_noise_b, "The standard deviation of noise added to the CoM offset state.", T, 1e-2)               \
+  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 1e-2)                   \
+  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 2e-1)                   \
 
 
 namespace comkf {
@@ -349,7 +350,6 @@ private:
   ros::Publisher pub_forefoot_refpoint_[LEFT_RIGHT];
 
   cop_t               cop_;
-  cop_t               cop_bias_;
   ros::Publisher  pub_cop_; // Center of Pressure
 
   bos_t              footprints_[LEFT_RIGHT];

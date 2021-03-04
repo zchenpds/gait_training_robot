@@ -70,6 +70,11 @@ public:
         // and do not need to update it dynamically
         this->V.setIdentity();
         //this->V *= pow(0.05, 2.0);
+
+        // H = dh/dx (Jacobian of measurement function w.r.t. the state)
+        //this->H.setZero();
+        this->H.template block<4, 4>(M::PX, S::PX).setIdentity();
+        this->H.template block<2, 2>(M::PX, S::BX) = -Kalman::Matrix<T, 2, 2>::Identity();
     }
     
     /**
@@ -85,12 +90,11 @@ public:
     M h(const S& x) const
     {
         M measurement;
-        measurement = x;
+        measurement.template segment<2>(M::PX) = x.p() - x.b();
+        measurement.template segment<2>(M::VX) = x.v();
         
         return measurement;
     }
-    
-protected:
 
 protected:
     
@@ -110,11 +114,7 @@ protected:
      * @param u The current system control input
      */
     void updateJacobians( const S& x )
-    {
-        // H = dh/dx (Jacobian of measurement function w.r.t. the state)
-        //this->H.setZero();
-        this->H = Kalman::Matrix<T, 4, 4>::Identity();
-    }
+    {}
 };
 
 } // namespace comkf

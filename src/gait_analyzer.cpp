@@ -71,7 +71,6 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 20), cache_sport_sole_(sub_sport_sole_, 100),
   sub_fused_odom_(nh_, "/kinect_pose_estimator/odom", 5),      cache_fused_odom_(sub_fused_odom_, 100),
   time_synchronizer_(100),
-  cop_bias_(-0.1, 0.0, 0.0),
   tf_listener_(tf_buffer_),
   comkf_initialized_(false),
   sub_id_(-1)
@@ -95,7 +94,8 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   // Set the parameters for comkf
   T var_p = pow(comkf_params_.system_noise_p, 2);
   T var_v = pow(comkf_params_.system_noise_v, 2);
-  setModelCovariance(comkf_.sys, {var_p, var_p, var_v, var_v});
+  T var_b = pow(comkf_params_.system_noise_b, 2);
+  setModelCovariance(comkf_.sys, {var_p, var_p, var_v, var_v, var_b, var_b});
   T var_zp = pow(comkf_params_.measurement_noise_p, 2);
   T var_zv = pow(comkf_params_.measurement_noise_v, 2);
   setModelCovariance(comkf_.pvmm, {var_zp, var_zp, var_zv, var_zv});
@@ -450,14 +450,6 @@ void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
   // Calculate CoP
   auto & cop = cop_;
   cop = sport_sole::getCoP(pressures_, vec_refpoints_, vec_refvecs_);
-
-  // Update CoP and CoP bias
-  cop -= cop_bias_;
-  auto delta_cop = cop - com_[MEASUREMENT];
-  const float tau = 2.0f;
-  delta_cop.setZ(0.0f);
-  cop_bias_ += delta_cop / 100.0f / tau;
-  // ROS_INFO_STREAM("cop_bias_: " << cop_bias_ << "; delta_cop: " << delta_cop);
 
   //Update control input
   comkf::C u;
