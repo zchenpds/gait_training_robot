@@ -305,16 +305,6 @@ private:
   ros::NodeHandle comkf_nh_;
   comkf::KalmanFilterParams comkf_params_;
   
-  // Angular velocity bias removal
-  ros::Time t0_omega_; 
-  int cnt_omega_bias_ = 0;
-  tf2::Vector3 omega_bias_;
-  // Processed angular velocity
-  tf2::Vector3 omega_filtered_;
-  ros::Publisher pub_omega_filtered_;
-  message_filters::Cache<geometry_msgs::Vector3Stamped> cache_omega_filtered_;
-  tf2::Vector3 vel_robot_filtered_{0.0, 0.0, 0.0};
-
 
   enum measurement_estimate_t{
     MEASUREMENT=0,
@@ -323,8 +313,6 @@ private:
   };
   
   // Subscribers
-  ros::Subscriber sub_odom_;
-  ros::Subscriber sub_k4aimu_;
   ros::Subscriber sub_skeletons_;
   message_filters::Subscriber<sport_sole::SportSole>                            sub_sport_sole_;
   message_filters::Cache     <sport_sole::SportSole>                          cache_sport_sole_;

@@ -66,8 +66,6 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   nh_(n),
   private_nh_(p),
   comkf_nh_(private_nh_, "comkf"),
-  omega_bias_(0.0, 0.0, 0.0),
-  cache_omega_filtered_(3000), 
   sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 20), cache_sport_sole_(sub_sport_sole_, 100),
   sub_fused_odom_(nh_, "/kinect_pose_estimator/odom", 5),      cache_fused_odom_(sub_fused_odom_, 100),
   time_synchronizer_(100),
@@ -100,8 +98,6 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   T var_zv = pow(comkf_params_.measurement_noise_v, 2);
   setModelCovariance(comkf_.pvmm, {var_zp, var_zp, var_zv, var_zv});
 
-  sub_odom_ = nh_.subscribe("/odom", 5, &GaitAnalyzer::odomCB, this);
-  sub_k4aimu_ = nh_.subscribe("/imu", 50, &GaitAnalyzer::k4aimuCB, this );
   sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
 
   for (auto lr: {LEFT, RIGHT})
@@ -127,7 +123,6 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
     pub_mos_[me] = private_nh_.advertise<visualization_msgs::MarkerArray>     (str_me + "mos",  buff_size);
     pub_mos_vector_[me] = private_nh_.advertise<geometry_msgs::Vector3Stamped>(str_me + "mos_vec", buff_size);
   }
-  pub_omega_filtered_ = private_nh_.advertise<geometry_msgs::Vector3Stamped>("omega_filtered", 1);
 
   for (auto lr: {LEFT, RIGHT})
   {
@@ -141,50 +136,6 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   
   pub_ground_clearance_left_ = private_nh_.advertise<std_msgs::Float64> ("ground_clearance_left", buff_size);
   pub_ground_clearance_right_ = private_nh_.advertise<std_msgs::Float64>("ground_clearance_right", buff_size);
-}
-
-void GaitAnalyzer::odomCB(const nav_msgs::Odometry & msg)
-{
-  tf2::Vector3 vel;
-  tf2::fromMsg(msg.twist.twist.linear, vel);
-  vel_robot_filtered_ = vel;
-  // printf("\rRobot velocity: %8.5f, %8.5f, %8.5f", vel.getX(), vel.getY(), vel.getZ()); fflush(stdout);
-}
-
-void GaitAnalyzer::k4aimuCB(const sensor_msgs::Imu & msg)
-{
-  tf2::fromMsg(msg.angular_velocity, omega_filtered_);
-
-  // Transform the angular velocity to depth frame
-  omega_filtered_ = tf_imu_to_local_ * omega_filtered_;
-
-  // Remove bias
-  if (t0_omega_.isZero()) t0_omega_ = msg.header.stamp;
-  if (msg.header.stamp - t0_omega_ < ros::Duration(3.0)) {
-    omega_bias_ += omega_filtered_;
-    ++cnt_omega_bias_;
-  }
-  else {
-    if (cnt_omega_bias_ > 0) {
-      omega_bias_ /= (float)cnt_omega_bias_;
-      cnt_omega_bias_ = 0;
-    }
-    omega_filtered_ -= omega_bias_;
-  }
-
-  // Construct messeage for omega_filtered
-  geometry_msgs::Vector3StampedPtr msg_ptr(new geometry_msgs::Vector3Stamped);
-  msg_ptr->header.frame_id = "camera_mount_top";
-  msg_ptr->header.stamp = msg.header.stamp;
-  msg_ptr->vector.x = omega_filtered_.getX();
-  msg_ptr->vector.y = omega_filtered_.getY();
-  msg_ptr->vector.z = omega_filtered_.getZ();
-
-  // Add the message to the cache
-  cache_omega_filtered_.add(msg_ptr);
-
-  // publish the message
-  pub_omega_filtered_.publish(msg_ptr);
 }
 
 void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
