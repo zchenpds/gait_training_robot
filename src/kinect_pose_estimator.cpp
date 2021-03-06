@@ -2,6 +2,16 @@
 #include <iomanip>
 
 
+void KinectPoseEstimatorParams::print()
+{
+  ROS_INFO_STREAM("kinect_pose_estimator Parameters: ");
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val)     \
+    ROS_INFO_STREAM("" << #param_variable << " - " << #param_type " : " << param_variable);
+
+    PARAM_LIST
+  #undef LIST_ENTRY
+}
+
 KinectPoseEstimator::KinectPoseEstimator(const ros::NodeHandle& n, const ros::NodeHandle& p) :
     nh_(n),
     private_nh_(p),
@@ -9,18 +19,26 @@ KinectPoseEstimator::KinectPoseEstimator(const ros::NodeHandle& n, const ros::No
     cache_kimu_(sub_kimu_, 800),
     sub_odom_(nh_, "/odom", 3),
     cache_odom_(sub_odom_, 6)
-{
+{ 
+  // Collect ROS parameters from the param server or from the command line
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) \
+    private_nh_.param(#param_variable, params_.param_variable, param_default_val);
+
+    PARAM_LIST
+  #undef LIST_ENTRY
+  params_.print();
+
   cache_kimu_.registerCallback(&KinectPoseEstimator::kimuCB, this);
   cache_odom_.registerCallback(&KinectPoseEstimator::odomCB, this);
   
-  pub_filtered_odom_ = private_nh_.advertise<nav_msgs::Odometry>("odom", 20);
+  pub_filtered_odom_ = private_nh_.advertise<nav_msgs::Odometry>(params_.output_frame, 20);
   
   // Initialize tf message
-  pose_estimate_.header.frame_id = "odom";
-  pose_estimate_.child_frame_id = "base_link";
+  pose_estimate_.header.frame_id = "base_link";
+  pose_estimate_.child_frame_id = params_.output_frame;
 
   // Initialize filtered odom message
-  odom_filtered_.header.frame_id = "odom";
+  odom_filtered_.header.frame_id = params_.output_frame;
   odom_filtered_.child_frame_id = "base_link";
 }
 
@@ -150,9 +168,12 @@ void KinectPoseEstimator::broadcastTf()
   pose_estimate_.header.stamp = state_.t;
   pose_estimate_.transform.translation.x = state_.x;
   pose_estimate_.transform.translation.y = state_.y;
+  tf2::Vector3 translation(state_.x, state_.y, 0);
   tf2::Quaternion quat_yaw;
-  quat_yaw.setRPY(0.0, 0.0, state_.th);
+  quat_yaw.setRPY(0.0, 0.0, -state_.th);
+  translation = tf2::quatRotate(quat_yaw, translation);
   tf2::convert(quat_yaw, pose_estimate_.transform.rotation);
+  tf2::convert(translation, pose_estimate_.transform.translation);
   // ROS_INFO_STREAM("Sending tf: " << state_.x << " " << state_.y << " " << state_.th << " at " << state_.t.toSec());
   tf_broadcaster_.sendTransform(pose_estimate_);
 

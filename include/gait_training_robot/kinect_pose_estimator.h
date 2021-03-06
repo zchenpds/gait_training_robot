@@ -12,6 +12,22 @@
 #include <message_filters/cache.h>
 #include <message_filters/subscriber.h>
 
+#define PARAM_LIST \
+  LIST_ENTRY(output_frame, "The global frame ID, e.g. fused_odom.", std::string, std::string("fused_odom"))    \
+
+struct KinectPoseEstimatorParams 
+{
+  // Print the value of all parameters
+  void print();
+
+  // Parameters
+  #define LIST_ENTRY(param_variable, param_help_string, param_type, param_default_val) param_type param_variable;
+    PARAM_LIST
+  #undef LIST_ENTRY
+};
+
+
+
 class KinectPoseEstimator
 {
 public:
@@ -64,6 +80,7 @@ private:
 
   // params
   const ros::Duration desired_publish_period_{1.0 / 100.0};
+  KinectPoseEstimatorParams params_;
 };
 
 template<typename T>
