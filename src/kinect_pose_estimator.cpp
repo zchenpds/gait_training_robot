@@ -31,7 +31,7 @@ KinectPoseEstimator::KinectPoseEstimator(const ros::NodeHandle& n, const ros::No
   cache_kimu_.registerCallback(&KinectPoseEstimator::kimuCB, this);
   cache_odom_.registerCallback(&KinectPoseEstimator::odomCB, this);
   
-  pub_filtered_odom_ = private_nh_.advertise<nav_msgs::Odometry>(params_.output_frame, 20);
+  pub_filtered_odom_ = private_nh_.advertise<nav_msgs::Odometry>("odom", 20);
   
   // Initialize tf message
   pose_estimate_.header.frame_id = "base_link";

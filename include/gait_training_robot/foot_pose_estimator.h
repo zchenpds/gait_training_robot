@@ -43,6 +43,7 @@ typedef double FloatType;
   LIST_ENTRY(measurement_noise_y, "The standard deviation of yaw measurement noise.", FloatType, 1e-2)                           \
   LIST_ENTRY(measurement_noise_va, "The standard deviation of va measurement noise.", FloatType, 1e-5)                           \
   LIST_ENTRY(global_frame, "The reference frame for the filter output.", std::string, std::string("odom"))                       \
+  LIST_ENTRY(publish_frame, "The reference frame for pose messages.", std::string, std::string("odom"))                          \
 
 
 struct FootPoseEstimatorParams
@@ -64,6 +65,7 @@ public:
   FootPoseEstimator(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void sportSoleCB(const sport_sole::SportSole& msg);
+  void updateTfCB(const ros::TimerEvent& event);
 
 protected:
   void predict(sport_sole::SportSoleConstPtr msg_ptr);
@@ -71,6 +73,7 @@ protected:
               geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT]);
   void publishFusedPoses(const ros::Time& stamp) const;
   void printDebugMessage(const char* message, const ros::Time& stamp, left_right_t lr) const;
+  geometry_msgs::PoseWithCovarianceStamped constructPoseWithCovarianceStamped(tf2::Vector3 position, tf2::Quaternion quat) const;
   
 private:
   // params 
@@ -119,6 +122,10 @@ private:
   // tf listener
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
+  tf2::Transform tf_global_to_publish_;
+  // Becomes true if the publish frame is different from the global frame and the tf lookup succeeds
+  bool is_initialized_tf_global_to_publish_;
+  ros::Timer timer_update_tf_global_to_publish_;
 
 };
 
