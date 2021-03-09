@@ -87,6 +87,9 @@ add_message_files(
   SportSoleEkfState.msg
   SportSoleEkfSportSoleMeasurement.msg
   SportSoleEkfKinectMeasurement.msg
+  ComkfState.msg
+  ComkfCopMeasurement.msg
+  ComkfComMeasurement.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -180,6 +183,7 @@ add_executable(kalman_filter src/kalman_filter.cpp)
 add_executable(goal_generator src/goal_generator.cpp)
 add_executable(distance_controller src/distance_controller.cpp)
 add_executable(gait_analyzer src/gait_analyzer.cpp)
+add_executable(gait_analyzer_optitrack src/gait_analyzer_optitrack.cpp)
 add_executable(foot_pose_estimator src/foot_pose_estimator.cpp)
 add_executable(kinect_pose_estimator src/kinect_pose_estimator.cpp)
 add_executable(test_sport_sole_ekf test/test_sport_sole_ekf.cpp)
@@ -213,6 +217,10 @@ target_link_libraries(distance_controller
   ${catkin_LIBRARIES}
 )
 target_link_libraries(gait_analyzer
+  ${catkin_LIBRARIES}
+  ${gsl_LIBRARIES}
+)
+target_link_libraries(gait_analyzer_optitrack
   ${catkin_LIBRARIES}
   ${gsl_LIBRARIES}
 )
