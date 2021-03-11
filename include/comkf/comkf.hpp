@@ -2,8 +2,7 @@
 #define COMKF_HPP_
 
 #include "SystemModel.hpp"
-#include "PVMeasurementModel.hpp"
-
+#include "PositionMeasurementModel.hpp"
 namespace comkf
 {
   template <typename T>
@@ -11,7 +10,7 @@ namespace comkf
   {
     using S = State<T>;
     using C = Control<T>;
-    using ZPV = PVMeasurement<T>;
+    using ZP = PositionMeasurement<T>;
 
     using BaseType = Kalman::ExtendedKalmanFilter<S>;
 
@@ -47,13 +46,13 @@ namespace comkf
       return this->getState();
     }
     
-    const S& update(const ZPV& zpv)
+    const S& update(const ZP& z)
     {
-      return BaseType::update(pvmm, zpv);
+      return BaseType::update(pmm, z);
     }
 
     SystemModel<T> sys;
-    PVMeasurementModel<T> pvmm;
+    PositionMeasurementModel<T> pmm;
   };
 } // namespace comkf
 

@@ -21,10 +21,10 @@ class State : public Kalman::Vector<T, STATE_DIM>
 public:
     KALMAN_VECTOR(State, T, STATE_DIM)
 
-    static constexpr size_t Q0 = 0;
-    static constexpr size_t Q1 = 1;
-    static constexpr size_t Q2 = 2;
-    static constexpr size_t Q3 = 3;
+    static constexpr size_t Q0 = 0; // W
+    static constexpr size_t Q1 = 1; // X
+    static constexpr size_t Q2 = 2; // Y
+    static constexpr size_t Q3 = 3; // Z
 
     static constexpr size_t WX = 4;
     static constexpr size_t WY = 5;

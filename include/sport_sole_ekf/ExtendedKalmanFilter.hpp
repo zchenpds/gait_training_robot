@@ -96,18 +96,12 @@ namespace sport_sole
 
     const S& update(const ZQ& z)
     {
-      update(qmm, z);
-      repairQuaternion();
-
-      return this->getState();
+      return update(qmm, z);
     }
     
     const S& update(const ZY& z)
     {
-      update(ymm, z);
-      repairQuaternion();
-
-      return this->getState();
+      return update(ymm, z);
     }
 
     const S& update(const ZVA& z)
@@ -140,6 +134,12 @@ namespace sport_sole
     {
       return;
       std::cout << "P =\n" << P << "\n\n";
+    }
+
+  protected:
+    void updateSpecialState() override
+    {
+      repairQuaternion();
     }
     
   };

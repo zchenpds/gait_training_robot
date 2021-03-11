@@ -17,8 +17,8 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   nh_(n),
   private_nh_(p),
   sub_skeletons_(nh_.subscribe("/body_tracking_data", 20, &FootPoseEstimator::skeletonsCB, this)),
-  sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 200),
-  cache_sport_sole_(sub_sport_sole_, 800),
+  sub_sport_sole_(nh_.subscribe("/sport_sole_publisher/sport_sole", 200, &FootPoseEstimator::sportSoleCB, this)),
+  cache_sport_sole_(800),
   tf_listener_(tf_buffer_),
   is_initialized_tf_global_to_publish_(false)
 {
@@ -36,7 +36,6 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   for (auto lr : {LEFT, RIGHT})
     cache_kinect_measurements_[lr].setCacheSize(100);
   
-  cache_sport_sole_.registerCallback(&FootPoseEstimator::sportSoleCB, this);
   // std::cout << "Waiting for /body_tracking_data" << std::flush;
 
   // Load parameters
@@ -162,7 +161,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       tf2::fromMsg(it_ankle->pose.position, position);
       position = tf_depth_to_global * position;
       // The displacement of the sport sole relative to the ankle joint expressed in the ankle joint frame
-      auto disp_imu = tf2::quatRotate(quat.inverse(), {0.0, 0.0, -0.1});
+      auto disp_imu = tf2::quatRotate(quat.inverse(), {0.02, 0.0, -0.1});
       position += disp_imu;
       tf_joint_ptr->transform.translation = tf2::toMsg(position);
       cache_kinect_measurements_[lr].add(tf_joint_ptr);
@@ -194,9 +193,12 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       }
 
       // Publish pose_measured message
-      auto pose_measured = constructPoseWithCovarianceStamped(position, quat);
-      pose_measured.header.stamp = stamp_skeleton_curr;
-      pub_raw_poses_[lr].publish(pose_measured);
+      if (params_.global_frame == params_.publish_frame || is_initialized_tf_global_to_publish_)
+      {
+        auto pose_measured = constructPoseWithCovarianceStamped(position, quat);
+        pose_measured.header.stamp = stamp_skeleton_curr;
+        pub_raw_poses_[lr].publish(pose_measured);
+      }
 
     } // End of lr
     
@@ -208,10 +210,15 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
 
 void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
 {
+  sport_sole::SportSolePtr msg_new(new sport_sole::SportSole(msg));
+  ros::Time ts_sport_sole_curr = msg.header.stamp + ros::Duration(params_.sport_sole_time_offset);
+  msg_new->header.stamp = ts_sport_sole_curr;
+  cache_sport_sole_.add(msg_new);
+
   // Proceed only if the state is initialized with an skeletons message.
   if (ts_kinect_last_.isZero()) 
   {
-    ts_sport_sole_last_ = msg.header.stamp;
+    ts_sport_sole_last_ = ts_sport_sole_curr;
 
     return;
   }
@@ -245,7 +252,7 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
   if (// Update only if kinect measurement is available
       msg_kinect_ptrs[LEFT] && msg_kinect_ptrs[RIGHT] && 
       // Put off update if sport_sole message is delayed
-      msg_kinect_ptrs[LEFT]->header.stamp < msg.header.stamp + ros::Duration(0.005)) 
+      msg_kinect_ptrs[LEFT]->header.stamp < ts_sport_sole_curr + ros::Duration(0.005)) 
   {
     geometry_msgs::TransformStampedConstPtr prev_msg_kinect_ptrs[LEFT_RIGHT] = {
       cache_kinect_measurements_[LEFT].getElemBeforeTime(msg_kinect_ptrs[LEFT]->header.stamp),
@@ -275,7 +282,8 @@ void FootPoseEstimator::updateTfCB(const ros::TimerEvent& event)
   }
   catch (tf2::TransformException& ex)
   {
-    ROS_WARN("Will use the global_frame instead of the publish_frame in 'header.frame_id'. %s", ex.what());
+    ROS_WARN_THROTTLE(5.0, "Will use '%s' instead of '%s' in 'header.frame_id'. %s", 
+      params_.global_frame.c_str(), params_.publish_frame.c_str(), ex.what());
     return;
   }
 }
@@ -357,6 +365,7 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
 
     // Zero velocity update
     if (current_gait_phase_[lr] == GaitPhase::Stance1 || current_gait_phase_[lr] == GaitPhase::Stance2)
+    // if (current_gait_phase_[lr] == GaitPhase::Stance2)
     {
       ekf_t::ZVA zva;
       zva << ekf_t::ZVA::Zero();
@@ -396,6 +405,8 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
     }
   }
   ts_sport_sole_last_ = msg_ptr->header.stamp;
+
+  publishFusedPoses(ts_sport_sole_last_);
 }
 
 void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
@@ -453,25 +464,33 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
     auto zy_correction = MU * (zp - ekf.x.p()).cross(ekf.x.v());
     refUnitY[lr] = (refUnitY[lr] - refUnitY[lr].cross({zy_correction.x(), zy_correction.y(), zy_correction.z()})).normalize();
 
-    // ekf_t::ZQ zq;
-    // zq.q0() = msg_kinect_ptr->transform.rotation.w;
-    // zq.q1() = msg_kinect_ptr->transform.rotation.x;
-    // zq.q2() = msg_kinect_ptr->transform.rotation.y;
-    // zq.q3() = msg_kinect_ptr->transform.rotation.z;
-    // ekf.update(zq);
-    // printDebugMessage("Quaternion update", msg_kinect_ptr->header.stamp, lr);
+    // Quaternion update (relative)
+    if (ekf.x.v().hypotNorm() > 0.3)
+    {
+      double MU2 = 2.0;
+      tf2::Quaternion delta_quat({0, 0, 1}, zy_correction.z() * MU2);
+      tf2::Quaternion quat_estimate(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
+      quat_estimate = quat_estimate * delta_quat;
+      ekf_t::ZQ zq;
+      zq << quat_estimate.w(), quat_estimate.x(), quat_estimate.y(), quat_estimate.z();
+      ekf.update(zq);
+      ts_last_quaternion_update_ = msg_kinect_ptr->header.stamp;
+      printDebugMessage("Quaternion update", msg_kinect_ptr->header.stamp, lr);
+    }
 
-    ekf_t::ZY zy;
     tf2::Quaternion quat;
     tf2::fromMsg(msg_kinect_ptr->transform.rotation, quat);
     tf2::Vector3 zy_ros = tf2::quatRotate(quat.inverse(), refUnitY[lr]);
     
-    zy.x() = zy_ros.x();
-    zy.y() = zy_ros.y();
-    zy.z() = zy_ros.z();
-    if (current_gait_phase_[lr] == GaitPhase::Stance2)
-    ekf.update(zy);
-    printDebugMessage("Yaw update", msg_kinect_ptr->header.stamp, lr);
+    // Yaw update
+    if ((msg_kinect_ptr->header.stamp - ts_last_quaternion_update_).toSec() > 2.0)
+    {
+      ekf_t::ZY zy;
+      zy << zy_ros.x(), zy_ros.y(), zy_ros.z();
+      if (current_gait_phase_[lr] == GaitPhase::Stance2)
+        ekf.update(zy);
+      printDebugMessage("Yaw update", msg_kinect_ptr->header.stamp, lr);
+    }
     
     // Publish kinect_measurement message
     if (pub_ekf_kinect_measurement_[lr].getNumSubscribers())
@@ -515,6 +534,11 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
 
 void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp) const
 {
+  if (!(params_.global_frame == params_.publish_frame || is_initialized_tf_global_to_publish_))
+  {
+    ROS_WARN_STREAM_ONCE("Will not publish fused poses until the transform from global frame to publish frame becomes available.");
+    return;
+  }
   for (auto lr : {LEFT, RIGHT})
   {
     auto & ekf = ekf_[lr];

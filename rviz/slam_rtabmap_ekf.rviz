@@ -6,12 +6,12 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1
         - /TF1/Frames1
         - /PoseWithCovariance1
         - /PoseWithCovariance2
         - /DepthCloud1
         - /DepthCloud1/Auto Size1
-        - /SportSole1
         - /PoseWithCovariance5
         - /PoseWithCovariance6
       Splitter Ratio: 0.3510253429412842
@@ -189,19 +189,157 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/TF
-      Enabled: false
+      Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        back_sonar:
+          Value: false
+        base_link:
+          Value: false
+        camera_base:
+          Value: false
+        camera_body:
+          Value: false
+        camera_lens1_link:
+          Value: false
+        camera_lens2_link:
+          Value: false
+        camera_lens3_link:
+          Value: false
+        camera_link:
+          Value: false
+        camera_mount_left:
+          Value: false
+        camera_mount_right:
+          Value: false
+        camera_mount_top:
+          Value: false
+        camera_rgb_frame:
+          Value: false
+        camera_rgb_optical_frame:
+          Value: false
+        camera_visor:
+          Value: false
+        caster_hubcap:
+          Value: false
+        caster_swivel:
+          Value: false
+        caster_wheel:
+          Value: false
+        depth_camera_link:
+          Value: false
+        depth_camera_link_optitrack:
+          Value: false
+        front_sonar:
+          Value: false
+        fused_odom:
+          Value: false
+        imu_link:
+          Value: false
+        joint_ankle_left:
+          Value: false
+        joint_ankle_right:
+          Value: false
+        joint_pelvis:
+          Value: false
+        left_hub:
+          Value: false
+        left_wheel:
+          Value: false
+        map:
+          Value: false
+        odom:
+          Value: false
+        optitrack:
+          Value: false
+        rear_kinect_base:
+          Value: false
+        rear_kinect_body:
+          Value: false
+        rear_kinect_visor:
+          Value: false
+        rgb_camera_link:
+          Value: false
+        right_hub:
+          Value: false
+        right_wheel:
+          Value: false
+        sport_sole_left:
+          Value: false
+        sport_sole_right:
+          Value: false
+        top_plate:
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: false
       Show Axes: true
-      Show Names: false
+      Show Names: true
       Tree:
-        {}
+        map:
+          {}
+        odom:
+          base_link:
+            back_sonar:
+              {}
+            camera_link:
+              camera_lens1_link:
+                {}
+              camera_lens2_link:
+                {}
+              camera_lens3_link:
+                {}
+            camera_mount_top:
+              camera_base:
+                camera_body:
+                  {}
+                camera_visor:
+                  {}
+                depth_camera_link:
+                  imu_link:
+                    {}
+                  joint_ankle_left:
+                    {}
+                  joint_ankle_right:
+                    {}
+                  joint_pelvis:
+                    {}
+                  rgb_camera_link:
+                    {}
+              camera_mount_left:
+                {}
+              camera_mount_right:
+                {}
+              rear_kinect_base:
+                rear_kinect_body:
+                  {}
+                rear_kinect_visor:
+                  {}
+            caster_swivel:
+              caster_wheel:
+                caster_hubcap:
+                  {}
+            front_sonar:
+              {}
+            fused_odom:
+              sport_sole_left:
+                {}
+              sport_sole_right:
+                {}
+            left_hub:
+              left_wheel:
+                {}
+            optitrack:
+              depth_camera_link_optitrack:
+                {}
+            right_hub:
+              right_wheel:
+                {}
+            top_plate:
+              {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Alpha: 1
       Class: rviz/Polygon
       Color: 25; 255; 0
@@ -689,15 +827,6 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
-    - Alpha: 1
-      Class: sport_sole/SportSole
-      Enabled: false
-      Forefoot Color: 204; 51; 204
-      Hindfoot Color: 204; 204; 51
-      Name: SportSole
-      Topic: /sport_sole_publisher/sport_sole
-      Unreliable: false
-      Value: false
     - Alpha: 1
       Class: sport_sole/SportSole
       Enabled: false

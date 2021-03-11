@@ -36,7 +36,7 @@ typedef double FloatType;
   LIST_ENTRY(system_noise_ab, "The standard deviation of noise added to the accelerometer bias state.", FloatType, 1e-2)         \
   LIST_ENTRY(system_noise_wb, "The standard deviation of noise added to the gyroscope bias state.", FloatType, 1e-5)             \
   LIST_ENTRY(measurement_noise_a, "The standard deviation of acceleration measurement noise.", FloatType, 5e-1)                  \
-  LIST_ENTRY(measurement_noise_g, "The standard deviation of gyroscope measurement noise.", FloatType, 5e-3)                     \
+  LIST_ENTRY(measurement_noise_g, "The standard deviation of gyroscope measurement noise.", FloatType, 5e-2)                     \
   LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", FloatType, 1e-2)                      \
   LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", FloatType, 1e-1)                      \
   LIST_ENTRY(measurement_noise_q, "The standard deviation of quaternion measurement noise.", FloatType, 2e-1)                    \
@@ -44,6 +44,7 @@ typedef double FloatType;
   LIST_ENTRY(measurement_noise_va, "The standard deviation of va measurement noise.", FloatType, 1e-5)                           \
   LIST_ENTRY(global_frame, "The reference frame for the filter output.", std::string, std::string("odom"))                       \
   LIST_ENTRY(publish_frame, "The reference frame for pose messages.", std::string, std::string("odom"))                          \
+  LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                     \
 
 
 struct FootPoseEstimatorParams
@@ -89,7 +90,7 @@ private:
   // Subscribers
   ros::Subscriber sub_skeletons_;
   message_filters::Cache<geometry_msgs::TransformStamped> cache_kinect_measurements_[LEFT_RIGHT];
-  message_filters::Subscriber<sport_sole::SportSole> sub_sport_sole_;
+  ros::Subscriber sub_sport_sole_;
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
 
   // SportSoleEKF
@@ -115,6 +116,7 @@ private:
   ros::Time ts_sport_sole_last_;
   ros::Time ts_init_;
   ros::Time ts_next_desired_publish_;
+  ros::Time ts_last_quaternion_update_;
 
   // tf broadcaster
   tf2_ros::TransformBroadcaster tf_broadcaster_;

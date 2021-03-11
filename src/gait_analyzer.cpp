@@ -5,6 +5,9 @@
 #include <std_msgs/String.h>
 #include <sensor_msgs/Imu.h>
 #include "gait_training_robot/gait_analyzer.h"
+#include "gait_training_robot/ComkfState.h"
+#include "gait_training_robot/ComkfCopMeasurement.h"
+#include "gait_training_robot/ComkfComMeasurement.h"
 
 using namespace visualization_msgs;
 
@@ -62,6 +65,8 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
     {true, true}, // Left ankle, right ankle
     {true, true} // Left foot, right foot
     },
+  ml_vec_(0, 0, 0),
+  ap_vec_(0, 0, 0),
   z_ground_(0.0),
   nh_(n),
   private_nh_(p),
@@ -69,6 +74,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 20), cache_sport_sole_(sub_sport_sole_, 100),
   time_synchronizer_(100),
   tf_listener_(tf_buffer_),
+  is_initialized_tf_global_to_publish_(false),
   comkf_initialized_(false),
   sub_id_(-1)
 {
@@ -92,12 +98,31 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   T var_p = pow(comkf_params_.system_noise_p, 2);
   T var_v = pow(comkf_params_.system_noise_v, 2);
   T var_b = pow(comkf_params_.system_noise_b, 2);
+  T var_cop = pow(comkf_params_.system_noise_cop, 2);
   setModelCovariance(comkf_.sys, {var_p, var_p, var_v, var_v, var_b, var_b});
   T var_zp = pow(comkf_params_.measurement_noise_p, 2);
-  T var_zv = pow(comkf_params_.measurement_noise_v, 2);
-  setModelCovariance(comkf_.pvmm, {var_zp, var_zp, var_zv, var_zv});
+  // T var_zv = pow(comkf_params_.measurement_noise_v, 2);
+  setModelCovariance(comkf_.pmm, {var_zp, var_zp});
 
-  sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
+  if (ga_params_.data_source == "k4a")
+  {
+    sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
+  }
+  else if (ga_params_.data_source == "optitrack")
+  {
+    // namespace optitrack
+    ga_params_.foot_pose_topic = "/optitrack/foot_pose_";
+    ga_params_.global_frame = "optitrack";
+    sub_com_ = private_nh_.subscribe("/optitrack/com", 50, &GaitAnalyzer::comCB, this);
+    sub_ml_vec_ = private_nh_.subscribe("/optitrack/ml_vec", 50, &GaitAnalyzer::mlVecCB, this);
+  }
+  else
+  {
+    ROS_ERROR("Unknown data_source");
+  }
+
+  timer_update_tf_global_to_publish_ = nh_.createTimer(ros::Duration(0.1), &GaitAnalyzer::updateTfCB, this);
+
 
   for (auto lr: {LEFT, RIGHT})
   {
@@ -106,7 +131,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   time_synchronizer_.connectInput(sub_foot_poses_[LEFT], sub_foot_poses_[RIGHT]);
   time_synchronizer_.registerCallback(boost::bind(&GaitAnalyzer::timeSynchronizerCB, this, _1, _2, _3, _4));
   
-  const size_t buff_size = 10;
+  const size_t buff_size = 100;
   for (size_t lr: {LEFT, RIGHT}) {
     auto str_lr = std::string(!lr?"_l": "_r");
     pub_footprints_[lr] = private_nh_.advertise<geometry_msgs::PolygonStamped>("footprint" + str_lr, buff_size);
@@ -135,6 +160,10 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   
   pub_ground_clearance_left_ = private_nh_.advertise<std_msgs::Float64> ("ground_clearance_left", buff_size);
   pub_ground_clearance_right_ = private_nh_.advertise<std_msgs::Float64>("ground_clearance_right", buff_size);
+
+  pub_comkf_state_           = comkf_nh_.advertise<gait_training_robot::ComkfState>         ("state", buff_size);
+  pub_comkf_cop_measurement_ = comkf_nh_.advertise<gait_training_robot::ComkfCopMeasurement>("zcop",  buff_size);
+  pub_comkf_com_measurement_ = comkf_nh_.advertise<gait_training_robot::ComkfComMeasurement>("zcom",  buff_size);
 }
 
 void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
@@ -182,7 +211,7 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     }
     catch (tf2::TransformException & ex)
     {
-      ROS_ERROR("%s", ex.what());
+      ROS_WARN_THROTTLE(5.0, "Cannot transform CoM from 'depth_camera_link' to '%s'. %s", ga_params_.global_frame.c_str(), ex.what());
       return;
       //ros::Duration(1.0).sleep();
     }
@@ -224,11 +253,15 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       vec_joints_[i] = tf_depth_to_global_ * vec_joints_[i];
     }
 
+    // Update AP and ML vectors
+    ml_vec_ = ( vec_joints_[K4ABT_JOINT_CLAVICLE_LEFT] - vec_joints_[K4ABT_JOINT_CLAVICLE_RIGHT]
+      + vec_joints_[K4ABT_JOINT_HIP_LEFT] - vec_joints_[K4ABT_JOINT_HIP_RIGHT] ).normalize();
+    ap_vec_ = ml_vec_.rotate({0, 0, 1}, -M_PI_2);
+
     // Calculate com (projected center of mass), comv and xcom
-    // com_[MEASUREMENT] = pcom_pos_smoother_(com_[MEASUREMENT]);
-    updateCoMMeasurement(stamp_skeleton_curr, com_[MEASUREMENT], comv_[MEASUREMENT], vec_joints_);
-    if (comv_[MEASUREMENT].length() < 1e-6) ROS_INFO_STREAM("A" << comv_[MEASUREMENT]);
-    // comv_[MEASUREMENT] = pcom_vel_smoother_(comv_[MEASUREMENT]);
+    // if (ga_params_.smoother_enabled)  com_smoother_[MEASUREMENT](com_[MEASUREMENT]);
+    updateCoMMeasurementFromSkeletons(stamp_skeleton_curr, com_[MEASUREMENT], comv_[MEASUREMENT], vec_joints_);
+    // if (ga_params_.smoother_enabled) comv_smoother_[MEASUREMENT](comv_[MEASUREMENT]);
     updateXCoM(xcom_[MEASUREMENT], com_[MEASUREMENT], comv_[MEASUREMENT]);
 
     time_synchronizer_.add2(constructPointStampedMessage(stamp_skeleton_curr, com_[MEASUREMENT]));
@@ -237,6 +270,23 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
   }
 }
 
+void GaitAnalyzer::comCB(const geometry_msgs::PointStamped& msg)
+{
+  // Calculate com (projected center of mass), comv and xcom
+  if (ga_params_.smoother_enabled) com_smoother_[MEASUREMENT](com_[MEASUREMENT]);
+  updateCoMMeasurement(msg.header.stamp, com_[MEASUREMENT], comv_[MEASUREMENT], msg);
+  if (ga_params_.smoother_enabled) comv_smoother_[MEASUREMENT](comv_[MEASUREMENT]);
+  updateXCoM(xcom_[MEASUREMENT], com_[MEASUREMENT], comv_[MEASUREMENT]);
+
+  time_synchronizer_.add2(constructPointStampedMessage(msg.header.stamp, com_[MEASUREMENT]));
+  time_synchronizer_.add3(constructVector3StampedMessage(msg.header.stamp, comv_[MEASUREMENT]));
+}
+
+void GaitAnalyzer::mlVecCB(const geometry_msgs::Vector3Stamped& msg)
+{
+  tf2::fromMsg(msg.vector, ml_vec_);
+  ap_vec_ = ml_vec_.rotate({0, 0, 1}, -M_PI_2);
+}
 
 void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r, 
     const PointType::ConstPtr& msg_com, const VectorType::ConstPtr& msg_comv)
@@ -249,6 +299,25 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     tf2::fromMsg(msg_feet[lr]->pose.pose.position, vec_refpoints_[HIND][lr]);
     tf2::Quaternion quat;
     tf2::fromMsg(msg_feet[lr]->pose.pose.orientation, quat);
+
+    if (ga_params_.global_frame != msg_feet[lr]->header.frame_id)
+    {
+      tf2::Transform tf_to_global;
+      try
+      {
+        geometry_msgs::TransformStamped tf_msg;
+        tf_msg = tf_buffer_.lookupTransform(ga_params_.global_frame, msg_feet[lr]->header.frame_id, msg_feet[lr]->header.stamp, ros::Duration(0, 0));
+        tf2::fromMsg(tf_msg.transform, tf_to_global);
+      }
+      catch (tf2::TransformException& ex)
+      {
+        ROS_WARN_THROTTLE(5.0, "Cannot transform foot pose from '%s' to '%s'. %s", msg_feet[lr]->header.frame_id.c_str(), ga_params_.global_frame.c_str(), ex.what());
+        return;
+      }
+      vec_refpoints_[HIND][lr] = tf_to_global * vec_refpoints_[HIND][lr];
+      quat = tf_to_global * quat;
+    }
+
     vec_refvecs_[lr] = tf2::quatRotate(quat, {1.0, 0.0, 0.0});
     vec_refpoints_[FORE][lr] = vec_refpoints_[HIND][lr] + vec_refvecs_[lr] * FOOT_LENGTH;
     
@@ -258,24 +327,27 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     vec_refpoints_[HIND][lr].setZ(z_ground_);
   }
 
-  double z_min = std::min(vec_joints_[K4ABT_JOINT_FOOT_LEFT].getZ(), vec_joints_[K4ABT_JOINT_FOOT_RIGHT].getZ());
-  z_ground_ = 0.95 * std::min(z_ground_, z_min) + 0.05 * z_min;
+  if (ga_params_.data_source == "k4a")
+  {
+    double z_min = std::min(vec_joints_[K4ABT_JOINT_FOOT_LEFT].getZ(), vec_joints_[K4ABT_JOINT_FOOT_RIGHT].getZ());
+    z_ground_ = 0.95 * std::min(z_ground_, z_min) + 0.05 * z_min;
+  }
   //z_ground_ = 0.5;
 
   // Update gait phase
   //updateGaitPhase();
 
-  // If at least one skeleton message has been received after the receipt of the first sport_sole message, do an EKF prediction
-  if (!stamp_skeleton_prev_.isZero())
+  // If at least one com/skeleton message has been received after the receipt of the first sport_sole message, do an EKF prediction
+  if (!stamp_com_prev_.isZero())
   {
-    auto sport_sole_ptrs = cache_sport_sole_.getInterval(stamp_skeleton_prev_, stamp_skeleton_curr);
+    auto sport_sole_ptrs = cache_sport_sole_.getInterval(stamp_com_prev_, stamp_skeleton_curr);
     for (const auto & ss_ptr : sport_sole_ptrs)
     {
       // EKF prediction is done here
       sportSoleCB(*ss_ptr);
     }
     // ROS_INFO_STREAM(sport_sole_ptrs.size() << " predictions between t=" <<
-    //   (stamp_skeleton_prev_ - stamp_base_).toSec() << "s and t=" << (stamp_skeleton_curr - stamp_base_).toSec() << "s are done");
+    //   (stamp_com_prev_ - stamp_base_).toSec() << "s and t=" << (stamp_skeleton_curr - stamp_base_).toSec() << "s are done");
   }
   else
   {
@@ -318,17 +390,15 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     }
     pub_gait_state_.publish(msg_gait_state);
 
-    comkf::ZPV zpv;
-    zpv.px() = msg_com->point.x;
-    zpv.py() = msg_com->point.y;
-    zpv.vx() = msg_comv->vector.x;
-    zpv.vy() = msg_comv->vector.y;
+    comkf::ZP zp;
+    zp.px() = msg_com->point.x;
+    zp.py() = msg_com->point.y;
 
     // Is this the first skeleton message received after the receipt of the first sport_sole message?
     if (comkf_initialized_ == false) {
       // This is the first time skeleton message received
       // Use the position measurement to initialize the state
-      comkf::S x0;
+      comkf::S x0 = comkf::S::Zero();
       x0.px() = msg_com->point.x;
       x0.py() = msg_com->point.y;
       x0.vx() = msg_comv->vector.x;
@@ -337,12 +407,17 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
       updateCoMEstimate(stamp_skeleton_curr, x0);
       ROS_DEBUG_STREAM("COMKF state initialized to " << x0.transpose());
       comkf_initialized_ = true;
-      stamp_sport_sole_prev_ = stamp_skeleton_curr;
+      stamp_predict_prev_ = stamp_sport_sole_prev_ = stamp_skeleton_curr;
     }
     else {
-      const auto & x = comkf_.update(zpv);
+      const auto & x = comkf_.update(zp);
       updateCoMEstimate(stamp_skeleton_curr, x);
-      ROS_DEBUG_STREAM_THROTTLE(1, "COMKF state updated to " << x.transpose());
+      gait_training_robot::ComkfCopMeasurement msg;
+      msg.header.stamp = stamp_sport_sole_prev_;
+      msg.header.frame_id = ga_params_.global_frame;
+      msg.px = zp.px();
+      msg.py = zp.py();
+      pub_comkf_com_measurement_.publish(msg);
     }
 
     // Publish forefoot and hindfoot reference points
@@ -352,7 +427,7 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
       pub_forefoot_refpoint_[lr].publish(constructPointStampedMessage(stamp_skeleton_curr, vec_refpoints_[FORE][lr]));
     }
 
-    if (comv_[MEASUREMENT].length() < 1e-6) ROS_INFO_STREAM("B" << comv_[MEASUREMENT]);
+    if (comv_[MEASUREMENT].length() < 1e-6) ROS_INFO_STREAM_THROTTLE(5.0, "B: CoMv = " << comv_[MEASUREMENT]);
 
     // Publish com comv xcom
     for (auto me: {MEASUREMENT, ESTIMATE})
@@ -365,14 +440,9 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
 
   // Calculate the base of support polygon, and update footprint polygons
   updateBoS(bos_points_);
-  pub_bos_.publish(constructBosPolygonMessage(stamp_skeleton_curr, bos_points_));
+  pub_bos_.publish(constructPolygonMessage(stamp_skeleton_curr, bos_points_));
   for (size_t lr : {LEFT, RIGHT}) {
-    geometry_msgs::PolygonStamped msg_footprint;
-    msg_footprint.header.stamp = stamp_skeleton_curr;
-    msg_footprint.header.frame_id = ga_params_.global_frame;
-    for (const auto & point : footprints_[lr])
-      msg_footprint.polygon.points.push_back(vector3ToPoint32(point));
-    pub_footprints_[lr].publish(msg_footprint);
+    pub_footprints_[lr].publish(constructPolygonMessage(stamp_skeleton_curr, footprints_[lr]));
   }
 
   // Calculate margin of stability (measurement and estimate)
@@ -387,8 +457,7 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
   std::cout << (ros::Time::now() - stamp_skeleton_curr).toSec() << std::endl;
 #endif
 
-  stamp_skeleton_prev_ = stamp_skeleton_curr;
-
+  stamp_com_prev_ = stamp_skeleton_curr;
 }
 
 void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
@@ -406,23 +475,23 @@ void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
   u.copx() = cop.getX();
   u.copy() = cop.getY();
 
-  T dt;
-  if(!stamp_sport_sole_prev_.isZero()) {
-    dt = (stamp_sport_sole_curr - stamp_sport_sole_prev_).toSec();
+  if(!stamp_predict_prev_.isZero())
+  {
+    T dt = (stamp_sport_sole_curr - stamp_predict_prev_).toSec();
+    // Predict only if dt is large enough
+    if (dt > 1e-3) {
+      const auto& x = comkf_.predict(u, dt);
+      updateCoMEstimate(stamp_sport_sole_curr, x);
+      stamp_predict_prev_ = stamp_sport_sole_curr;
+    }
+    gait_training_robot::ComkfCopMeasurement msg;
+    msg.header.stamp = stamp_sport_sole_curr;
+    msg.header.frame_id = ga_params_.global_frame;
+    msg.px = u.x();
+    msg.py = u.y();
+    pub_comkf_cop_measurement_.publish(msg);
   }
-  else {
-    // We will get here only the first time GaitAnalyzer::sportSoleCB is called.
-    dt = 0.0;
-    stamp_sport_sole_prev_ = stamp_sport_sole_curr;
-  }
-  
-  // Predict only if dt is large enough
-  if (dt > 0.001) {
-    // Avoid too large a step. Nominal dt = 0.01
-    dt = std::min(dt, T(0.1));
-    comkf_.predict(u, dt);
-    stamp_sport_sole_prev_ = stamp_sport_sole_curr;
-  }
+  stamp_sport_sole_prev_ = stamp_sport_sole_curr;
   pub_cop_.publish(constructPointStampedMessage(stamp_sport_sole_curr, cop));
 }
 
@@ -434,8 +503,26 @@ void GaitAnalyzer::updateGaitState(const uint8_t& gait_state)
   touches_ground_[FORE][RIGHT] = gait_state & (1<<0);
 }
 
+void GaitAnalyzer::updateTfCB(const ros::TimerEvent& event)
+{
+  if (ga_params_.global_frame == ga_params_.publish_frame) return;
+  try
+  {
+    geometry_msgs::TransformStamped tf_msg;
+    tf_msg = tf_buffer_.lookupTransform(ga_params_.publish_frame, ga_params_.global_frame, ros::Time(), ros::Duration(0.001));
+    tf2::fromMsg(tf_msg.transform, tf_global_to_publish_);
+    is_initialized_tf_global_to_publish_ = true;
+  }
+  catch (tf2::TransformException& ex)
+  {
+    ROS_WARN_THROTTLE(5.0, "Will use the global_frame instead of the publish_frame in 'header.frame_id'. %s", ex.what());
+    return;
+  }
+}
 
-void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints)
+
+
+void GaitAnalyzer::updateCoMMeasurementFromSkeletons(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints)
 {
   // Save CoM from the previous time step.
   auto com_prev = com_curr;
@@ -469,13 +556,32 @@ void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp, com_t & com_cur
   // com_curr.setZ(z_ground_);
 
   // Calculate CoMv by discrete difference.
-  auto delta_t = (stamp - stamp_skeleton_prev_).toSec();
+  auto delta_t = (stamp - stamp_com_prev_).toSec();
   // Skip the calculation if this is the first com ever sampled.
-  if (!stamp_skeleton_prev_.isZero()) {
+  if (!stamp_com_prev_.isZero()) {
     com_vel = (com_curr - com_prev) / delta_t;
     com_vel.setX(com_vel.getX() - ga_params_.belt_speed);
   }
-  
+}
+
+void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, 
+                                        const geometry_msgs::PointStamped& msg)
+{
+  // Save CoM from the previous time step.
+  auto com_prev = com_curr;
+
+  // Calculate CoM
+  tf2::fromMsg(msg.point, com_curr);
+  // com_curr.setZ(z_ground_);
+
+  // Calculate CoMv by discrete difference.
+  auto delta_t = (stamp - stamp_com_prev_).toSec();
+  // Skip the calculation if this is the first com ever sampled.
+  if (!stamp_com_prev_.isZero()) {
+    com_vel = (com_curr - com_prev) / delta_t;
+    ROS_DEBUG_STREAM(delta_t << ": " << com_vel);
+    com_vel.setX(com_vel.getX() - ga_params_.belt_speed);
+  }
 }
 
 void GaitAnalyzer::updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel)
@@ -493,7 +599,23 @@ void GaitAnalyzer::updateCoMEstimate(const ros::Time & stamp, const comkf::S & x
   comv_[ESTIMATE].setY(x.vy());
   comv_[ESTIMATE].setZ(0);
 
+  if (ga_params_.smoother_enabled)
+  {
+    com_smoother_[ESTIMATE] (com_[ESTIMATE]);
+    comv_smoother_[ESTIMATE](comv_[ESTIMATE]);
+  }
   updateXCoM(xcom_[ESTIMATE], com_[ESTIMATE], comv_[ESTIMATE]);
+
+  gait_training_robot::ComkfState msg;
+  msg.header.stamp = stamp;
+  msg.header.frame_id = ga_params_.global_frame;
+  msg.px = x.px();
+  msg.py = x.py();
+  msg.vx = x.vx();
+  msg.vy = x.vy();
+  msg.bx = x.bx();
+  msg.by = x.by();
+  pub_comkf_state_.publish(msg);
 }
 
 
@@ -655,11 +777,11 @@ void GaitAnalyzer::updateMoS(mos_t & res, const com_t & xcom, const bos_t & bos_
   int indices[4] = {};
 
   // The unit vector in the frontal plane pointing from the right to the left
-  auto v0_ml = ( vec_joints_[K4ABT_JOINT_CLAVICLE_LEFT] - vec_joints_[K4ABT_JOINT_CLAVICLE_RIGHT]
-    + vec_joints_[K4ABT_JOINT_HIP_LEFT] - vec_joints_[K4ABT_JOINT_HIP_RIGHT] ).normalize();
+  if (ml_vec_.isZero()) return;
+  const tf2::Vector3& v0_ml = ml_vec_;
 
   // The unit vector in the sagitall plane pointing from the back to the front
-  auto v0_ap = v0_ml.rotate({0, 0, 1}, -M_PI_2);
+  const tf2::Vector3& v0_ap = ap_vec_;
 
   // Iterate through each vertex of the BOS
   for (int i = 1; i < bos_points.size(); i++)
@@ -743,22 +865,29 @@ geometry_msgs::Point32 GaitAnalyzer::vector3ToPoint32(const tf2::Vector3 & vec)
   return res;
 }
 
-geometry_msgs::PointStampedPtr GaitAnalyzer::constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec, const std::string & frame_id) 
+geometry_msgs::PointStampedPtr GaitAnalyzer::constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec) 
 {
   geometry_msgs::PointStampedPtr msg(new geometry_msgs::PointStamped);
-  msg->header.frame_id = frame_id.empty() ? ga_params_.global_frame : frame_id;
+  if (is_initialized_tf_global_to_publish_)
+  {
+    msg->header.frame_id = ga_params_.publish_frame;
+    tf2::toMsg(tf_global_to_publish_ * vec, msg->point);
+  }
+  else
+  {
+    msg->header.frame_id = ga_params_.global_frame;
+    tf2::toMsg(vec, msg->point);
+  }
+
   msg->header.stamp = stamp;
-  msg->point.x = vec.getX();
-  msg->point.y = vec.getY();
-  msg->point.z = vec.getZ();
   msg->point.z = z_ground_;
   return msg;
 }
 
-geometry_msgs::Vector3StampedPtr GaitAnalyzer::constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec, const std::string & frame_id) 
+geometry_msgs::Vector3StampedPtr GaitAnalyzer::constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec) 
 {
   geometry_msgs::Vector3StampedPtr msg(new geometry_msgs::Vector3Stamped);
-  msg->header.frame_id = frame_id.empty() ? ga_params_.global_frame : frame_id;
+  msg->header.frame_id = ga_params_.global_frame;
   msg->header.stamp = stamp;
   msg->vector.x = vec.getX();
   msg->vector.y = vec.getY();
@@ -766,13 +895,23 @@ geometry_msgs::Vector3StampedPtr GaitAnalyzer::constructVector3StampedMessage(co
   return msg;
 }
 
-geometry_msgs::PolygonStamped GaitAnalyzer::constructBosPolygonMessage(const ros::Time & stamp, const bos_t & bos_points, const std::string & frame_id)
+geometry_msgs::PolygonStamped GaitAnalyzer::constructPolygonMessage(const ros::Time & stamp, const bos_t & bos_points)
 {
   geometry_msgs::PolygonStamped msg_bos;
   msg_bos.header.stamp = stamp;
-  msg_bos.header.frame_id = frame_id.empty() ? ga_params_.global_frame : frame_id;
+  std::function<geometry_msgs::Point32(const tf2::Vector3&)> getPoint32;
+  if (is_initialized_tf_global_to_publish_)
+  {
+    msg_bos.header.frame_id = ga_params_.publish_frame;
+    getPoint32 = [this](const tf2::Vector3& point){return vector3ToPoint32(tf_global_to_publish_ * point);};
+  }
+  else
+  {
+    msg_bos.header.frame_id = ga_params_.global_frame;
+    getPoint32 = [this](const tf2::Vector3& point){return vector3ToPoint32(point);};
+  }
   for (const auto & point : bos_points) {
-    msg_bos.polygon.points.push_back(vector3ToPoint32(point));
+    msg_bos.polygon.points.push_back(getPoint32(point));
     msg_bos.polygon.points.back().z = z_ground_;
   }
   return msg_bos;

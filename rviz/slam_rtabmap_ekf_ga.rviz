@@ -8,10 +8,15 @@ Panels:
         - /Status1
         - /Grid1
         - /TF1/Frames1
-        - /PointStamped1
-        - /PointStamped2
-        - /PointStamped3
-        - /PointStamped4
+        - /gait_analyzer_optitrack1
+        - /gait_analyzer_optitrack1/PointStamped1
+        - /gait_analyzer_optitrack1/PointStamped2
+        - /gait_analyzer_optitrack1/Polygon1
+        - /gait_analyzer_optitrack1/Polygon2
+        - /gait_analyzer_optitrack1/MarkerArray1
+        - /gait_analyzer_optitrack1/PointStamped3
+        - /gait_analyzer_optitrack1/PointStamped4
+        - /gait_analyzer_optitrack1/Polygon3
       Splitter Ratio: 0.359375
     Tree Height: 1720
   - Class: rviz/Selection
@@ -358,111 +363,6 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        back_sonar:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        base_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_lens1_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_lens2_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_lens3_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_mount_left:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_mount_right:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        camera_mount_top:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        caster_hubcap:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        caster_swivel:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        caster_wheel:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        front_sonar:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        left_hub:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        left_wheel:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        rear_kinect_base:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        rear_kinect_body:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        rear_kinect_visor:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_hub:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        right_wheel:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        top_plate:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: RobotModel
       Robot Description: robot_description2
       TF Prefix: ""
@@ -627,83 +527,163 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: false
-    - Alpha: 1
-      Class: rviz/Polygon
-      Color: 25; 255; 0
-      Enabled: true
-      Name: Polygon
-      Topic: /gait_analyzer/bos
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 204; 41; 204
-      Enabled: true
-      History Length: 50
-      Name: PointStamped
-      Radius: 0.05000000074505806
-      Topic: /gait_analyzer/measurement/com
-      Unreliable: true
-      Value: true
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 245; 121; 0
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 239; 41; 41
+          Enabled: true
+          History Length: 50
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer/estimate/ccom
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 52; 101; 164
+          Enabled: false
+          History Length: 200
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer/cop
+          Unreliable: false
+          Value: false
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 245; 121; 0
+          Enabled: true
+          Name: Polygon
+          Topic: /gait_analyzer/footprint_r
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 245; 121; 0
+          Enabled: true
+          Name: Polygon
+          Topic: /gait_analyzer/footprint_l
+          Unreliable: false
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: false
+          Marker Topic: /gait_analyzer/mos
+          Name: MarkerArray
+          Namespaces:
+            {}
+          Queue Size: 100
+          Value: false
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 245; 121; 0
+          Enabled: true
+          History Length: 100
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer/estimate/xcom
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 204; 41; 204
+          Enabled: false
+          History Length: 50
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer/measurement/com
+          Unreliable: true
+          Value: false
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 25; 255; 0
+          Enabled: true
+          Name: Polygon
+          Topic: /gait_analyzer/bos
+          Unreliable: false
+          Value: true
       Enabled: false
-      History Length: 100
-      Name: PointStamped
-      Radius: 0.05000000074505806
-      Topic: /gait_analyzer/estimate/xcom
-      Unreliable: false
-      Value: false
-    - Class: rviz/MarkerArray
-      Enabled: false
-      Marker Topic: /gait_analyzer/mos
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: false
-    - Alpha: 1
-      Class: rviz/Polygon
-      Color: 245; 121; 0
+      Name: gait_analyzer
+    - Class: rviz/Group
+      Displays:
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 239; 41; 41
+          Enabled: true
+          History Length: 500
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer_optitrack/estimate/com
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 52; 101; 164
+          Enabled: true
+          History Length: 200
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer_optitrack/cop
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 245; 121; 0
+          Enabled: true
+          Name: Polygon
+          Topic: /gait_analyzer_optitrack/footprint_r
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 245; 121; 0
+          Enabled: true
+          Name: Polygon
+          Topic: /gait_analyzer_optitrack/footprint_l
+          Unreliable: false
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /gait_analyzer_optitrack/mos
+          Name: MarkerArray
+          Namespaces:
+            {}
+          Queue Size: 100
+          Value: true
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 245; 121; 0
+          Enabled: true
+          History Length: 1000
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer_optitrack/estimate/xcom
+          Unreliable: false
+          Value: true
+        - Alpha: 1
+          Class: rviz/PointStamped
+          Color: 204; 41; 204
+          Enabled: false
+          History Length: 50
+          Name: PointStamped
+          Radius: 0.05000000074505806
+          Topic: /gait_analyzer/measurement/com
+          Unreliable: true
+          Value: false
+        - Alpha: 1
+          Class: rviz/Polygon
+          Color: 25; 255; 0
+          Enabled: true
+          Name: Polygon
+          Topic: /gait_analyzer_optitrack/bos
+          Unreliable: false
+          Value: true
       Enabled: true
-      Name: Polygon
-      Topic: /gait_analyzer/footprint_l
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Class: rviz/Polygon
-      Color: 245; 121; 0
-      Enabled: true
-      Name: Polygon
-      Topic: /gait_analyzer/footprint_r
-      Unreliable: false
-      Value: true
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 52; 101; 164
-      Enabled: false
-      History Length: 200
-      Name: PointStamped
-      Radius: 0.05000000074505806
-      Topic: /gait_analyzer/cop
-      Unreliable: false
-      Value: false
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 239; 41; 41
-      Enabled: false
-      History Length: 50
-      Name: PointStamped
-      Radius: 0.05000000074505806
-      Topic: /gait_analyzer/estimate/com
-      Unreliable: false
-      Value: false
+      Name: gait_analyzer_optitrack
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
     Default Light: true
-    Fixed Frame: odom
+    Fixed Frame: optitrack
     Frame Rate: 30
   Name: root
   Tools:
@@ -736,7 +716,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 125.0297622680664
+      Scale: 161.01695251464844
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 2.247560739517212

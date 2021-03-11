@@ -168,7 +168,7 @@ void KinectPoseEstimator::broadcastTf()
   pose_estimate_.header.stamp = state_.t;
   pose_estimate_.transform.translation.x = state_.x;
   pose_estimate_.transform.translation.y = state_.y;
-  tf2::Vector3 translation(state_.x, state_.y, 0);
+  tf2::Vector3 translation(-state_.x, -state_.y, 0);
   tf2::Quaternion quat_yaw;
   quat_yaw.setRPY(0.0, 0.0, -state_.th);
   translation = tf2::quatRotate(quat_yaw, translation);

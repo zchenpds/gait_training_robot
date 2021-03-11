@@ -1,0 +1,75 @@
+<launch>
+	<arg name="bag_name"              default="data226"/>
+	<arg name="enable_gait_analyzer"  default="true"/>
+	<arg name="record_gait_analytics" default="false"/>
+	<arg name="global_frame"          default="optitrack"/>                    <!-- fused_odom, optitrack -->
+	<arg name="rviz_config_file"      default="slam_rtabmap_ekf_ga.rviz"/>     <!-- slam_rtabmap_ekf.rviz -->
+
+	<!-- foot_pose_estimator -->
+	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
+		<param name="global_frame"                  value="fused_odom"/>
+		<param name="publish_frame"                 value="$(arg global_frame)"/>
+		<param name="system_noise_w"                value="0.04"/>
+		<param name="measurement_noise_g"           value="0.005"/>
+		<param name="measurement_noise_y"           value="0.05"/>
+		<param name="measurement_noise_va"          value="0.001"/>
+		<param name="sport_sole_time_offset"        value="-0.015"/>
+	</node>
+
+	<!-- kinect_pose_estimator -->
+	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"/>
+
+	<!-- Gait analyzer -->
+	<group if="$(arg enable_gait_analyzer)">
+		<node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+			<param name="data_source"                   value="k4a" />
+			<param name="global_frame"                  value="$(arg global_frame)" />
+			<param name="publish_frame"                 value="$(arg global_frame)"/>
+			<param name="smoother_enabled"              value="false"/>
+			<param name="/comkf/system_noise_p"         value="0.0001"/>
+			<param name="/comkf/system_noise_v"         value="0.01"/>
+			<param name="/comkf/system_noise_b"         value="0.1"/>
+			<!-- <param name="/comkf/system_noise_cop"       value="0.3"/> -->
+			<param name="/comkf/measurement_noise_p"    value="0.1"/>
+			<!-- <param name="/comkf/measurement_noise_cop"  value="0.06"/> -->
+		</node>
+			
+		<node name="gait_analyzer_optitrack" pkg="gait_training_robot" type="gait_analyzer_optitrack" output="screen" >
+			<param name="data_source"                   value="optitrack" />
+			<param name="global_frame"                  value="optitrack" />
+			<param name="publish_frame"                 value="optitrack"/>
+			<param name="smoother_enabled"              value="false"/>
+			<param name="/comkf/system_noise_p"         value="0.0001"/>
+			<param name="/comkf/system_noise_v"         value="0.01"/>
+			<param name="/comkf/system_noise_b"         value="0.05"/>
+			<param name="/comkf/system_noise_cop"       value="0.3"/>
+			<param name="/comkf/measurement_noise_p"    value="0.01"/>
+			<param name="/comkf/measurement_noise_cop"  value="0.05"/>
+		</node>
+
+		<!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" /> -->
+		<node name="rosbag_record_ga_node" pkg="rosbag" type="record" 
+			args="record -o $(find gait_training_robot)/bags/$(arg bag_name)_ga 
+					--regex '(/gait_analyzer/.*|/kinect_pose_estimator/.*)'" 
+			if="$(arg record_gait_analytics)"/> 
+	</group>
+
+	<!-- rosbag play -->
+	<param name="use_sim_time" value="true"/>
+    <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
+          args="--clock $(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag 
+		  		$(find gait_training_robot)/optitrack/bags/$(arg bag_name).bag" />
+    <!-- Robot state publisher -->
+    <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+	<node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+	<!-- Rviz -->
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" />
+
+	<!-- Record gait analytics -->
+	<group if="$(arg record_gait_analytics)" >
+		<node name="record_ga" pkg="rosbag" type="record" if="$(arg record_gait_analytics)"
+			args="record -o $(find gait_training_robot)/bags/optitrack/ga/$(arg bag_name)
+					/gait_analyzer/* /gait_analyzer_optitrack/*"/>
+	</group>
+</launch>

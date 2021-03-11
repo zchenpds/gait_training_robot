@@ -1,24 +1,50 @@
 <launch>
-	<arg name="bag_name" default="optitrack/data226b"/>
-	<arg name="plot_robot_vx" default="false"/>
-	<arg name="plot_robot_th" default="false"/>
-	<arg name="plot_robot_x" default="false"/>
-	<arg name="plot_robot_y" default="false"/>
+	<arg name="bag_name"               default="data213"/>
+	<arg name="enable_gait_analyzer"   default="true"/>
+	<arg name="record_odom"            default="false"/>
+	<arg name="rviz_config_file"       default="slam_rtabmap_ekf.rviz"/>     <!-- slam_rtabmap_ekf_ga.rviz -->
+	
+	<!-- foot_pose_estimator -->
+	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
+		<param name="global_frame"                  value="fused_odom"/>
+		<param name="publish_frame"                 value="fused_odom"/>
+		<param name="system_noise_w"                value="0.04"/>
+		<param name="measurement_noise_g"           value="0.005"/>
+		<param name="measurement_noise_y"           value="0.05"/>
+		<param name="measurement_noise_va"          value="0.001"/>
+		<param name="sport_sole_time_offset"        value="-0.015"/>
+	</node>
 
-	<include file="$(find gait_training_robot)/launch/test5_comkf.launch">
-		<arg name="play_bag" value="true"/>
-		<arg name="record_bag" value="false"/>
-		<arg name="bag_name" value="$(arg bag_name)"/>
-	</include>
-	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen"/>
-
+	<!-- kinect_pose_estimator -->
 	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"/>
-	<node name="plot_robot_vx" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_vx)"
-    args="/kinect_pose_estimator/odom/twist/twist/linear/x odom/twist/twist/linear/x" />
-	<node name="plot_robot_th" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_th)"
-    args="/kinect_pose_estimator/odom/pose/pose/orientation/z odom/pose/pose/orientation/z" />
-	<node name="plot_robot_x" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_x)"
-    args="/kinect_pose_estimator/odom/pose/pose/position/x odom/pose/pose/position/x" />
-	<node name="plot_robot_y" pkg="rqt_plot" type="rqt_plot" if="$(arg plot_robot_y)"
-    args="/kinect_pose_estimator/odom/pose/pose/position/y odom/pose/pose/position/y" />
+	
+	<!-- Gait analyzer -->
+	<group if="$(arg enable_gait_analyzer)">
+		<node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+			<param name="data_source"                   value="k4a" />
+			<param name="global_frame"                  value="fused_odom" />
+			<param name="publish_frame"                 value="fused_odom"/>
+			<param name="smoother_enabled"              value="false"/>
+			<param name="/comkf/system_noise_p"         value="0.0001"/>
+			<param name="/comkf/system_noise_v"         value="0.01"/>
+			<param name="/comkf/system_noise_b"         value="0.1"/>
+			<param name="/comkf/measurement_noise_p"    value="0.1"/>
+		</node>
+	</group>
+
+	<!-- rosbag play -->
+	<param name="use_sim_time" value="true"/>
+    <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
+          args="--clock $(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag" />
+    <!-- Robot state publisher -->
+    <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+	<node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+	<!-- Rviz -->
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" />
+
+	<!-- Record odom -->
+	<node name="record_tf" pkg="rosbag" type="record" if="$(arg record_odom)"
+		  args="record -o $(find gait_training_robot)/bags/optitrack/odom/$(arg bag_name)
+		  		/kinect_pose_estimator/odom /odom"/>
 </launch>

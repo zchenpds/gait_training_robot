@@ -5,6 +5,8 @@
 #include <array>
 #include <vector>
 #include <list>
+#include <deque>
+#include <numeric>
 
 #include <std_msgs/UInt8.h>
 #include <nav_msgs/Odometry.h>
@@ -44,24 +46,29 @@ typedef double T;
 // Example:
 // LIST_ENTRY(sensor_sn, "The serial number of the sensor this node should connect with", std::string, std::string(""))
 #define GA_PARAM_LIST \
-  LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0) \
-  LIST_ENTRY(global_frame, "The global frame ID, e.g. map or odom.", std::string, std::string("odom")) \
+  LIST_ENTRY(belt_speed, "The speed at which the treadmill belt is running, in m/s", double, 0.0)                             \
+  LIST_ENTRY(global_frame, "The global frame ID, e.g. map or odom.", std::string, std::string("odom"))                        \
+  LIST_ENTRY(publish_frame, "The reference frame for pose messages.", std::string, std::string("odom"))                       \
   LIST_ENTRY(foot_pose_topic, "The topic name for foot poses.", std::string, std::string("/foot_pose_estimator/fused_pose_")) \
+  LIST_ENTRY(data_source, "Must be either 'k4a' or 'optitrack'.", std::string, std::string("k4a"))                            \
+  LIST_ENTRY(smoother_enabled, "Enable moving average smoother or not. May cause latency.", bool, false)                      \
 
 
 #define COMKF_PARAM_LIST \
   LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", T, 0.01)     \
-  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", T, 1e-4)          \
-  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 1e-2)          \
-  LIST_ENTRY(system_noise_b, "The standard deviation of noise added to the CoM offset state.", T, 1e-2)               \
-  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 1e-2)                   \
-  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 2e-1)                   \
+  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", T, 2e-3)          \
+  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 2e-2)          \
+  LIST_ENTRY(system_noise_b, "The standard deviation of noise added to the CoM offset state.", T, 1e-1)               \
+  LIST_ENTRY(system_noise_cop, "The standard deviation of noise added to the CoP state.", T, 3e-1)                    \
+  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 2e-2)                   \
+  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 4e-1)                   \
+  LIST_ENTRY(measurement_noise_cop, "The standard deviation of CoP measurement noise.", T, 1e-1)                      \
 
 
 namespace comkf {
   using S = State<T>;
   using C = Control<T>;
-  using ZPV = PVMeasurement<T>;
+  using ZP = PositionMeasurement<T>;
   struct KalmanFilterParams 
   {
     // Print the value of all parameters
@@ -233,19 +240,15 @@ namespace sport_sole {
 
 template<typename Vector>
 class FIRSmoother {
-  bool initialized;
-  Vector x_1;
+  std::deque<Vector> dq_;
+  size_t window_size_;
 public:
-  FIRSmoother():initialized(false){}
-  Vector operator()(const Vector & x) {
-    if (!initialized) {
-      x_1 = x;
-      return x;
-      initialized = true;
-    }
-    Vector res = 0.5 * x_1 + 0.5 * x;
-    x_1 = x;
-    return res;
+  FIRSmoother(size_t window_size = 10): window_size_(window_size) {}
+  void operator()(Vector & x) {
+    while (dq_.size() >= window_size_) dq_.pop_front();
+    dq_.push_back(x);
+    x.setZero();
+    x = std::accumulate(dq_.begin(), dq_.end(), x) / dq_.size();
   }
 };
 
@@ -261,11 +264,15 @@ public:
 
   GaitAnalyzer(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
+  void comCB(const geometry_msgs::PointStamped& msg);
+  void mlVecCB(const geometry_msgs::Vector3Stamped& msg);
   void timeSynchronizerCB(const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
   void sportSoleCB(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
+  void updateTfCB(const ros::TimerEvent& event);
   // Update both CoM and CoMv measurements
-  void updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
+  void updateCoMMeasurementFromSkeletons(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const vec_joints_t & vec_joints);
+  void updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, const geometry_msgs::PointStamped& msg);
   // Update XCoM
   void updateXCoM(com_t & xcom, const com_t & com, const comv_t & com_vel);
   // Update CoM CoMv and XCoM estimates
@@ -291,7 +298,8 @@ private:
   vec_refpoints_t vec_refpoints_;
   vec_refvecs_t vec_refvecs_;
   sport_sole::SportSole::_pressures_type pressures_;
-
+  tf2::Vector3 ml_vec_;
+  tf2::Vector3 ap_vec_;
 
   // The z coordinate of the ground
   double z_ground_;
@@ -312,6 +320,8 @@ private:
   
   // Subscribers
   ros::Subscriber sub_skeletons_;
+  ros::Subscriber sub_com_;
+  ros::Subscriber sub_ml_vec_;
   message_filters::Subscriber<sport_sole::SportSole>                            sub_sport_sole_;
   message_filters::Cache     <sport_sole::SportSole>                          cache_sport_sole_;
   message_filters::Subscriber<PoseType>                                         sub_foot_poses_[LEFT_RIGHT];
@@ -320,8 +330,8 @@ private:
   // Publishers
   ros::Publisher pub_gait_state_;
 
-  FIRSmoother<com_t> pcom_pos_smoother_;
-  FIRSmoother<comv_t> pcom_vel_smoother_;
+  FIRSmoother<com_t>   com_smoother_[MEASUREMENT_ESTIMATE];
+  FIRSmoother<comv_t> comv_smoother_[MEASUREMENT_ESTIMATE];
 
   com_t               com_[MEASUREMENT_ESTIMATE];
   ros::Publisher  pub_com_[MEASUREMENT_ESTIMATE];  // Center of mass projected onto the ground
@@ -346,6 +356,10 @@ private:
 
   ros::Publisher pub_ground_clearance_left_; // ground clearance
   ros::Publisher pub_ground_clearance_right_; // ground clearance
+
+  ros::Publisher pub_comkf_state_;
+  ros::Publisher pub_comkf_cop_measurement_;
+  ros::Publisher pub_comkf_com_measurement_;
   
   // tf
   tf2_ros::Buffer tf_buffer_;
@@ -353,12 +367,17 @@ private:
   tf2::Transform tf_depth_to_global_;
   tf2::Transform tf_imu_to_local_; // from imu to depth
   tf2_ros::TransformBroadcaster tf_broadcaster_;
+  tf2::Transform tf_global_to_publish_;
+  // Becomes true if the publish frame is different from the global frame and the tf lookup succeeds
+  bool is_initialized_tf_global_to_publish_;
+  ros::Timer timer_update_tf_global_to_publish_;
 
   // comkf
   comkf::KalmanFilter<T> comkf_;
   bool comkf_initialized_;
   ros::Time stamp_sport_sole_prev_;
-  ros::Time stamp_skeleton_prev_;
+  ros::Time stamp_predict_prev_;
+  ros::Time stamp_com_prev_;
   ros::Time stamp_base_;
 
   // Subject selection
@@ -367,9 +386,9 @@ private:
 private:
   // Helper method for converting a tf2::Vector3 object to a geometry_msgs::Point32 object
   geometry_msgs::Point32 vector3ToPoint32(const tf2::Vector3 & vec);
-  geometry_msgs::PointStampedPtr constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec, const std::string & frame_id = "");
-  geometry_msgs::Vector3StampedPtr constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec, const std::string & frame_id = "");
-  geometry_msgs::PolygonStamped constructBosPolygonMessage(const ros::Time & stamp, const bos_t & bos_points, const std::string & frame_id = "");
+  geometry_msgs::PointStampedPtr constructPointStampedMessage(const ros::Time & stamp, const tf2::Vector3 & vec);
+  geometry_msgs::Vector3StampedPtr constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec);
+  geometry_msgs::PolygonStamped constructPolygonMessage(const ros::Time & stamp, const bos_t & bos_points);
   visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom, const mos_t & mos);
 
   inline tf2::Vector3 constructMosVector(const mos_t& mos)
