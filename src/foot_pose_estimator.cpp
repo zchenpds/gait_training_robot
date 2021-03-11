@@ -54,6 +54,8 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
         {var_q, var_q, var_q, var_q, var_w, var_w, var_w,                   // q, w
          var_p, var_p, var_p, var_v, var_v, var_v, var_a, var_a, var_a, // p, v, a
          var_ab, var_ab, var_ab, var_wb, var_wb, var_wb});                    // ab wb
+    // auto var_zp = pow(params_.measurement_noise_p,  2);
+    // setModelCovariance(ekf.pmm,  {var_zp, var_zp, 5 * var_zp});
     setModelCovariance(ekf.pmm,  pow(params_.measurement_noise_p,  2));
     setModelCovariance(ekf.vmm,  pow(params_.measurement_noise_v,  2));
     setModelCovariance(ekf.amm,  pow(params_.measurement_noise_a,  2));
@@ -292,6 +294,9 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
 { 
   double dt = (msg_ptr->header.stamp - ts_sport_sole_last_).toSec();
 
+  gait_phase_fsm_.update(msg_ptr->pressures);
+  uint8_t gait_state = gait_phase_fsm_.getGaitState();
+
   for (auto lr: {LEFT, RIGHT})
   {
     auto& msg_measurement = msg_sport_sole_measurement_[lr];
@@ -324,7 +329,7 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
 
     // Update gait phase
     previous_gait_phase_[lr] = current_gait_phase_[lr];
-    current_gait_phase_[lr] = getGaitPhaseLR(msg_ptr->gait_state, lr);
+    current_gait_phase_[lr] = getGaitPhaseLR(gait_state, lr);
 
     // Check sticky pressure sensor issue
     if (current_gait_phase_[lr] != GaitPhase::Swing)
@@ -436,7 +441,7 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
         zv.y() = msg_measurement.v.y = (msg_kinect_ptr->transform.translation.y - prev_msg_kinect_ptr->transform.translation.y) / dt;
         zv.z() = msg_measurement.v.z = (msg_kinect_ptr->transform.translation.z - prev_msg_kinect_ptr->transform.translation.z) / dt;
         
-        if (current_gait_phase_[lr] == GaitPhase::Swing)
+        if (0 && current_gait_phase_[lr] == GaitPhase::Swing)
         {
           ekf.update(zv);
           printDebugMessage("Velocity update", msg_kinect_ptr->header.stamp, lr);

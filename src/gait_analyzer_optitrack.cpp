@@ -39,7 +39,7 @@ cop_t sport_sole::getCoP(
 {
   std::array<cop_t, NUM_2XPSENSOR> psensor_locs = {};
   cop_t cop(.0, .0, .0);
-  const std::array<float, NUM_PSENSOR> weights{1.0, 1.0, 1.0, 1.0, 1.0, 2.5, 2.5, 1.0};
+  const std::array<float, NUM_PSENSOR> weights{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.5, 2.5};
   double pressure_sum = 0.0;
   for (size_t i = 0; i < NUM_2XPSENSOR; i++) {
     left_right_t lr = (i / NUM_PSENSOR == 0 ? LEFT : RIGHT);

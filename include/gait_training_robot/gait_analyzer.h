@@ -185,57 +185,10 @@ typedef tf2::Vector3 cop_t;
 
 // Regex to be replaced with commas: (?<![{\n )+])   (?=[ -])
 namespace sport_sole {
-
   cop_t getCoP(
     const SportSole::_pressures_type & pressures, 
     const vec_refpoints_t & vec_refpoints, 
     const vec_refvecs_t & vec_refvecs);
-
-  class GaitPhaseFSM2 {
-
-    GaitPhase gait_phases_[LEFT_RIGHT];
-    double p_threshold_;
-    
-  public:
-    GaitPhaseFSM2(double p_threshold = 100.0): 
-      gait_phases_{GaitPhase::Stance2, GaitPhase::Stance2},
-      p_threshold_(p_threshold)
-    {}
-      
-    void update(const SportSole::_pressures_type & pressures)
-    {
-      for (size_t lr : {LEFT, RIGHT}) {
-        size_t i0 = (lr==LEFT ? 0 : 8);
-        double p_hind_sum = pressures[i0 + 5] + pressures[i0 + 6]; // 6~7
-        double p_fore_sum = pressures[i0 + 0] + pressures[i0 + 1] + pressures[i0 + 2] + pressures[i0 + 3] + pressures[i0 + 4]; // 1~5
-
-        auto & gait_phase = gait_phases_[lr];
-        switch (gait_phase) {
-          case GaitPhase::Swing:
-            if (p_hind_sum > p_threshold_) 
-              gait_phase = GaitPhase::Stance1;
-            break;
-          case GaitPhase::Stance1:
-            if (p_fore_sum > p_threshold_) 
-              gait_phase = GaitPhase::Stance2;
-            break;
-          case GaitPhase::Stance2:
-            if (p_hind_sum <= p_threshold_) 
-              gait_phase = GaitPhase::Stance3;
-            break;
-          case GaitPhase::Stance3:
-            if (p_fore_sum <= p_threshold_) 
-              gait_phase = GaitPhase::Swing;
-            break;
-        }
-      }
-    }
-
-    uint8_t getGaitState() const
-    {
-      return static_cast<uint8_t>(gait_phases_[LEFT]) << 2 | static_cast<uint8_t>(gait_phases_[RIGHT]);
-    }
-  };
 }
 
 template<typename Vector>

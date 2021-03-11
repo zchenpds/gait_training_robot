@@ -129,6 +129,7 @@ private:
   bool is_initialized_tf_global_to_publish_;
   ros::Timer timer_update_tf_global_to_publish_;
 
+  sport_sole::GaitPhaseFSM2 gait_phase_fsm_;
 };
 
 
