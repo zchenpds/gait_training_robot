@@ -245,6 +245,31 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       tf_broadcaster_.sendTransform(tf_joint);
     }
     
+    // Publish tf: joint_pelvis_rect
+    {
+      const auto & it_joint = it_pelvis_closest + K4ABT_JOINT_PELVIS;
+
+      geometry_msgs::TransformStamped tf_joint;
+      tf_joint.header.stamp = stamp_skeleton_curr;
+      tf_joint.header.frame_id = ga_params_.global_frame;
+      tf_joint.child_frame_id = "joint_pelvis_rect";
+
+      const auto& pos_k4a = it_joint->pose.position;
+      const auto& quat_k4a = it_joint->pose.orientation;
+      tf2::Quaternion quat = 
+        tf2::Quaternion(quat_k4a.x, quat_k4a.y, quat_k4a.z, quat_k4a.w) *
+        tf2::Quaternion({1., 1., 1.}, M_PI / 3 * 2);
+      tf2::Transform tf_pelvis = tf_depth_to_global_ *
+        tf2::Transform(quat, {pos_k4a.x, pos_k4a.y, pos_k4a.z});
+      quat = tf_pelvis.getRotation();
+      double yaw, pitch, roll;
+      tf2::Matrix3x3(quat).getEulerYPR(yaw, pitch, roll);
+      tf_pelvis.setRotation(tf2::Quaternion({0., 0., 1.}, yaw));
+      
+      tf_joint.transform = tf2::toMsg(tf_pelvis);
+      tf_broadcaster_.sendTransform(tf_joint);
+    }
+    
     // Coordinate Transformation and Projection
     for (int i = 0; i < K4ABT_JOINT_COUNT; i++)
     {
