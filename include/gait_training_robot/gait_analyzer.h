@@ -52,7 +52,7 @@ typedef double T;
   LIST_ENTRY(foot_pose_topic, "The topic name for foot poses.", std::string, std::string("/foot_pose_estimator/fused_pose_")) \
   LIST_ENTRY(data_source, "Must be either 'k4a' or 'optitrack'.", std::string, std::string("k4a"))                            \
   LIST_ENTRY(smoother_enabled, "Enable moving average smoother or not. May cause latency.", bool, false)                      \
-
+  LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                  \
 
 #define COMKF_PARAM_LIST \
   LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", T, 0.01)     \
@@ -219,8 +219,10 @@ public:
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void comCB(const geometry_msgs::PointStamped& msg);
   void mlVecCB(const geometry_msgs::Vector3Stamped& msg);
-  void timeSynchronizerCB(const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
+  void timeSynchronizerMeasureCB (const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
+  void timeSynchronizerEstimateCB(const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
   void sportSoleCB(const sport_sole::SportSole& msg);
+  void processSportSole(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
   void updateTfCB(const ros::TimerEvent& event);
   // Update both CoM and CoMv measurements
@@ -232,6 +234,8 @@ public:
   void updateCoMEstimate(const ros::Time & stamp, const comkf::S & x);
   void updateBoS(bos_t & res);
   void updateMoS(mos_t & res, const com_t & xcom, const bos_t & bos_points);
+
+  void updateRefPoints(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r);
 
   void updateGaitPhase();
 
@@ -275,10 +279,11 @@ private:
   ros::Subscriber sub_skeletons_;
   ros::Subscriber sub_com_;
   ros::Subscriber sub_ml_vec_;
-  message_filters::Subscriber<sport_sole::SportSole>                            sub_sport_sole_;
+  ros::Subscriber                                                               sub_sport_sole_;
   message_filters::Cache     <sport_sole::SportSole>                          cache_sport_sole_;
   message_filters::Subscriber<PoseType>                                         sub_foot_poses_[LEFT_RIGHT];
-  message_filters::TimeSynchronizer<PoseType, PoseType, PointType, VectorType>  time_synchronizer_;
+  message_filters::TimeSynchronizer<PoseType, PoseType, PointType, VectorType>  time_synchronizer_measure_;
+  message_filters::TimeSynchronizer<PoseType, PoseType, PointType, VectorType>  time_synchronizer_estimate_;
 
   // Publishers
   ros::Publisher pub_gait_state_;

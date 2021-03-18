@@ -71,8 +71,10 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   nh_(n),
   private_nh_(p),
   comkf_nh_(private_nh_, "comkf"),
-  sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 20), cache_sport_sole_(sub_sport_sole_, 100),
-  time_synchronizer_(100),
+  sub_sport_sole_(nh_.subscribe("/sport_sole_publisher/sport_sole", 20, &GaitAnalyzer::sportSoleCB, this)),
+  cache_sport_sole_(100),
+  time_synchronizer_measure_(100),
+  time_synchronizer_estimate_(600),
   tf_listener_(tf_buffer_),
   is_initialized_tf_global_to_publish_(false),
   comkf_initialized_(false),
@@ -128,8 +130,10 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   {
     sub_foot_poses_[lr].subscribe(nh_, ga_params_.foot_pose_topic + (lr == LEFT ? "l" : "r"), 20);
   }
-  time_synchronizer_.connectInput(sub_foot_poses_[LEFT], sub_foot_poses_[RIGHT]);
-  time_synchronizer_.registerCallback(boost::bind(&GaitAnalyzer::timeSynchronizerCB, this, _1, _2, _3, _4));
+  time_synchronizer_measure_.connectInput(sub_foot_poses_[LEFT], sub_foot_poses_[RIGHT]);
+  time_synchronizer_measure_.registerCallback(boost::bind(&GaitAnalyzer::timeSynchronizerMeasureCB, this, _1, _2, _3, _4));
+  time_synchronizer_estimate_.connectInput(sub_foot_poses_[LEFT], sub_foot_poses_[RIGHT]);
+  time_synchronizer_estimate_.registerCallback(boost::bind(&GaitAnalyzer::timeSynchronizerEstimateCB, this, _1, _2, _3, _4));
   
   const size_t buff_size = 100;
   for (size_t lr: {LEFT, RIGHT}) {
@@ -289,8 +293,8 @@ void GaitAnalyzer::skeletonsCB(const visualization_msgs::MarkerArray& msg)
     // if (ga_params_.smoother_enabled) comv_smoother_[MEASUREMENT](comv_[MEASUREMENT]);
     updateXCoM(xcom_[MEASUREMENT], com_[MEASUREMENT], comv_[MEASUREMENT]);
 
-    time_synchronizer_.add2(constructPointStampedMessage(stamp_skeleton_curr, com_[MEASUREMENT]));
-    time_synchronizer_.add3(constructVector3StampedMessage(stamp_skeleton_curr, comv_[MEASUREMENT]));
+    time_synchronizer_measure_.add2(constructPointStampedMessage(stamp_skeleton_curr, com_[MEASUREMENT]));
+    time_synchronizer_measure_.add3(constructVector3StampedMessage(stamp_skeleton_curr, comv_[MEASUREMENT]));
     
   }
 }
@@ -303,8 +307,8 @@ void GaitAnalyzer::comCB(const geometry_msgs::PointStamped& msg)
   if (ga_params_.smoother_enabled) comv_smoother_[MEASUREMENT](comv_[MEASUREMENT]);
   updateXCoM(xcom_[MEASUREMENT], com_[MEASUREMENT], comv_[MEASUREMENT]);
 
-  time_synchronizer_.add2(constructPointStampedMessage(msg.header.stamp, com_[MEASUREMENT]));
-  time_synchronizer_.add3(constructVector3StampedMessage(msg.header.stamp, comv_[MEASUREMENT]));
+  time_synchronizer_measure_.add2(constructPointStampedMessage(msg.header.stamp, com_[MEASUREMENT]));
+  time_synchronizer_measure_.add3(constructVector3StampedMessage(msg.header.stamp, comv_[MEASUREMENT]));
 }
 
 void GaitAnalyzer::mlVecCB(const geometry_msgs::Vector3Stamped& msg)
@@ -313,44 +317,11 @@ void GaitAnalyzer::mlVecCB(const geometry_msgs::Vector3Stamped& msg)
   ap_vec_ = ml_vec_.rotate({0, 0, 1}, -M_PI_2);
 }
 
-void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r, 
+void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r, 
     const PointType::ConstPtr& msg_com, const VectorType::ConstPtr& msg_comv)
 {
   ros::Time stamp_skeleton_curr = msg_com->header.stamp;
-  PoseType::ConstPtr msg_feet[LEFT_RIGHT] = {msg_foot_l, msg_foot_r};
-  
-  for (size_t lr : {LEFT, RIGHT})
-  {
-    tf2::fromMsg(msg_feet[lr]->pose.pose.position, vec_refpoints_[HIND][lr]);
-    tf2::Quaternion quat;
-    tf2::fromMsg(msg_feet[lr]->pose.pose.orientation, quat);
-
-    if (ga_params_.global_frame != msg_feet[lr]->header.frame_id)
-    {
-      tf2::Transform tf_to_global;
-      try
-      {
-        geometry_msgs::TransformStamped tf_msg;
-        tf_msg = tf_buffer_.lookupTransform(ga_params_.global_frame, msg_feet[lr]->header.frame_id, msg_feet[lr]->header.stamp, ros::Duration(0, 0));
-        tf2::fromMsg(tf_msg.transform, tf_to_global);
-      }
-      catch (tf2::TransformException& ex)
-      {
-        ROS_WARN_THROTTLE(5.0, "Cannot transform foot pose from '%s' to '%s'. %s", msg_feet[lr]->header.frame_id.c_str(), ga_params_.global_frame.c_str(), ex.what());
-        return;
-      }
-      vec_refpoints_[HIND][lr] = tf_to_global * vec_refpoints_[HIND][lr];
-      quat = tf_to_global * quat;
-    }
-
-    vec_refvecs_[lr] = tf2::quatRotate(quat, {1.0, 0.0, 0.0});
-    vec_refpoints_[FORE][lr] = vec_refpoints_[HIND][lr] + vec_refvecs_[lr] * FOOT_LENGTH;
-    
-    vec_refvecs_[lr].setZ(0);
-    vec_refvecs_[lr] = vec_refvecs_[lr].normalize();
-    vec_refpoints_[FORE][lr].setZ(z_ground_);
-    vec_refpoints_[HIND][lr].setZ(z_ground_);
-  }
+  updateRefPoints(msg_foot_l, msg_foot_r);
 
   if (ga_params_.data_source == "k4a")
   {
@@ -368,8 +339,8 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     auto sport_sole_ptrs = cache_sport_sole_.getInterval(stamp_com_prev_, stamp_skeleton_curr);
     for (const auto & ss_ptr : sport_sole_ptrs)
     {
-      // EKF prediction is done here
-      sportSoleCB(*ss_ptr);
+      // CoMKF prediction is done here
+      processSportSole(*ss_ptr);
     }
     // ROS_INFO_STREAM(sport_sole_ptrs.size() << " predictions between t=" <<
     //   (stamp_com_prev_ - stamp_base_).toSec() << "s and t=" << (stamp_skeleton_curr - stamp_base_).toSec() << "s are done");
@@ -401,20 +372,6 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
   }
   else
   {
-    gait_phase_fsm_.update(msg_sport_sole_ptr->pressures);
-    uint8_t gait_state = gait_phase_fsm_.getGaitState();
-    updateGaitState(gait_state);
-    // updateGaitState(msg_sport_sole_ptr->gait_state);
-    
-    // Publish on /gait_analyzer/gait_state
-    sport_sole::GaitState msg_gait_state;
-    msg_gait_state.header.stamp = stamp_skeleton_curr;
-    for (auto lr: {LEFT, RIGHT})
-    {
-      msg_gait_state.gait_phase[lr] = static_cast<uint8_t>(sport_sole::getGaitPhaseLR(gait_state, lr));
-    }
-    pub_gait_state_.publish(msg_gait_state);
-
     comkf::ZP zp;
     zp.px() = msg_com->point.x;
     zp.py() = msg_com->point.y;
@@ -429,16 +386,16 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
       x0.vx() = msg_comv->vector.x;
       x0.vy() = msg_comv->vector.y;
       comkf_.init(x0);
-      updateCoMEstimate(stamp_skeleton_curr, x0);
+      updateCoMEstimate(stamp_skeleton_curr, x0); // Initial estimate
       ROS_DEBUG_STREAM("COMKF state initialized to " << x0.transpose());
       comkf_initialized_ = true;
       stamp_predict_prev_ = stamp_sport_sole_prev_ = stamp_skeleton_curr;
     }
     else {
       const auto & x = comkf_.update(zp);
-      updateCoMEstimate(stamp_skeleton_curr, x);
+      updateCoMEstimate(stamp_skeleton_curr, x); // A posteriori estimate
       gait_training_robot::ComkfCopMeasurement msg;
-      msg.header.stamp = stamp_sport_sole_prev_;
+      msg.header.stamp = stamp_skeleton_curr;
       msg.header.frame_id = ga_params_.global_frame;
       msg.px = zp.px();
       msg.py = zp.py();
@@ -455,12 +412,9 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     if (comv_[MEASUREMENT].length() < 1e-6) ROS_INFO_STREAM_THROTTLE(5.0, "B: CoMv = " << comv_[MEASUREMENT]);
 
     // Publish com comv xcom
-    for (auto me: {MEASUREMENT, ESTIMATE})
-    {
-      pub_com_[me].publish(constructPointStampedMessage(stamp_skeleton_curr, com_[me]));
-      pub_comv_[me].publish(constructVector3StampedMessage(stamp_skeleton_curr, comv_[me]));
-      pub_xcom_[me].publish(constructPointStampedMessage(stamp_skeleton_curr, xcom_[me]));
-    }
+    pub_com_[MEASUREMENT].publish(constructPointStampedMessage(stamp_skeleton_curr, com_[MEASUREMENT]));
+    pub_comv_[MEASUREMENT].publish(constructVector3StampedMessage(stamp_skeleton_curr, comv_[MEASUREMENT]));
+    pub_xcom_[MEASUREMENT].publish(constructPointStampedMessage(stamp_skeleton_curr, xcom_[MEASUREMENT]));
   }
 
   // Calculate the base of support polygon, and update footprint polygons
@@ -470,14 +424,11 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     pub_footprints_[lr].publish(constructPolygonMessage(stamp_skeleton_curr, footprints_[lr]));
   }
 
-  // Calculate margin of stability (measurement and estimate)
-  for (auto me: {MEASUREMENT, ESTIMATE})
-  {
-    if (me == ESTIMATE && !msg_sport_sole_ptr) continue;
-    updateMoS(mos_[me], xcom_[me], bos_points_);
-    pub_mos_[me].publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom_[me], mos_[me]));
-    pub_mos_vector_[me].publish(constructVector3StampedMessage(stamp_skeleton_curr, constructMosVector(mos_[me])));
-  }
+  // Calculate margin of stability measurement
+  updateMoS(mos_[MEASUREMENT], xcom_[MEASUREMENT], bos_points_);
+  pub_mos_[MEASUREMENT].publish(constructMosMarkerArrayMessage(stamp_skeleton_curr, xcom_[MEASUREMENT], mos_[MEASUREMENT]));
+  pub_mos_vector_[MEASUREMENT].publish(constructVector3StampedMessage(stamp_skeleton_curr, constructMosVector(mos_[MEASUREMENT])));
+
 #ifdef PRINT_MOS_DELAY
   std::cout << (ros::Time::now() - stamp_skeleton_curr).toSec() << std::endl;
 #endif
@@ -485,13 +436,58 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
   stamp_com_prev_ = stamp_skeleton_curr;
 }
 
+void GaitAnalyzer::timeSynchronizerEstimateCB(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r,
+    const PointType::ConstPtr& msg_com, const VectorType::ConstPtr& msg_comv)
+{
+  ros::Time stamp_curr = msg_com->header.stamp;
+  updateRefPoints(msg_foot_l, msg_foot_r);
+  
+  // Find the sport_sole message sampled immediately before the current skeleton message
+  auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(stamp_curr);
+  if (!msg_sport_sole_ptr) return;
+
+  // Calculate the base of support polygon, and update footprint polygons
+  updateBoS(bos_points_);
+  pub_bos_.publish(constructPolygonMessage(stamp_curr, bos_points_));
+  for (size_t lr : {LEFT, RIGHT}) {
+    pub_footprints_[lr].publish(constructPolygonMessage(stamp_curr, footprints_[lr]));
+  }
+
+  // Calculate margin of stability estimate
+  updateMoS(mos_[ESTIMATE], xcom_[ESTIMATE], bos_points_);
+  pub_mos_[ESTIMATE].publish(constructMosMarkerArrayMessage(stamp_curr, xcom_[ESTIMATE], mos_[ESTIMATE]));
+  pub_mos_vector_[ESTIMATE].publish(constructVector3StampedMessage(stamp_curr, constructMosVector(mos_[ESTIMATE])));
+}
+
+
 void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
+{
+  sport_sole::SportSolePtr msg_new(new sport_sole::SportSole(msg));
+  ros::Time ts_sport_sole_curr = msg.header.stamp + ros::Duration(ga_params_.sport_sole_time_offset);
+  msg_new->header.stamp = ts_sport_sole_curr;
+  cache_sport_sole_.add(msg_new);
+}
+
+void GaitAnalyzer::processSportSole(const sport_sole::SportSole& msg)
 {
   const auto & stamp_sport_sole_curr = msg.header.stamp;
 
-  pressures_ = msg.pressures;
+  gait_phase_fsm_.update(msg.pressures);
+  uint8_t gait_state = gait_phase_fsm_.getGaitState();
+  updateGaitState(gait_state);
+  
+  // Publish on /gait_analyzer/gait_state
+  sport_sole::GaitState msg_gait_state;
+  msg_gait_state.header.stamp = stamp_sport_sole_curr;
+  for (auto lr: {LEFT, RIGHT})
+  {
+    msg_gait_state.gait_phase[lr] = static_cast<uint8_t>(sport_sole::getGaitPhaseLR(gait_state, lr));
+  }
+  pub_gait_state_.publish(msg_gait_state);
+
 
   // Calculate CoP
+  pressures_ = msg.pressures;
   auto & cop = cop_;
   cop = sport_sole::getCoP(pressures_, vec_refpoints_, vec_refvecs_);
 
@@ -506,7 +502,7 @@ void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
     // Predict only if dt is large enough
     if (dt > 1e-3) {
       const auto& x = comkf_.predict(u, dt);
-      updateCoMEstimate(stamp_sport_sole_curr, x);
+      updateCoMEstimate(stamp_sport_sole_curr, x); // A priori estmiate
       stamp_predict_prev_ = stamp_sport_sole_curr;
     }
     gait_training_robot::ComkfCopMeasurement msg;
@@ -630,6 +626,15 @@ void GaitAnalyzer::updateCoMEstimate(const ros::Time & stamp, const comkf::S & x
     comv_smoother_[ESTIMATE](comv_[ESTIMATE]);
   }
   updateXCoM(xcom_[ESTIMATE], com_[ESTIMATE], comv_[ESTIMATE]);
+
+  const auto& msg_com_ptr =  constructPointStampedMessage(stamp, com_[ESTIMATE]);
+  const auto& msg_comv_ptr = constructVector3StampedMessage(stamp, comv_[ESTIMATE]);
+  time_synchronizer_estimate_.add2(msg_com_ptr);
+  time_synchronizer_estimate_.add3(msg_comv_ptr);
+
+  pub_com_ [ESTIMATE].publish(msg_com_ptr);
+  pub_comv_[ESTIMATE].publish(msg_comv_ptr);
+  pub_xcom_[ESTIMATE].publish(constructPointStampedMessage(stamp, xcom_[ESTIMATE]));
 
   gait_training_robot::ComkfState msg;
   msg.header.stamp = stamp;
@@ -859,6 +864,45 @@ void GaitAnalyzer::updateMoS(mos_t & res, const com_t & xcom, const bos_t & bos_
     //ROS_INFO_STREAM("mos: " << t);
   }
 }
+
+void GaitAnalyzer::updateRefPoints(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r)
+{
+  PoseType::ConstPtr msg_feet[LEFT_RIGHT] = {msg_foot_l, msg_foot_r};
+  
+  for (size_t lr : {LEFT, RIGHT})
+  {
+    tf2::fromMsg(msg_feet[lr]->pose.pose.position, vec_refpoints_[HIND][lr]);
+    tf2::Quaternion quat;
+    tf2::fromMsg(msg_feet[lr]->pose.pose.orientation, quat);
+
+    if (ga_params_.global_frame != msg_feet[lr]->header.frame_id)
+    {
+      tf2::Transform tf_to_global;
+      try
+      {
+        geometry_msgs::TransformStamped tf_msg;
+        tf_msg = tf_buffer_.lookupTransform(ga_params_.global_frame, msg_feet[lr]->header.frame_id, msg_feet[lr]->header.stamp, ros::Duration(0, 0));
+        tf2::fromMsg(tf_msg.transform, tf_to_global);
+      }
+      catch (tf2::TransformException& ex)
+      {
+        ROS_WARN_THROTTLE(5.0, "Cannot transform foot pose from '%s' to '%s'. %s", msg_feet[lr]->header.frame_id.c_str(), ga_params_.global_frame.c_str(), ex.what());
+        return;
+      }
+      vec_refpoints_[HIND][lr] = tf_to_global * vec_refpoints_[HIND][lr];
+      quat = tf_to_global * quat;
+    }
+
+    vec_refvecs_[lr] = tf2::quatRotate(quat, {1.0, 0.0, 0.0});
+    vec_refpoints_[FORE][lr] = vec_refpoints_[HIND][lr] + vec_refvecs_[lr] * FOOT_LENGTH;
+    
+    vec_refvecs_[lr].setZ(0);
+    vec_refvecs_[lr] = vec_refvecs_[lr].normalize();
+    vec_refpoints_[FORE][lr].setZ(z_ground_);
+    vec_refpoints_[HIND][lr].setZ(z_ground_);
+  }
+}
+
 
 void GaitAnalyzer::updateGaitPhase()
 {
