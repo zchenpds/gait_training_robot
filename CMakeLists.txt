@@ -90,6 +90,9 @@ add_message_files(
   ComkfState.msg
   ComkfCopMeasurement.msg
   ComkfComMeasurement.msg
+  KpekfState.msg
+  KpekfKimuMeasurement.msg
+  KpekfOdomMeasurement.msg
 )
 
 ## Generate services in the 'srv' folder
