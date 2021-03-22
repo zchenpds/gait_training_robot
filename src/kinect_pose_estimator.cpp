@@ -70,41 +70,21 @@ KinectPoseEstimator::~KinectPoseEstimator()
 
 void KinectPoseEstimator::odomCB(const nav_msgs::Odometry & msg)
 {
-  odom_received_ = true;
   ts_odom_last_ = msg.header.stamp;
+  if (!kimu_received_) return;
+  if (!ekf_initialized_) odomUpdate(msg.header.stamp); // Initialize
+  kimuPredictAndUpdate(msg.header.stamp);
+  
 }
 
 
 void KinectPoseEstimator::kimuCB(const sensor_msgs::Imu & msg)
 {
-  if (msg.header.stamp < ts_next_desired_publish_) return;
-
-  // Update ts_next_desired_publish_
-  if (msg.header.stamp < ts_next_desired_publish_ + desired_publish_period_)
+  kimu_received_ = true;
+  if (ekf_initialized_ && msg.header.stamp <= ts_odom_last_)
   {
-    ts_next_desired_publish_ += desired_publish_period_;
+    kimuPredictAndUpdate(ts_odom_last_);
   }
-  else
-  {
-    ts_next_desired_publish_ = msg.header.stamp + desired_publish_period_;
-  }
-
-  // Predict only 0.1 sec into the future from the previuos measurement
-  if (ekf_initialized_ && msg.header.stamp < ts_odom_update_last_ + ros::Duration(0.098))
-  {
-    kimuPredictAndUpdate(msg.header.stamp);
-  }
-  else if (odom_received_ && ts_odom_update_last_ < ts_odom_last_)
-  {
-    odomUpdate(msg.header.stamp);
-  }
-  else
-  {
-    return;
-  }
-
-  // Publish messages
-  broadcastTf();
 }
 
 void KinectPoseEstimator::kimuPredictAndUpdate(const ros::Time& stamp)
@@ -133,6 +113,7 @@ void KinectPoseEstimator::kimuPredictAndUpdate(const ros::Time& stamp)
     ekf_.predict((ts_kimu_last_ - ts_predict_last_).toSec());
     ekf_.update(averager_za_.getAverage());
     ekf_.update(averager_zg_.getAverage());
+    odomUpdate(ts_kimu_last_);
     averager_za_.clear();
     averager_zg_.clear();
     ts_ekf_ = ts_predict_last_ = msg_ptr->header.stamp;
@@ -155,7 +136,7 @@ void KinectPoseEstimator::odomUpdate(const ros::Time& stamp)
   try
   {
     geometry_msgs::TransformStamped tf_msg;
-    tf_msg = tf_buffer_.lookupTransform(params_.global_frame, params_.kimu_frame, ts_odom_last_, ros::Duration(0.05));
+    tf_msg = tf_buffer_.lookupTransform(params_.global_frame, params_.kimu_frame, stamp, ros::Duration(0.05));
     tf2::fromMsg(tf_msg.transform, tf_global_to_kimu_);
   }
   catch (tf2::TransformException& ex)
@@ -181,7 +162,7 @@ void KinectPoseEstimator::odomUpdate(const ros::Time& stamp)
     ekf_.x.q3() = rot.z();
     ekf_.repairQuaternion();
     ekf_initialized_ = true;
-    ts_init_ = ts_kimu_last_ = ts_predict_last_ = ts_odom_last_;
+    ts_init_ = ts_kimu_last_ = ts_predict_last_ = stamp;
   }
   else
   {
@@ -206,9 +187,12 @@ void KinectPoseEstimator::odomUpdate(const ros::Time& stamp)
     pub_ekf_odom_measurement_.publish(msg_odom_measurement);
   }
 
+  // Publish messages
+  broadcastTf();
+
   // Update for next iteration
   ts_ekf_ = ts_odom_update_last_ = ts_odom_last_;
-  std::cout << " " << num_of_predictions_between_odom_updates_;
+  // std::cout << " " << num_of_predictions_between_odom_updates_;
   num_of_predictions_between_odom_updates_ = 0;
 }
 
@@ -231,7 +215,7 @@ void KinectPoseEstimator::broadcastTf()
   tf2::toMsg(trans, odom_filtered_.pose.pose.position);
   odom_filtered_.pose.pose.orientation = tf2::toMsg(rot);
   tf2::Vector3 vel(ekf_.x.vx(), ekf_.x.vy(), ekf_.x.vz());
-  odom_filtered_.twist.twist.linear = tf2::toMsg(tf2::quatRotate(rot.inverse(), vel));
+  odom_filtered_.twist.twist.linear = tf2::toMsg(tf2::quatRotate(rot, vel));
   pub_filtered_odom_.publish(odom_filtered_);
 
   gait_training_robot::KpekfState msg_state;

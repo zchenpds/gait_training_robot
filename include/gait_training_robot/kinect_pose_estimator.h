@@ -29,12 +29,12 @@ typedef double FloatType;
   LIST_ENTRY(system_noise_a, "The standard deviation of noise added to the linear acceleration state.", FloatType, 7e0)          \
   LIST_ENTRY(system_noise_ab, "The standard deviation of noise added to the accelerometer bias state.", FloatType, 1e-2)         \
   LIST_ENTRY(system_noise_wb, "The standard deviation of noise added to the gyroscope bias state.", FloatType, 1e-5)             \
-  LIST_ENTRY(measurement_noise_a, "The standard deviation of acceleration measurement noise.", FloatType, 5e-1)                  \
+  LIST_ENTRY(measurement_noise_a, "The standard deviation of acceleration measurement noise.", FloatType, 1e-1)                  \
   LIST_ENTRY(measurement_noise_g, "The standard deviation of gyroscope measurement noise.", FloatType, 5e-2)                     \
   LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", FloatType, 1e-2)                      \
   LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", FloatType, 1e-1)                      \
   LIST_ENTRY(measurement_noise_q, "The standard deviation of quaternion measurement noise.", FloatType, 2e-1)                    \
-  LIST_ENTRY(measurement_noise_y, "The standard deviation of yaw measurement noise.", FloatType, 1e-2)                           \
+  LIST_ENTRY(measurement_noise_y, "The standard deviation of yaw measurement noise.", FloatType, 1e-1)                           \
   LIST_ENTRY(measurement_noise_va, "The standard deviation of va measurement noise.", FloatType, 1e-5)                           \
  
 
@@ -102,7 +102,7 @@ private:
 
 
   // ts
-  bool odom_received_ = false;
+  bool kimu_received_ = false;
   ros::Time ts_ekf_;
   ros::Time ts_odom_update_last_;
   ros::Time ts_odom_last_;
