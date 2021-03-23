@@ -8,15 +8,14 @@
 	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
 		<param name="global_frame"                  value="fused_odom"/>
 		<param name="publish_frame"                 value="fused_odom"/>
-		<param name="system_noise_w"                value="0.04"/>
-		<param name="measurement_noise_g"           value="0.005"/>
-		<param name="measurement_noise_y"           value="0.05"/>
-		<param name="measurement_noise_va"          value="0.001"/>
-		<param name="sport_sole_time_offset"        value="-0.015"/>
+		<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)\"/>
+		<rosparam command="load" file="$(find gait_training_robot)/params/foot_pose_estimator.yaml" />
 	</node>
 
 	<!-- kinect_pose_estimator -->
-	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"/>
+	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator" output="screen">
+		<rosparam command="load" file="$(find gait_training_robot)/params/kinect_pose_estimator.yaml" />
+	</node>
 	
 	<!-- Gait analyzer -->
 	<group if="$(arg enable_gait_analyzer)">
@@ -24,19 +23,17 @@
 			<param name="data_source"                   value="k4a" />
 			<param name="global_frame"                  value="fused_odom" />
 			<param name="publish_frame"                 value="fused_odom"/>
+			<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
 			<param name="smoother_enabled"              value="false"/>
-			<param name="/comkf/system_noise_p"         value="0.0001"/>
-			<param name="/comkf/system_noise_v"         value="0.01"/>
-			<param name="/comkf/system_noise_b"         value="0.1"/>
-			<param name="/comkf/measurement_noise_p"    value="0.1"/>
+			<rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer.yaml" />
 		</node>
 	</group>
-
+	
 	<!-- rosbag play -->
 	<include file="$(find gait_training_robot)/launch/includes/playback.launch" pass_all_args="true" />
 
 	<!-- Rviz -->
-	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" />
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen"  if="$(arg enable_rviz)" />
 
 	<!-- Record odom -->
 	<node name="record_tf" pkg="rosbag" type="record" if="$(arg record_odom)"

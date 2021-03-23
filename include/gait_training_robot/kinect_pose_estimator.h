@@ -80,8 +80,9 @@ private:
   ekf_t ekf_;
   bool ekf_initialized_ = false;
   tf2::Vector3 refUnitY_ = {0., 1., 0.};
-  Average<ekf_t::ZA> averager_za_;
-  Average<ekf_t::ZG> averager_zg_;
+  Averager<ekf_t::ZA> averager_za_;
+  Averager<ekf_t::ZG> averager_zg_;
+  tf2::Vector3 zv_ros_last_ = {0., 0., 0.};
 
   // stats
   int num_of_kimu_messages_ = 0;

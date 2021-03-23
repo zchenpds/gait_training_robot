@@ -9,29 +9,25 @@
 	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
 		<param name="global_frame"                  value="fused_odom"/>
 		<param name="publish_frame"                 value="$(arg global_frame)"/>
-		<param name="system_noise_w"                value="0.04"/>
-		<param name="measurement_noise_g"           value="0.005"/>
-		<param name="measurement_noise_y"           value="0.05"/>
-		<param name="measurement_noise_va"          value="0.001"/>
-		<param name="sport_sole_time_offset"        value="-0.015"/>
+		<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
+		<rosparam command="load" file="$(find gait_training_robot)/params/foot_pose_estimator.yaml" />
 	</node>
 
 	<!-- kinect_pose_estimator -->
-	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator"/>
+	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator">
+		<rosparam command="load" file="$(find gait_training_robot)/params/kinect_pose_estimator.yaml" />
+	</node>
 
 	<!-- Gait analyzer -->
 	<group if="$(arg enable_gait_analyzer)">
 		<node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
 			<param name="data_source"                   value="k4a" />
+			<param name="foot_pose_topic"               value="/foot_pose_estimator/$(arg foot_pose_topic_prefix)_pose_" />
 			<param name="global_frame"                  value="$(arg global_frame)" />
 			<param name="publish_frame"                 value="$(arg global_frame)"/>
 			<param name="smoother_enabled"              value="false"/>
-			<param name="/comkf/system_noise_p"         value="0.0001"/>
-			<param name="/comkf/system_noise_v"         value="0.01"/>
-			<param name="/comkf/system_noise_b"         value="0.1"/>
-			<!-- <param name="/comkf/system_noise_cop"       value="0.3"/> -->
-			<param name="/comkf/measurement_noise_p"    value="0.1"/>
-			<!-- <param name="/comkf/measurement_noise_cop"  value="0.06"/> -->
+			<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
+			<rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer.yaml" />
 		</node>
 			
 		<node name="gait_analyzer_optitrack" pkg="gait_training_robot" type="gait_analyzer_optitrack" output="screen" >
@@ -45,25 +41,24 @@
 			<param name="/comkf/system_noise_cop"       value="0.3"/>
 			<param name="/comkf/measurement_noise_p"    value="0.01"/>
 			<param name="/comkf/measurement_noise_cop"  value="0.05"/>
+			<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
 		</node>
 
-		<!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" /> -->
-		<node name="rosbag_record_ga_node" pkg="rosbag" type="record" 
-			args="record -o $(find gait_training_robot)/bags/$(arg bag_name)_ga 
-					--regex '(/gait_analyzer/.*|/kinect_pose_estimator/.*)'" 
-			if="$(arg record_gait_analytics)"/> 
+		<!-- Record gait analytics -->
+		<node name="record_ga" pkg="rosbag" type="record" if="$(arg record_gait_analytics)"
+			args="record -a -o $(find gait_training_robot)/bags/optitrack/ga/$(arg bag_name)"/>
+		<!-- <node name="record_ga" pkg="rosbag" type="record" if="$(arg record_gait_analytics)"
+			args="record -o $(find gait_training_robot)/bags/optitrack/ga/$(arg bag_name)
+					&#45;&#45;regex '(/gait_analyzer/.*|/gait_analyzer_optitrack/.*)'"/> -->
 	</group>
 
 	<!-- rosbag play -->
 	<include file="$(find gait_training_robot)/launch/includes/playback.launch" pass_all_args="true" />
 
 	<!-- Rviz -->
-	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" />
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" if="$(arg enable_rviz)" />
 
-	<!-- Record gait analytics -->
-	<group if="$(arg record_gait_analytics)" >
-		<node name="record_ga" pkg="rosbag" type="record" if="$(arg record_gait_analytics)"
-			args="record -o $(find gait_training_robot)/bags/optitrack/ga/$(arg bag_name)
-					/gait_analyzer/* /gait_analyzer_optitrack/*"/>
-	</group>
+	<!-- Record all -->
+	<node name="record_all" pkg="rosbag" type="record" if="$(arg record_all)"
+		  args="record -a -o $(find gait_training_robot)/bags/optitrack/all/$(arg bag_name)"/>
 </launch>

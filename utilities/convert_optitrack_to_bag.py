@@ -11,7 +11,7 @@ import errno
 import rospkg
 import rospy
 import rosbag
-from tf.transformations import quaternion_from_matrix
+from tf.transformations import quaternion_from_matrix, rotation_matrix
 
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseWithCovariance, Pose, \
                               Point, Quaternion, PointStamped, TransformStamped, Transform, \
@@ -20,7 +20,17 @@ from tf.msg import tfMessage
 from std_msgs.msg import Header
 
 
-trial_id_str = [str(i).rjust(3, '0') for i in range(226,227)]
+
+import matplotlib.pyplot as plt
+import math
+
+import bag_ops
+
+# trial_id_str = [str(i).rjust(3, '0') for i in range(218,219)]
+trial_id_str = [str(i).rjust(3, '0') for i in [226]]
+debug_mode = False
+use_base_link_as_root = False
+plot_th = False
 
 df_header = ['', 't', 'KR1', 'KR1', 'KR1', 'KR2', 'KR2', 'KR2', 'KR3', 'KR3', 'KR3', 'KR4', 'KR4', 'KR4', 'KR5', 'KR5', 'KR5', 'LFF1', 'LFF1', 'LFF1', 'LFF2', 'LFF2', 'LFF2', 'LFF3', 'LFF3', 'LFF3', 'LHF1', 'LHF1', 'LHF1', 'LHF2', 'LHF2', 'LHF2', 'LHF3', 'LHF3', 'LHF3', 'Pelvis1', 'Pelvis1', 'Pelvis1', 'Pelvis2', 'Pelvis2', 'Pelvis2', 'Pelvis3', 'Pelvis3', 'Pelvis3', 'Pelvis4', 'Pelvis4', 'Pelvis4', 'RFF1', 'RFF1', 'RFF1', 'RFF2', 'RFF2', 'RFF2', 'RFF3', 'RFF3', 'RFF3', 'RHF1', 'RHF1', 'RHF1', 'RHF2', 'RHF2', 'RHF2', 'RHF3', 'RHF3', 'RHF3']
 
@@ -33,8 +43,13 @@ topic_foot_pose_l = '/optitrack/foot_pose_l'
 topic_foot_pose_r = '/optitrack/foot_pose_r'
 topic_com = '/optitrack/com'
 topic_ml_vec = '/optitrack/ml_vec'
-robot_frame_id='/base_link' # '/base_link', '/camera_mount_top'
-kinect_frame_id='/depth_camera_link_optitrack'
+
+if use_base_link_as_root:
+  robot_frame_ids = ['base_link', global_frame_id]
+  kinect_frame_ids = [global_frame_id, 'depth_camera_link_optitrack']
+else:
+  robot_frame_ids = [global_frame_id, 'base_link_optitrack']
+  kinect_frame_ids = ['depth_camera_link', global_frame_id]
 
 odom_topic = '/kinect_pose_estimator/odom'
 inbag_relative_path = 'optitrack/odom'
@@ -43,9 +58,14 @@ inbag_relative_path = 'optitrack/odom'
 # inbag_relative_path = 'optitrack'
 
 
+def filter(arr, f_cutoff=3., order=4):
+  fs = 210.
+  b, a = signal.butter(order, 2 * f_cutoff / fs)
+  return signal.filtfilt(b, a, arr, axis=0)
+
 def createFootPoseList(FF, HF):
   # Find position
-  alpha = 0.9
+  alpha = 0.5
   pos = HF * alpha + FF * (1 - alpha)
 
   # Find orientation basis i
@@ -84,6 +104,9 @@ def createRobotTransformList(KR4, KR5, alpha_left=0.5, z_offset=0.):
   vj = KR4 - KR5
   vj[:, 2] = 0.
   vj /= norm(vj, axis=1)[:, np.newaxis]
+  if use_base_link_as_root and plot_th: plt.plot(np.arctan2(vj[:, 1], vj[:, 0]), label='robot_raw')
+  vj = filter(vj)
+  if use_base_link_as_root and plot_th: plt.plot(np.arctan2(vj[:, 1], vj[:, 0]), label='robot_filtered')
 
   # Find orientation bases k and i
   vk = np.tile([[0., 0., 1.]], (rows, 1))
@@ -92,8 +115,12 @@ def createRobotTransformList(KR4, KR5, alpha_left=0.5, z_offset=0.):
   res = []
   for i in range(0, rows):
     Rot = np.linalg.solve(global_bases, np.array([vi[i, ], vj[i, ], vk[i, ]])).T
-    RotHomo[:3, :3] = Rot.T
-    xyz = np.matmul(-Rot.T, pos[i, :])
+    if use_base_link_as_root:
+      RotHomo[:3, :3] = Rot.T
+      xyz = np.matmul(-Rot.T, pos[i, :])
+    else:
+      RotHomo[:3, :3] = Rot
+      xyz = pos[i, :]
     q = quaternion_from_matrix(RotHomo)
     res.append(Transform(translation=Point(x=xyz[0], y=xyz[1], z=xyz[2]),
       rotation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])))
@@ -115,22 +142,37 @@ def createKinectTransformList(KR1, KR2, KR3, alpha_left=0.5, z_offset=0.):
   vi = KR1 - KR2
   vi[:, 2] = 0.
   vi /= norm(vi, axis=1)[:, np.newaxis]
+  if not use_base_link_as_root and plot_th: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_raw')
+  vi = filter(vi, 6)
+  if not use_base_link_as_root and plot_th: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_filtered')
 
   # Find orientation bases k and i
+  tilt_down_radians = -6. / 180. * math.pi
   vj = np.tile([[0., 0., -1.]], (rows, 1))
+  for i in range(0, rows):
+    rot_tile_down = rotation_matrix(tilt_down_radians, vi[i])[:3, :3]
+    vj[i, :] = rot_tile_down.dot(vj[i, :])
+
   vk = np.cross(vi, vj)
+
+  # Shift backward along z axis of the depth_camera_link
+  pos += -0.011 * vk
 
   res = []
   for i in range(0, rows):
     Rot = np.linalg.solve(global_bases, np.array([vi[i, ], vj[i, ], vk[i, ]])).T
-    RotHomo[:3, :3] = Rot
-    xyz = pos[i, :]
+    if not use_base_link_as_root:
+      RotHomo[:3, :3] = Rot.T
+      xyz = np.matmul(-Rot.T, pos[i, :])
+    else:
+      RotHomo[:3, :3] = Rot
+      xyz = pos[i, :]
     q = quaternion_from_matrix(RotHomo)
     res.append(Transform(translation=Point(x=xyz[0], y=xyz[1], z=xyz[2]),
       rotation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])))
   return res
 
-def find_time_offset(inbag, marker, ts_marker):
+def find_time_offset(inbag, marker, vi, ts_marker):
   period_optitrack = (ts_marker[-1] - ts_marker[0]) / (len(ts_marker) - 1)
   # Get vx from inbag odom and resample it per the frequency of ts_marker
   vx_odom = []
@@ -150,22 +192,37 @@ def find_time_offset(inbag, marker, ts_marker):
 
   # Calculate vx from marker
   delta_marker = np.diff(marker, axis = 0)
-  vx_marker = np.sqrt(delta_marker[:, 0]**2 + delta_marker[:, 1]**2) / period_optitrack
+  
+  # vx_marker_orig = np.sqrt(delta_marker[:, 0]**2 + delta_marker[:, 1]**2) / period_optitrack
+  vx_marker_orig = np.einsum('ij,ij->i', delta_marker, vi[1:, :]) / period_optitrack
+
+  # Smooth marker speed
+  vx_marker = vx_marker_orig = filter(vx_marker_orig, 12)
 
   # Make sure the lengths match
-  n_points = min(len(ts_odom_resampled), len(ts_marker))
+  n_points = min(len(ts_odom_resampled), len(vx_marker))
+  offset0 = 0.
   if (n_points < len(ts_odom_resampled)):
-    # ts_odom_resampled = ts_odom_resampled[0:n_points]
+    ts_odom_resampled = ts_odom_resampled[0:n_points]
     vx_odom_resampled = vx_odom_resampled[0:n_points]
   else:
     # ts_marker = ts_marker[0:n_points]
-    vx_marker = vx_marker[0:n_points]
+    vx_marker = vx_marker_orig[-n_points:]
+    offset0 = (len(vx_marker_orig) - n_points) * period_optitrack
 
   corr = signal.correlate(vx_odom_resampled, vx_marker, mode='same') \
     / np.sqrt(signal.correlate(vx_odom_resampled, vx_odom_resampled, mode='same')[int(n_points/2)] * 
               signal.correlate(vx_marker,         vx_marker,         mode='same')[int(n_points/2)])
   offset_arr = np.linspace(-0.5 * n_points * period_optitrack, 0.5 * n_points * period_optitrack, n_points)
-  offset = offset_arr[np.argmax(corr)]
+  offset = offset_arr[np.argmax(corr)] - offset0
+
+  if debug_mode:
+    plt.plot(ts_odom_resampled - ts_odom_resampled[0], vx_odom_resampled, label='fused_odom')
+    plt.plot(ts_odom_resampled + offset - ts_odom_resampled[0], vx_marker_orig[0:n_points], label='optitrack')
+    plt.title('Kinect sensor speed in x direction')
+    plt.legend()
+    plt.show()
+
   return stamp0.to_sec() + ts_odom_start + offset, vx_marker
 
 def convert(df, inbag, outbag):
@@ -184,17 +241,20 @@ def convert(df, inbag, outbag):
   Pelvis = (markers['Pelvis1'] + markers['Pelvis2'] + markers['Pelvis3'] + markers['Pelvis4']) / 4
 
   # Create unit vector point from right to left in mediolateral direction.
-  ML_vec1 = markers['Pelvis1'] - markers['Pelvis2']
+  ML_vec1 = markers['Pelvis2'] - markers['Pelvis1']
   ML_vec1[:, 2] = 0
   ML_vec1 /= norm(ML_vec1, axis=1)[:, np.newaxis]
-  ML_vec2 = markers['Pelvis4'] - markers['Pelvis3']
+  ML_vec2 = markers['Pelvis3'] - markers['Pelvis4']
   ML_vec2[:, 2] = 0
   ML_vec2 /= norm(ML_vec2, axis=1)[:, np.newaxis]
   ML_vec = (ML_vec1 + ML_vec2) / 2
 
-  # 
+  # Find time offset
+  vi_robot = markers['KR3'] - markers['KR1']
+  vi_robot[:, 2] = 0.
+  vi_robot /= norm(vi_robot, axis=1)[:, np.newaxis]
   ts = df.iloc[:, 1].to_numpy()
-  ts_offset, vx_robot = find_time_offset(inbag, markers['KR2'], ts)
+  ts_offset, vx_robot = find_time_offset(inbag, markers['KR2'], vi_robot, ts)
   ts += ts_offset
 
   # Create message lists from markers
@@ -202,32 +262,39 @@ def convert(df, inbag, outbag):
   RFPoseList = createFootPoseList(RFF, RHF)
   RobotTransformList = createRobotTransformList(markers['KR4'], markers['KR5'], 0.5, -0.1)
   KinectTransformList = createKinectTransformList(markers['KR1'], markers['KR2'], markers['KR2'], 0.5, -0.01)
+  if plot_th: 
+    plt.legend()
+    plt.show()
+    return
 
   # Write messages to outbag
   for i, (LFPose, RFPose, RobotTransform, KinectTransform) in enumerate(zip(LFPoseList, RFPoseList, RobotTransformList, KinectTransformList)):
     t = rospy.Time.from_sec(float(ts[i]))
+    t_record = rospy.Time.from_sec(float(ts[i]) + 0.5)
     header = Header(stamp=t, frame_id='optitrack')
     foot_pose = PoseWithCovarianceStamped(header=header, pose=PoseWithCovariance(pose=LFPose))
-    outbag.write(topic_foot_pose_l, foot_pose, t)
+    outbag.write(topic_foot_pose_l, foot_pose, t_record)
     foot_pose = PoseWithCovarianceStamped(header=header, pose=PoseWithCovariance(pose=RFPose))
-    outbag.write(topic_foot_pose_r, foot_pose, t)
+    outbag.write(topic_foot_pose_r, foot_pose, t_record)
     com_point = PointStamped(header=header, point=Point(x=Pelvis[i, 0], y=Pelvis[i, 1], z=Pelvis[i, 2]))
-    outbag.write(topic_com, com_point, t)
+    outbag.write(topic_com, com_point, t_record)
     ml_vector = Vector3Stamped(header=header, vector=Vector3(x=ML_vec[i, 0], y=ML_vec[i, 1], z=ML_vec[i, 2]))
-    outbag.write(topic_ml_vec, ml_vector, t)
+    outbag.write(topic_ml_vec, ml_vector, t_record)
     tf_robot = tfMessage(transforms=[TransformStamped(
-      header=Header(stamp=t, frame_id=robot_frame_id), 
-      child_frame_id='optitrack', transform=RobotTransform)])
+      header=Header(stamp=t, frame_id=robot_frame_ids[0]), 
+      child_frame_id=robot_frame_ids[1], transform=RobotTransform)])
     outbag.write('/tf', tf_robot, t)
     tf_kinect = tfMessage(transforms=[TransformStamped(
-      header=Header(stamp=t, frame_id='optitrack'), 
-      child_frame_id=kinect_frame_id, transform=KinectTransform)])
+      header=Header(stamp=t, frame_id=kinect_frame_ids[0]), 
+      child_frame_id=kinect_frame_ids[1], transform=KinectTransform)])
     outbag.write('/tf', tf_kinect, t)
     if i < len(vx_robot):
       msg_vx_robot = Vector3Stamped(header=header, vector=Vector3(x=vx_robot[i]))
-      outbag.write('/optitrack/vx_robot', msg_vx_robot, t)
+      outbag.write('/optitrack/vx_robot', msg_vx_robot, t_record)
     
-
+def generate_odom_bag(path, trial_id):
+  os.system('roslaunch gait_training_robot play.launch record_odom:=true enable_rviz:=false bag_name:=data' + trial_id)
+  bag_ops.rectify_bag_names(path, trial_id)
 
 def main():
   rp = rospkg.RosPack()
@@ -237,6 +304,8 @@ def main():
       path_csv = os.path.join(path_gta, 'optitrack', 'csv', 'SCH_Trial_' + trial_id + '.csv')
       path_inbag = os.path.join(path_gta, 'bags', inbag_relative_path , 'data' + trial_id + '.bag')
       path_outbag = os.path.join(path_gta, 'optitrack', 'bags', 'data' + trial_id + '.bag')
+      if not os.path.exists(path_inbag):
+        generate_odom_bag(os.path.join(path_gta, 'bags', inbag_relative_path), trial_id)
       for path in [path_csv, path_inbag]:
         if not os.path.exists(path):
           raise IOError(errno.ENOENT, os.strerror(errno.ENOENT), path)

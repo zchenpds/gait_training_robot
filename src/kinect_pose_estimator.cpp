@@ -74,7 +74,19 @@ void KinectPoseEstimator::odomCB(const nav_msgs::Odometry & msg)
   if (!kimu_received_) return;
   if (!ekf_initialized_) odomUpdate(msg.header.stamp); // Initialize
   kimuPredictAndUpdate(msg.header.stamp);
-  
+
+  // Velocity update
+  tf2::Vector3 zv_ros;
+  tf2::fromMsg(msg.twist.twist.linear, zv_ros);
+  tf2::Quaternion quat;
+  tf2::fromMsg(msg.pose.pose.orientation, quat);
+  zv_ros = tf2::quatRotate(quat, zv_ros);
+  constexpr static FloatType alpha = 0.2;
+  auto zv_current = zv_ros_last_ * alpha + zv_ros * (1.0 - alpha);
+  zv_ros_last_ = zv_ros;
+  ekf_t::ZV zv;
+  zv << zv_current.x(), zv_current.y(), zv_current.z();
+  ekf_.update(zv);
 }
 
 
