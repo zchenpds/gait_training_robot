@@ -1,0 +1,20 @@
+<launch>
+    <param name="use_sim_time" value="true"/>
+    <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
+          args="--clock $(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag 
+		  		$(find gait_training_robot)/optitrack/bags/$(arg bag_name).bag" >
+		<remap from="/tf" to="/tf_old"/>
+	</node>
+
+    <!-- Remap frame to allow change of tf -->
+    <node name="tf_remap" pkg="tf_remapper_cpp" type="tf_remap">
+        <rosparam param="mappings" >
+            [{old: camera_mount_top, new: camera_mount_top_old}]
+        </rosparam>
+    </node>
+    <node name="tf_broadcaster_azure_kinect" pkg="tf" type="static_transform_publisher"  
+          args="0 0.015 0 0 0 0 camera_mount_top camera_mount_top_old 100" />
+
+    <!-- Robot state publisher -->
+    <include file="$(find gait_training_robot)/launch/includes/robot_state_publisher.launch" />
+</launch>

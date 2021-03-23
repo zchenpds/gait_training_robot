@@ -33,12 +33,7 @@
 	</group>
 
 	<!-- rosbag play -->
-	<param name="use_sim_time" value="true"/>
-    <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
-          args="--clock $(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag" />
-    <!-- Robot state publisher -->
-    <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
-	<node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher"/>
+	<include file="$(find gait_training_robot)/launch/includes/playback.launch" pass_all_args="true" />
 
 	<!-- Rviz -->
 	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" />
