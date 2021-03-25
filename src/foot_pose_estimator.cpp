@@ -16,7 +16,7 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   sub_id_(-1),
   nh_(n),
   private_nh_(p),
-  sub_skeletons_(nh_.subscribe("/body_tracking_data", 20, &FootPoseEstimator::skeletonsCB, this)),
+  sub_skeletons_(nh_.subscribe("/body_tracking_data", 200, &FootPoseEstimator::skeletonsCB, this)),
   sub_sport_sole_(nh_.subscribe("/sport_sole_publisher/sport_sole", 200, &FootPoseEstimator::sportSoleCB, this)),
   cache_sport_sole_(800),
   tf_listener_(tf_buffer_),
@@ -69,7 +69,7 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   for (auto lr : {LEFT, RIGHT})
   {
     std::string str_lr = (lr == LEFT ? "l" : "r");
-    pub_fused_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("fused_pose_" + str_lr, 5);
+    pub_fused_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("fused_pose_" + str_lr, 600);
     pub_raw_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("raw_pose_" + str_lr, 5);
     pub_ekf_state_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfState>("state_" + str_lr, 5);
     pub_ekf_sport_sole_measurement_[lr] = private_nh_.advertise<gait_training_robot::SportSoleEkfSportSoleMeasurement>("sport_sole_measurement_" + str_lr, 20);
@@ -78,9 +78,6 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
 
   msg_sport_sole_measurement_[LEFT].header.frame_id = "sport_sole_left";
   msg_sport_sole_measurement_[RIGHT].header.frame_id = "sport_sole_right";
-
-  timer_update_tf_global_to_publish_ = nh_.createTimer(ros::Duration(0.1), &FootPoseEstimator::updateTfCB, this);
-
 }
 
 void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
@@ -163,7 +160,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       tf2::fromMsg(it_ankle->pose.position, position);
       position = tf_depth_to_global * position;
       // The displacement of the sport sole relative to the ankle joint expressed in the ankle joint frame
-      auto disp_imu = tf2::quatRotate(quat.inverse(), {0.02, 0.0, -0.1});
+      auto disp_imu = tf2::quatRotate(quat, {0.1, 0.0, -0.1});
       position += disp_imu;
       tf_joint_ptr->transform.translation = tf2::toMsg(position);
       cache_kinect_measurements_[lr].add(tf_joint_ptr);
@@ -198,7 +195,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       if (params_.global_frame == params_.publish_frame || is_initialized_tf_global_to_publish_)
       {
         auto pose_measured = constructPoseWithCovarianceStamped(position, quat);
-        pose_measured.header.stamp = stamp_skeleton_curr;
+        pose_measured->header.stamp = stamp_skeleton_curr;
         pub_raw_poses_[lr].publish(pose_measured);
       }
 
@@ -272,20 +269,20 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
   // fflush(stdout);
 }
 
-void FootPoseEstimator::updateTfCB(const ros::TimerEvent& event)
+void FootPoseEstimator::updateTf(const ros::Time& stamp)
 {
   if (params_.global_frame == params_.publish_frame) return;
   try
   {
     geometry_msgs::TransformStamped tf_msg;
-    tf_msg = tf_buffer_.lookupTransform(params_.publish_frame, params_.global_frame, ros::Time(), ros::Duration(0.001));
+    tf_msg = tf_buffer_.lookupTransform(params_.publish_frame, params_.global_frame, stamp, ros::Duration(0.3));
     tf2::fromMsg(tf_msg.transform, tf_global_to_publish_);
     is_initialized_tf_global_to_publish_ = true;
+    ROS_INFO_STREAM_ONCE("Tf to global frame [" << params_.global_frame << "] has been received." );
   }
   catch (tf2::TransformException& ex)
   {
-    ROS_WARN_THROTTLE(5.0, "Will use '%s' instead of '%s' in 'header.frame_id'. %s", 
-      params_.global_frame.c_str(), params_.publish_frame.c_str(), ex.what());
+    ROS_DEBUG_THROTTLE(5.0, "Global frame [%s] cannot be found. %s", params_.global_frame.c_str(), ex.what());
     return;
   }
 }
@@ -390,7 +387,7 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
       pub_ekf_sport_sole_measurement_[lr].publish(msg_measurement);
     }
 
-    // Publishe a priori state estimate
+    // Publish a priori state estimate
     if (pub_ekf_state_[lr].getNumSubscribers())
     {
       msg_state.q.w = ekf.x.q0();
@@ -473,7 +470,12 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
     if (ekf.x.v().hypotNorm() > 0.3)
     {
       double MU2 = 2.0;
+#if 1
       tf2::Quaternion delta_quat({0, 0, 1}, zy_correction.z() * MU2);
+#else
+      auto dir_corr = zy_correction.normalized();
+      tf2::Quaternion delta_quat({dir_corr.x(), dir_corr.y(), dir_corr.z()}, zy_correction.norm() * MU2);
+#endif
       tf2::Quaternion quat_estimate(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
       quat_estimate = quat_estimate * delta_quat;
       ekf_t::ZQ zq;
@@ -537,8 +539,9 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
   publishFusedPoses(ts_kinect_last_);
 }
 
-void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp) const
+void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp)
 {
+  updateTf(stamp);
   if (!(params_.global_frame == params_.publish_frame || is_initialized_tf_global_to_publish_))
   {
     ROS_WARN_STREAM_ONCE("Will not publish fused poses until the transform from global frame to publish frame becomes available.");
@@ -550,13 +553,13 @@ void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp) const
     tf2::Vector3 position(ekf.x.px(), ekf.x.py(), ekf.x.pz());
     tf2::Quaternion quat(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
     auto pose_fused = constructPoseWithCovarianceStamped(position, quat); 
-    pose_fused.header.stamp = stamp;
+    pose_fused->header.stamp = stamp;
     // pose_msg.pose.covariance
     for (size_t i0 = decltype(ekf.x)::PX, i = 0; i < 3; ++i)
     {
       for (size_t j0 = decltype(ekf.x)::PX, j = 0; j < 3; ++j)
       {
-        pose_fused.pose.covariance[i * 6 + j] = ekf.P(i0 + i, j0 + j);
+        pose_fused->pose.covariance[i * 6 + j] = ekf.P(i0 + i, j0 + j);
       }
     }
     pub_fused_poses_[lr].publish(pose_fused);
@@ -583,22 +586,22 @@ int main(int argc, char **argv)
 }
 
 
-geometry_msgs::PoseWithCovarianceStamped FootPoseEstimator::constructPoseWithCovarianceStamped(
+geometry_msgs::PoseWithCovarianceStampedPtr FootPoseEstimator::constructPoseWithCovarianceStamped(
   tf2::Vector3 position, tf2::Quaternion quat) const
 {
-  geometry_msgs::PoseWithCovarianceStamped msg;
+  geometry_msgs::PoseWithCovarianceStampedPtr msg(new geometry_msgs::PoseWithCovarianceStamped);
   if (is_initialized_tf_global_to_publish_)
   {
-    msg.header.frame_id = params_.publish_frame;
+    msg->header.frame_id = params_.publish_frame;
     position = tf_global_to_publish_ * position;
     quat = tf_global_to_publish_ * quat;
   }
   else
   {
-    msg.header.frame_id = params_.global_frame;
+    msg->header.frame_id = params_.global_frame;
   }
-  tf2::toMsg(position, msg.pose.pose.position);
-  msg.pose.pose.orientation = tf2::toMsg(quat);
+  tf2::toMsg(position, msg->pose.pose.position);
+  msg->pose.pose.orientation = tf2::toMsg(quat);
 
   return msg;
 }

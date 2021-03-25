@@ -23,6 +23,9 @@
 
 #include <sport_sole/sport_sole_common.h>
 
+#include "robust_estimator.h"
+#include <deque>
+
 
 typedef double FloatType;
 
@@ -66,15 +69,15 @@ public:
   FootPoseEstimator(const ros::NodeHandle& n = ros::NodeHandle(), const ros::NodeHandle& p = ros::NodeHandle("~"));
   void skeletonsCB(const visualization_msgs::MarkerArray& msg);
   void sportSoleCB(const sport_sole::SportSole& msg);
-  void updateTfCB(const ros::TimerEvent& event);
+  void updateTf(const ros::Time& stamp);
 
 protected:
   void predict(sport_sole::SportSoleConstPtr msg_ptr);
   void update(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
               geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT]);
-  void publishFusedPoses(const ros::Time& stamp) const;
+  void publishFusedPoses(const ros::Time& stamp);
   void printDebugMessage(const char* message, const ros::Time& stamp, left_right_t lr) const;
-  geometry_msgs::PoseWithCovarianceStamped constructPoseWithCovarianceStamped(tf2::Vector3 position, tf2::Quaternion quat) const;
+  geometry_msgs::PoseWithCovarianceStampedPtr constructPoseWithCovarianceStamped(tf2::Vector3 position, tf2::Quaternion quat) const;
   
 private:
   // params 
@@ -92,6 +95,10 @@ private:
   message_filters::Cache<geometry_msgs::TransformStamped> cache_kinect_measurements_[LEFT_RIGHT];
   ros::Subscriber sub_sport_sole_;
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
+
+  // Stance Phase M-Estimator
+  StancePhaseMEstimator<tf2::Vector3> spme_[LEFT_RIGHT];
+  std::deque<ros::Time> spme_ts_queue_[LEFT_RIGHT];
 
   // SportSoleEKF
   ekf_t ekf_[LEFT_RIGHT];
@@ -127,7 +134,6 @@ private:
   tf2::Transform tf_global_to_publish_;
   // Becomes true if the publish frame is different from the global frame and the tf lookup succeeds
   bool is_initialized_tf_global_to_publish_;
-  ros::Timer timer_update_tf_global_to_publish_;
 
   sport_sole::GaitPhaseFSM2 gait_phase_fsm_;
 };
