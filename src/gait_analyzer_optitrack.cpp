@@ -71,8 +71,9 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   nh_(n),
   private_nh_(p),
   comkf_nh_(private_nh_, "comkf"),
-  sub_sport_sole_(nh_, "/sport_sole_publisher/sport_sole", 20), cache_sport_sole_(sub_sport_sole_, 100),
-  time_synchronizer_(100),
+  sub_sport_sole_(nh_.subscribe("/sport_sole_publisher/sport_sole", 400, &GaitAnalyzer::sportSoleCB, this)),
+  cache_sport_sole_(600),
+  time_synchronizer_(300),
   tf_listener_(tf_buffer_),
   is_initialized_tf_global_to_publish_(false),
   comkf_initialized_(false),
@@ -115,8 +116,8 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
     // namespace optitrack
     ga_params_.foot_pose_topic = "/optitrack/foot_pose_";
     ga_params_.global_frame = "optitrack";
-    sub_com_ = private_nh_.subscribe("/optitrack/com", 50, &GaitAnalyzer::comCB, this);
-    sub_ml_vec_ = private_nh_.subscribe("/optitrack/ml_vec", 50, &GaitAnalyzer::mlVecCB, this);
+    sub_com_ = private_nh_.subscribe("/optitrack/com", 500, &GaitAnalyzer::comCB, this);
+    sub_ml_vec_ = private_nh_.subscribe("/optitrack/ml_vec", 500, &GaitAnalyzer::mlVecCB, this);
   }
   else
   {
@@ -128,7 +129,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
   for (auto lr: {LEFT, RIGHT})
   {
-    sub_foot_poses_[lr].subscribe(nh_, ga_params_.foot_pose_topic + (lr == LEFT ? "l" : "r"), 20);
+    sub_foot_poses_[lr].subscribe(nh_, ga_params_.foot_pose_topic + (lr == LEFT ? "l" : "r"), 500);
   }
   time_synchronizer_.connectInput(sub_foot_poses_[LEFT], sub_foot_poses_[RIGHT]);
   time_synchronizer_.registerCallback(boost::bind(&GaitAnalyzer::timeSynchronizerCB, this, _1, _2, _3, _4));
@@ -346,10 +347,12 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     for (const auto & ss_ptr : sport_sole_ptrs)
     {
       // EKF prediction is done here
-      sportSoleCB(*ss_ptr);
+      processSportSole(*ss_ptr);
     }
     // ROS_INFO_STREAM(sport_sole_ptrs.size() << " predictions between t=" <<
-    //   (stamp_com_prev_ - stamp_base_).toSec() << "s and t=" << (stamp_skeleton_curr - stamp_base_).toSec() << "s are done");
+    //   (stamp_com_prev_ - stamp_base_).toSec() << "s and t=" << (stamp_skeleton_curr - stamp_base_).toSec() << "s are done. "
+    //   "cache_sport_sole time range: " << (cache_sport_sole_.getOldestTime() - stamp_base_).toSec() << ", " <<
+    //   (cache_sport_sole_.getLatestTime() - stamp_base_).toSec());
   }
   else
   {
@@ -378,6 +381,12 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
   }
   else
   {
+    auto delay_sport_sole = stamp_skeleton_curr - msg_sport_sole_ptr->header.stamp;
+    if (delay_sport_sole > ros::Duration(0.05))
+    {
+      ROS_WARN_STREAM_THROTTLE(1.0, ga_params_.data_source << 
+        " sport_sole messages found but is " << delay_sport_sole.toSec() << "s too old!");
+    }
     gait_phase_fsm_.update(msg_sport_sole_ptr->pressures);
     uint8_t gait_state = gait_phase_fsm_.getGaitState();
     updateGaitState(gait_state);
@@ -421,7 +430,7 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
       const auto & x = comkf_.update(zp);
       updateCoMEstimate(stamp_skeleton_curr, x);
       gait_training_robot::ComkfCopMeasurement msg;
-      msg.header.stamp = stamp_sport_sole_prev_;
+      msg.header.stamp = stamp_skeleton_curr;
       msg.header.frame_id = ga_params_.global_frame;
       msg.px = zp.px();
       msg.py = zp.py();
@@ -469,6 +478,14 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
 }
 
 void GaitAnalyzer::sportSoleCB(const sport_sole::SportSole& msg)
+{
+  sport_sole::SportSolePtr msg_new(new sport_sole::SportSole(msg));
+  ros::Time ts_sport_sole_curr = msg.header.stamp + ros::Duration(ga_params_.sport_sole_time_offset);
+  msg_new->header.stamp = ts_sport_sole_curr;
+  cache_sport_sole_.add(msg_new);
+}
+
+void GaitAnalyzer::processSportSole(const sport_sole::SportSole& msg)
 {
   const auto & stamp_sport_sole_curr = msg.header.stamp;
 

@@ -52,6 +52,7 @@ typedef double T;
   LIST_ENTRY(foot_pose_topic, "The topic name for foot poses.", std::string, std::string("/foot_pose_estimator/fused_pose_")) \
   LIST_ENTRY(data_source, "Must be either 'k4a' or 'optitrack'.", std::string, std::string("k4a"))                            \
   LIST_ENTRY(smoother_enabled, "Enable moving average smoother or not. May cause latency.", bool, false)                      \
+  LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                  \
 
 
 #define COMKF_PARAM_LIST \
@@ -222,6 +223,7 @@ public:
   void mlVecCB(const geometry_msgs::Vector3Stamped& msg);
   void timeSynchronizerCB(const PoseType::ConstPtr&, const PoseType::ConstPtr&, const PointType::ConstPtr&, const VectorType::ConstPtr&);
   void sportSoleCB(const sport_sole::SportSole& msg);
+  void processSportSole(const sport_sole::SportSole& msg);
   void updateGaitState(const uint8_t& msgs);
   void updateTfCB(const ros::TimerEvent& event);
   // Update both CoM and CoMv measurements
@@ -276,7 +278,7 @@ private:
   ros::Subscriber sub_skeletons_;
   ros::Subscriber sub_com_;
   ros::Subscriber sub_ml_vec_;
-  message_filters::Subscriber<sport_sole::SportSole>                            sub_sport_sole_;
+  ros::Subscriber                                                               sub_sport_sole_;
   message_filters::Cache     <sport_sole::SportSole>                          cache_sport_sole_;
   message_filters::Subscriber<PoseType>                                         sub_foot_poses_[LEFT_RIGHT];
   message_filters::TimeSynchronizer<PoseType, PoseType, PointType, VectorType>  time_synchronizer_;

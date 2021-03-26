@@ -71,8 +71,8 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   nh_(n),
   private_nh_(p),
   comkf_nh_(private_nh_, "comkf"),
-  sub_sport_sole_(nh_.subscribe("/sport_sole_publisher/sport_sole", 20, &GaitAnalyzer::sportSoleCB, this)),
-  cache_sport_sole_(100),
+  sub_sport_sole_(nh_.subscribe("/sport_sole_publisher/sport_sole", 800, &GaitAnalyzer::sportSoleCB, this)),
+  cache_sport_sole_(600),
   time_synchronizer_measure_(100),
   time_synchronizer_estimate_(600),
   tf_listener_(tf_buffer_),
@@ -108,7 +108,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
   if (ga_params_.data_source == "k4a")
   {
-    sub_skeletons_ = nh_.subscribe("/body_tracking_data", 5, &GaitAnalyzer::skeletonsCB, this );
+    sub_skeletons_ = nh_.subscribe("/body_tracking_data", 100, &GaitAnalyzer::skeletonsCB, this );
   }
   else if (ga_params_.data_source == "optitrack")
   {
@@ -128,7 +128,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
   for (auto lr: {LEFT, RIGHT})
   {
-    sub_foot_poses_[lr].subscribe(nh_, ga_params_.foot_pose_topic + (lr == LEFT ? "l" : "r"), 20);
+    sub_foot_poses_[lr].subscribe(nh_, ga_params_.foot_pose_topic + (lr == LEFT ? "l" : "r"), 600);
   }
   time_synchronizer_measure_.connectInput(sub_foot_poses_[LEFT], sub_foot_poses_[RIGHT]);
   time_synchronizer_measure_.registerCallback(boost::bind(&GaitAnalyzer::timeSynchronizerMeasureCB, this, _1, _2, _3, _4));
@@ -372,6 +372,12 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
   }
   else
   {
+    auto delay_sport_sole = stamp_skeleton_curr - msg_sport_sole_ptr->header.stamp;
+    if (delay_sport_sole > ros::Duration(0.05))
+    {
+      ROS_WARN_STREAM_THROTTLE(1.0, ga_params_.data_source << 
+        " sport_sole messages found but is " << delay_sport_sole.toSec() << "s too old!");
+    }
     comkf::ZP zp;
     zp.px() = msg_com->point.x;
     zp.py() = msg_com->point.y;
