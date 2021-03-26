@@ -59,7 +59,7 @@ std::string generateDateString()
 }
 
 template<class VectorType, typename T>
-inline void assignVector3(VectorType & v1, Eigen::Matrix<T, 3, 1> v2)
+inline void assignVector3(VectorType & v1, const Eigen::Matrix<T, 3, 1>& v2)
 {
   v1.x = v2(0);
   v1.y = v2(1);
