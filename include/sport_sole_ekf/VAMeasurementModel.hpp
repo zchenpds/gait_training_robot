@@ -7,6 +7,9 @@
 namespace sport_sole
 {
 
+template<typename T>
+class ExtendedKalmanFilter;
+
 /**
  * @brief Measurement vector measuring the sport sole acceleration with sport sole Kinect
  *
@@ -15,6 +18,8 @@ namespace sport_sole
 template<typename T>
 class VAMeasurement : public Kalman::Vector<T, 6>
 {
+    friend class ExtendedKalmanFilter<T>;
+
 public:
     KALMAN_VECTOR(VAMeasurement, T, 6)
     
@@ -54,6 +59,8 @@ public:
 template<typename T, template<class> class CovarianceBase = Kalman::StandardBase>
 class VAMeasurementModel : public Kalman::LinearizedMeasurementModel<State<T>, VAMeasurement<T>, CovarianceBase>
 {
+    friend class ExtendedKalmanFilter<T>;
+
 public:
     //! State type shortcut definition
     typedef  sport_sole::State<T> S;
@@ -70,6 +77,7 @@ public:
         // Linear measurement model
         this->H.setZero();
         this->H.template block<3, 3>(M::VX, S::VX) = this->H.template block<3, 3>(M::AX, S::AX) = Kalman::SquareMatrix<T, 3>::Identity();
+        // this->H.template block<3, 3>(M::VX, S::VX) = Kalman::SquareMatrix<T, 3>::Identity();
 
         // Setup noise jacobian. As this one is static, we can define it once
         // and do not need to update it dynamically

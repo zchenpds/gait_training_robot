@@ -6,9 +6,11 @@ system_noise_a: 7.0
 system_noise_ab: 0.0001
 system_noise_wb: 0.00001
 measurement_noise_p: 0.01
-measurement_noise_v: 0.1
+measurement_noise_v: 0.01
 measurement_noise_a: 1.0
 measurement_noise_g: 0.005
 measurement_noise_q: 0.02
 measurement_noise_y: 0.05
 measurement_noise_va: 0.00001
+confidence_pos_a_priori_alpha: 0.1
+enable_debug_log: false

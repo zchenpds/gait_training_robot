@@ -1,6 +1,13 @@
 #include "gait_training_robot/foot_pose_estimator.h"
 #include "gait_training_robot/kalman_filter_common.h"
+#include <fstream>
 
+// Log
+#include <stdlib.h>
+std::string path_to_home = getenv("HOME");
+std::ofstream ofs_log[LEFT_RIGHT] = {
+  std::ofstream(path_to_home + "/.ros/gait_training_robot/fpel.log"), 
+  std::ofstream(path_to_home + "/.ros/gait_training_robot/fper.log")};
 using namespace sport_sole;
 
 void FootPoseEstimatorParams::print()
@@ -53,7 +60,11 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
     setModelCovariance(ekf.sys, 
         {var_q, var_q, var_q, var_q, var_w, var_w, var_w,                   // q, w
          var_p, var_p, var_p, var_v, var_v, var_v, var_a, var_a, var_a, // p, v, a
-         var_ab, var_ab, var_ab, var_wb, var_wb, var_wb});                    // ab wb
+         var_wb, var_wb, var_wb
+#if SSEKF_ENABLE_ACC_BIAS()
+         ,var_ab, var_ab, var_ab
+#endif
+         });                    // ab wb
     // auto var_zp = pow(params_.measurement_noise_p,  2);
     // setModelCovariance(ekf.pmm,  {var_zp, var_zp, 5 * var_zp});
     setModelCovariance(ekf.pmm,  pow(params_.measurement_noise_p,  2));
@@ -306,19 +317,15 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
     ekf.predict(dt);
     printDebugMessage("Predicted", msg_ptr->header.stamp, lr);
 
-    ekf_t::ZA za;
-    za.x() = msg_measurement.a.x = msg_ptr->raw_acceleration[lr].linear.x;
-    za.y() = msg_measurement.a.y = -msg_ptr->raw_acceleration[lr].linear.y;
-    za.z() = msg_measurement.a.z = -msg_ptr->raw_acceleration[lr].linear.z;
-    ekf.update(za);
-    printDebugMessage("Accel update", msg_ptr->header.stamp, lr);
-
     ekf_t::ZG zg;
     zg.x() = msg_measurement.w.x = msg_ptr->angular_velocity[lr].x;
     zg.y() = msg_measurement.w.y = -msg_ptr->angular_velocity[lr].y;
     zg.z() = msg_measurement.w.z = -msg_ptr->angular_velocity[lr].z;
-    ekf.update(zg);
-    printDebugMessage("Gyro update", msg_ptr->header.stamp, lr);
+
+    ekf_t::ZA za;
+    za.x() = msg_measurement.a.x = msg_ptr->raw_acceleration[lr].linear.x;
+    za.y() = msg_measurement.a.y = -msg_ptr->raw_acceleration[lr].linear.y;
+    za.z() = msg_measurement.a.z = -msg_ptr->raw_acceleration[lr].linear.z;
 
     // Convert quaternion to euler angles
     double yaw, pitch, roll;
@@ -336,17 +343,17 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
       if (pitch > 0.5 && zg.y() > 1.0 && isHindfootTouchingGround(current_gait_phase_[lr]) )
       {
         stickyHindfoot = true;
-        // current_gait_phase_[lr] = GaitPhase::Stance3;
+        current_gait_phase_[lr] = GaitPhase::Stance3;
       }
       else if (pitch < -0.3 && zg.y() > 1.0 && isForefootTouchingGround(current_gait_phase_[lr]))
       {
         stickyForefoot = true;
-        // current_gait_phase_[lr] = GaitPhase::Stance1;
+        current_gait_phase_[lr] = GaitPhase::Stance1;
       }
       else if (zg.y() < -1.0)
       {
         stickyForefoot = stickyHindfoot = true;
-        // current_gait_phase_[lr] = GaitPhase::Swing;
+        current_gait_phase_[lr] = GaitPhase::Swing;
       }
 
       std::string str_lr = (lr == LEFT ? "L" : "R");
@@ -365,25 +372,74 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
       }
     }
 
+    // Accel update
+    if (current_gait_phase_[lr] == GaitPhase::Stance2)
+      setModelCovariance(ekf.amm,  pow(params_.measurement_noise_a / 10,  2));
+    else
+      setModelCovariance(ekf.amm,  pow(params_.measurement_noise_a,  2));
+    ekf.update(za);
+    printDebugMessage("Accel update", msg_ptr->header.stamp, lr);
+
+    // Gyro update
+    ekf.update(zg);
+    printDebugMessage("Gyro update", msg_ptr->header.stamp, lr);
+
     // Zero velocity update
-    if (current_gait_phase_[lr] == GaitPhase::Stance1 || current_gait_phase_[lr] == GaitPhase::Stance2)
+    ekf_t::ZV zv;
+    zv << NAN, NAN, NAN;
+    if (current_gait_phase_[lr] != GaitPhase::Swing)
     // if (current_gait_phase_[lr] == GaitPhase::Stance2)
     {
-      ekf_t::ZVA zva;
-      zva << ekf_t::ZVA::Zero();
       if (previous_gait_phase_[lr] == GaitPhase::Swing) 
       {
-        ekf.printP(); // debug
+        ekf.reducePVA();
+      }
+
+      if (current_gait_phase_[lr] == GaitPhase::Stance2)
+      {
+        // foot-flat phase
+        confidence_pos_a_priori_[lr] += params_.confidence_pos_a_priori_alpha * (1.0 - confidence_pos_a_priori_[lr]);
+        ekf_t::ZVA zva;
+        zva.setZero();
+        zv.setZero();
+        ekf.update(zva);
+        printDebugMessage("Zero VA update", msg_ptr->header.stamp, lr);
+        zg_y_max_[lr] = 0.;
+      }
+      else if (current_gait_phase_[lr] == GaitPhase::Stance1)
+      {
+        // First contact
+        tf2::Quaternion quat(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
+        tf2::Vector3 r{0.1, 0., 0.};
+        tf2::Vector3 omega{ekf.x.wx(), ekf.x.wy(), ekf.x.wz()};
+        tf2::Vector3 v = tf2::quatRotate(quat, omega.cross(r));
+        zv << v.x(), v.y(), v.z();
+        ekf.update(zv);
+        printDebugMessage("First contact velocity update", msg_ptr->header.stamp, lr);
+      }
+      else if (current_gait_phase_[lr] == GaitPhase::Stance3 && zg.y() > zg_y_max_[lr])
+      {
+        // Last contact
+        zg_y_max_[lr] = zg.y();
+        tf2::Quaternion quat(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
+        tf2::Vector3 r{-0.07, 0., 0.};
+        tf2::Vector3 omega{ekf.x.wx(), ekf.x.wy(), ekf.x.wz()};
+        tf2::Vector3 v = tf2::quatRotate(quat, omega.cross(r));
+        zv << v.x(), v.y(), v.z();
+        ekf.update(zv);
+        printDebugMessage("Last contact velocity updatee", msg_ptr->header.stamp, lr);
       }
       ekf.reducePVA();
-      ekf.update(zva);
-      printDebugMessage("Zero VA update", msg_ptr->header.stamp, lr);
-      if (previous_gait_phase_[lr] == GaitPhase::Swing) {ekf.printP();}  // debug
+    }
+    else
+    {
+      confidence_pos_a_priori_[lr] = params_.robustness_factor_swing;
     }
 
     // Publish sport_sole measurement message
     if (pub_ekf_sport_sole_measurement_[lr].getNumSubscribers())
     {
+      assignVector3(msg_measurement.v, zv);
       pub_ekf_sport_sole_measurement_[lr].publish(msg_measurement);
     }
 
@@ -457,7 +513,44 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
     }
     else
     {
-      ekf.update(zp);
+#if 0
+      if (current_gait_phase_[lr] != GaitPhase::Stance2)
+      {
+        FloatType gamma = confidence_pos_a_priori_[lr];
+        FloatType outlier_threshold = params_.system_noise_p * params_.outlier_threashold;
+        auto psi = [gamma, outlier_threshold](FloatType zeta){
+          zeta = fabs(zeta);
+          if (zeta < outlier_threshold) return FloatType(0);
+          else return gamma * (zeta - outlier_threshold);
+        };
+        ekf.update(zp, psi);
+        spme_[lr].clear();
+      }
+      else
+      {
+        // Initialize spme with prior estimate
+        if (spme_[lr].empty()) spme_[lr].put(ekf.x.p());
+        spme_[lr].put(zp);
+        ekf_t::ZP zp_new = spme_[lr].getAverage();
+        ekf.update(zp_new);
+      }
+#else
+      FloatType gamma = params_.outlier_threashold;
+      auto psi = [gamma](FloatType zeta){
+        if (fabs(zeta) < gamma)
+        {
+          return FloatType(1.0);
+        }
+        else
+        {
+          return gamma / fabs(zeta);
+        }
+      };
+      if (params_.enable_debug_log)
+        ekf.updateHuber(zp, psi, &ofs_log[lr]);
+      else
+        ekf.updateHuber(zp, psi);
+#endif
       printDebugMessage("Position update", msg_kinect_ptr->header.stamp, lr);
     }
     
@@ -568,11 +661,14 @@ void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp)
 
 void FootPoseEstimator::printDebugMessage(const char* message, const ros::Time& stamp, left_right_t lr) const
 {
-  return;
+  if (!params_.enable_debug_log) return;
+  if (std::strcmp("Updating", message)) return;
   const ekf_t& ekf = ekf_[lr];
-  printf("[%6.3lf] %s %s\n", (stamp - ts_init_).toSec(), message, lr == LEFT ? "Left" : "Right");
-  std::cout << "x:\n" << ekf.x << "\n";
-  std::cout << "P:\n" << ekf.P << "\n\n";
+  ofs_log[lr].precision(15);
+  ofs_log[lr] << stamp.toSec() << " " << message << " ";
+  ofs_log[lr].precision(3);
+  ofs_log[lr] << "x:\n" << ekf.x.transpose() << "\n";
+  ofs_log[lr] << "P:\n" << ekf.P << "\n\n";
 }
 
 int main(int argc, char **argv)

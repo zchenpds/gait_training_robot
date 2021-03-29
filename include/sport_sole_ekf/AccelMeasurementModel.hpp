@@ -7,6 +7,10 @@
 namespace sport_sole
 {
 
+template<typename T>
+class ExtendedKalmanFilter;
+
+
 /**
  * @brief Measurement vector measuring the sport sole acceleration with sport sole Kinect
  *
@@ -15,6 +19,8 @@ namespace sport_sole
 template<typename T>
 class AccelMeasurement : public Kalman::Vector<T, 3>
 {
+    friend class ExtendedKalmanFilter<T>;
+
 public:
     KALMAN_VECTOR(AccelMeasurement, T, 3)
     
@@ -42,6 +48,8 @@ public:
 template<typename T, template<class> class CovarianceBase = Kalman::StandardBase>
 class AccelMeasurementModel : public Kalman::LinearizedMeasurementModel<State<T>, AccelMeasurement<T>, CovarianceBase>
 {
+    friend class ExtendedKalmanFilter<T>;
+
 public:
     //! State type shortcut definition
     typedef  sport_sole::State<T> S;
@@ -87,9 +95,13 @@ public:
 
         M measurement;
         measurement << 
-            x.abx() + ax*(q0sq + q1sq - q2sq - q3sq) + ay*2*(q0*q3 + q1*q2)           + az*2*(q1*q3 - q0*q2),
-            x.aby() + ax*2*(q1*q2 - q0*q3)           + ay*(q0sq - q1sq + q2sq - q3sq) + az*2*(q0*q1 + q2*q3),
-            x.abz() + ax*2*(q0*q2 + q1*q3)           + ay*2*(q2*q3 - q0*q1)           + az*(q0sq - q1sq - q2sq + q3sq);        
+            ax*(q0sq + q1sq - q2sq - q3sq) + ay*2*(q0*q3 + q1*q2)           + az*2*(q1*q3 - q0*q2),
+            ax*2*(q1*q2 - q0*q3)           + ay*(q0sq - q1sq + q2sq - q3sq) + az*2*(q0*q1 + q2*q3),
+            ax*2*(q0*q2 + q1*q3)           + ay*2*(q2*q3 - q0*q1)           + az*(q0sq - q1sq - q2sq + q3sq);
+
+#if SSEKF_ENABLE_ACC_BIAS()
+        measurement += x.ab();
+#endif
         return measurement;
     }
 
@@ -123,8 +135,10 @@ protected:
             q0sq + q1sq - q2sq - q3sq,       + 2*q0*q3 + 2*q1*q2,       - 2*q0*q2 + 2*q1*q3,
                   - 2*q0*q3 + 2*q1*q2, q0sq - q1sq + q2sq - q3sq,         2*q0*q1 + 2*q2*q3,
                     2*q0*q2 + 2*q1*q3,       - 2*q0*q1 + 2*q2*q3, q0sq - q1sq - q2sq + q3sq;
-        
-        // this->H.template block<3, 3>(M::X, S::ABX).setIdentity();
+
+#if SSEKF_ENABLE_ACC_BIAS()
+        this->H.template block<3, 3>(M::X, S::ABX).setIdentity();
+#endif
     }
 
 protected:

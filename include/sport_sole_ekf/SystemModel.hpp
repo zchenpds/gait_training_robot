@@ -9,7 +9,11 @@ namespace sport_sole
 template<class T>
 class ExtendedKalmanFilter;
 
+#if SSEKF_ENABLE_ACC_BIAS()
 constexpr size_t STATE_DIM = 22;
+#else
+constexpr size_t STATE_DIM = 19;
+#endif
 /**
  * @brief System state vector-type for a 6DOF sport_sole
  *
@@ -42,14 +46,15 @@ public:
     static constexpr size_t AY = 14;
     static constexpr size_t AZ = 15;
 
-    static constexpr size_t ABX = 16;
-    static constexpr size_t ABY = 17;
-    static constexpr size_t ABZ = 18;
+    static constexpr size_t WBX = 16;
+    static constexpr size_t WBY = 17;
+    static constexpr size_t WBZ = 18;
 
-    static constexpr size_t WBX = 19;
-    static constexpr size_t WBY = 20;
-    static constexpr size_t WBZ = 21;
-    
+#if SSEKF_ENABLE_ACC_BIAS()
+    static constexpr size_t ABX = 19;
+    static constexpr size_t ABY = 20;
+    static constexpr size_t ABZ = 21;
+#endif
     Kalman::Vector<T, 4> q() const { return this->template segment<4>(Q0); }
     T q0()   const { return (*this)[ Q0 ]; }
     T q1()   const { return (*this)[ Q1 ]; }
@@ -75,16 +80,23 @@ public:
     T ax()   const { return (*this)[ AX ]; }
     T ay()   const { return (*this)[ AY ]; }
     T az()   const { return (*this)[ AZ ]; }
-    
-    Kalman::Vector<T, 3> ab() const { return this->template segment<3>(ABX); }
-    T abx()  const { return (*this)[ ABX ]; }
-    T aby()  const { return (*this)[ ABY ]; }
-    T abz()  const { return (*this)[ ABZ ]; }
-    
+
     Kalman::Vector<T, 3> wb() const { return this->template segment<3>(WBX); }
     T wbx()  const { return (*this)[ WBX ]; }
     T wby()  const { return (*this)[ WBY ]; }
     T wbz()  const { return (*this)[ WBZ ]; }
+
+#if SSEKF_ENABLE_ACC_BIAS()
+    Kalman::Vector<T, 3> ab() const { return this->template segment<3>(ABX); }
+    T abx()  const { return (*this)[ ABX ]; }
+    T aby()  const { return (*this)[ ABY ]; }
+    T abz()  const { return (*this)[ ABZ ]; }
+#else
+    Kalman::Vector<T, 3> ab() const { return Kalman::Vector<T, 3>::Zero(); }
+    T abx()  const { 0.0; }
+    T aby()  const { 0.0; }
+    T abz()  const { 0.0; }
+#endif
     
     T& q0()   { return (*this)[ Q0 ]; }
     T& q1()   { return (*this)[ Q1 ]; }
@@ -107,13 +119,15 @@ public:
     T& ay()   { return (*this)[ AY ]; }
     T& az()   { return (*this)[ AZ ]; }
     
-    T& abx()  { return (*this)[ ABX ]; }
-    T& aby()  { return (*this)[ ABY ]; }
-    T& abz()  { return (*this)[ ABZ ]; }
-    
     T& wbx()  { return (*this)[ WBX ]; }
     T& wby()  { return (*this)[ WBY ]; }
     T& wbz()  { return (*this)[ WBZ ]; }
+    
+#if SSEKF_ENABLE_ACC_BIAS()
+    T& abx()  { return (*this)[ ABX ]; }
+    T& aby()  { return (*this)[ ABY ]; }
+    T& abz()  { return (*this)[ ABZ ]; }
+#endif
 };
 
 /**

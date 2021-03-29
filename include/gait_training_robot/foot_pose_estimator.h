@@ -45,9 +45,13 @@ typedef double FloatType;
   LIST_ENTRY(measurement_noise_q, "The standard deviation of quaternion measurement noise.", FloatType, 2e-1)                    \
   LIST_ENTRY(measurement_noise_y, "The standard deviation of yaw measurement noise.", FloatType, 1e-2)                           \
   LIST_ENTRY(measurement_noise_va, "The standard deviation of va measurement noise.", FloatType, 1e-5)                           \
+  LIST_ENTRY(confidence_pos_a_priori_alpha, "Test.", FloatType, 1e-1)                                                            \
+  LIST_ENTRY(robustness_factor_swing, "Test.", FloatType, 0.05)                                                                  \
+  LIST_ENTRY(outlier_threashold, "The residual (in sigma) beyond which the measurement is considered an outlier.", FloatType, 3.0)  \
   LIST_ENTRY(global_frame, "The reference frame for the filter output.", std::string, std::string("odom"))                       \
   LIST_ENTRY(publish_frame, "The reference frame for pose messages.", std::string, std::string("odom"))                          \
   LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                     \
+  LIST_ENTRY(enable_debug_log, "If set to true, verbose log will be saved at '~/.ros/gait_training_robot/fpe.log'.", bool, false)\
 
 
 struct FootPoseEstimatorParams
@@ -97,11 +101,13 @@ private:
   message_filters::Cache<sport_sole::SportSole> cache_sport_sole_;
 
   // Stance Phase M-Estimator
-  StancePhaseMEstimator<tf2::Vector3> spme_[LEFT_RIGHT];
-  std::deque<ros::Time> spme_ts_queue_[LEFT_RIGHT];
+  StancePhaseMEstimator<ekf_t::ZP> spme_[LEFT_RIGHT];
+  // std::deque<ros::Time> spme_ts_queue_[LEFT_RIGHT];
 
   // SportSoleEKF
   ekf_t ekf_[LEFT_RIGHT];
+  FloatType confidence_pos_a_priori_[LEFT_RIGHT] = {0.0, 0.0};
+  FloatType zg_y_max_[LEFT_RIGHT];
   ros::Publisher pub_fused_poses_[LEFT_RIGHT];
   ros::Publisher pub_raw_poses_[LEFT_RIGHT];
   ros::Publisher pub_ekf_state_[LEFT_RIGHT];

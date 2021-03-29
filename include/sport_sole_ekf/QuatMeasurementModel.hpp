@@ -7,6 +7,9 @@
 namespace sport_sole
 {
 
+template<typename T>
+class ExtendedKalmanFilter;
+
 /**
  * @brief Measurement vector measuring the sport sole acceleration with sport sole Kinect
  *
@@ -15,6 +18,8 @@ namespace sport_sole
 template<typename T>
 class QuatMeasurement : public Kalman::Vector<T, 4>
 {
+    friend class ExtendedKalmanFilter<T>;
+
 public:
     KALMAN_VECTOR(QuatMeasurement, T, 4)
     
@@ -45,6 +50,8 @@ public:
 template<typename T, template<class> class CovarianceBase = Kalman::StandardBase>
 class QuatMeasurementModel : public Kalman::LinearizedMeasurementModel<State<T>, QuatMeasurement<T>, CovarianceBase>
 {
+    friend class ExtendedKalmanFilter<T>;
+
 public:
     //! State type shortcut definition
     typedef  sport_sole::State<T> S;
