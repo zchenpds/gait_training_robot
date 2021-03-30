@@ -25,12 +25,19 @@ import matplotlib.pyplot as plt
 import math
 
 import bag_ops
+import argparse
 
-# trial_id_str = [str(i).rjust(3, '0') for i in range(218,219)]
-trial_id_str = [str(i).rjust(3, '0') for i in [226]]
-debug_mode = False
-use_base_link_as_root = False
-plot_th = False
+parser = argparse.ArgumentParser(description="Converts an optitrack csv file to bag file.")
+parser.add_argument('trial_id', type=int, choices=range(213, 230))
+parser.add_argument('-v', '--show_vx_t',             action='store_true')
+parser.add_argument('-t', '--show_th_t',             action='store_true')
+parser.add_argument('-b', '--use_base_link_as_root', action='store_true')
+parser.add_argument('-d', '--delete_odom_bag',       action='store_true', help='if flagged, the odom bag would be deleted and generated again.')
+parser.add_argument('-c', '--calc_ga',               action='store_true', help='if flagged, calc_ga.py will run after the bag file(s) is generated.')
+parser.add_argument('-l', '--len', type=int, default=1, help='how many trials to process in range(trial_id, trial_id + len)')
+args = parser.parse_args()
+
+trial_id_str = [str(i).rjust(3, '0') for i in range(args.trial_id, args.trial_id + args.len)]
 
 df_header = ['', 't', 'KR1', 'KR1', 'KR1', 'KR2', 'KR2', 'KR2', 'KR3', 'KR3', 'KR3', 'KR4', 'KR4', 'KR4', 'KR5', 'KR5', 'KR5', 'LFF1', 'LFF1', 'LFF1', 'LFF2', 'LFF2', 'LFF2', 'LFF3', 'LFF3', 'LFF3', 'LHF1', 'LHF1', 'LHF1', 'LHF2', 'LHF2', 'LHF2', 'LHF3', 'LHF3', 'LHF3', 'Pelvis1', 'Pelvis1', 'Pelvis1', 'Pelvis2', 'Pelvis2', 'Pelvis2', 'Pelvis3', 'Pelvis3', 'Pelvis3', 'Pelvis4', 'Pelvis4', 'Pelvis4', 'RFF1', 'RFF1', 'RFF1', 'RFF2', 'RFF2', 'RFF2', 'RFF3', 'RFF3', 'RFF3', 'RHF1', 'RHF1', 'RHF1', 'RHF2', 'RHF2', 'RHF2', 'RHF3', 'RHF3', 'RHF3']
 
@@ -44,7 +51,7 @@ topic_foot_pose_r = '/optitrack/foot_pose_r'
 topic_com = '/optitrack/com'
 topic_ml_vec = '/optitrack/ml_vec'
 
-if use_base_link_as_root:
+if args.use_base_link_as_root:
   robot_frame_ids = ['base_link', global_frame_id]
   kinect_frame_ids = [global_frame_id, 'depth_camera_link_optitrack']
 else:
@@ -104,9 +111,9 @@ def createRobotTransformList(KR4, KR5, alpha_left=0.5, z_offset=0.):
   vj = KR4 - KR5
   vj[:, 2] = 0.
   vj /= norm(vj, axis=1)[:, np.newaxis]
-  if use_base_link_as_root and plot_th: plt.plot(np.arctan2(vj[:, 1], vj[:, 0]), label='robot_raw')
+  if args.use_base_link_as_root and args.show_th_t: plt.plot(np.arctan2(vj[:, 1], vj[:, 0]), label='robot_raw')
   vj = filter(vj)
-  if use_base_link_as_root and plot_th: plt.plot(np.arctan2(vj[:, 1], vj[:, 0]), label='robot_filtered')
+  if args.use_base_link_as_root and args.show_th_t: plt.plot(np.arctan2(vj[:, 1], vj[:, 0]), label='robot_filtered')
 
   # Find orientation bases k and i
   vk = np.tile([[0., 0., 1.]], (rows, 1))
@@ -115,7 +122,7 @@ def createRobotTransformList(KR4, KR5, alpha_left=0.5, z_offset=0.):
   res = []
   for i in range(0, rows):
     Rot = np.linalg.solve(global_bases, np.array([vi[i, ], vj[i, ], vk[i, ]])).T
-    if use_base_link_as_root:
+    if args.use_base_link_as_root:
       RotHomo[:3, :3] = Rot.T
       xyz = np.matmul(-Rot.T, pos[i, :])
     else:
@@ -142,9 +149,9 @@ def createKinectTransformList(KR1, KR2, KR3, alpha_left=0.5, z_offset=0.):
   vi = KR1 - KR2
   vi[:, 2] = 0.
   vi /= norm(vi, axis=1)[:, np.newaxis]
-  if not use_base_link_as_root and plot_th: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_raw')
+  if not args.use_base_link_as_root and args.show_th_t: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_raw')
   vi = filter(vi, 6)
-  if not use_base_link_as_root and plot_th: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_filtered')
+  if not args.use_base_link_as_root and args.show_th_t: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_filtered')
 
   # Find orientation bases k and i
   tilt_down_radians = -6. / 180. * math.pi
@@ -161,7 +168,7 @@ def createKinectTransformList(KR1, KR2, KR3, alpha_left=0.5, z_offset=0.):
   res = []
   for i in range(0, rows):
     Rot = np.linalg.solve(global_bases, np.array([vi[i, ], vj[i, ], vk[i, ]])).T
-    if not use_base_link_as_root:
+    if not args.use_base_link_as_root:
       RotHomo[:3, :3] = Rot.T
       xyz = np.matmul(-Rot.T, pos[i, :])
     else:
@@ -216,7 +223,7 @@ def find_time_offset(inbag, marker, vi, ts_marker):
   offset_arr = np.linspace(-0.5 * n_points * period_optitrack, 0.5 * n_points * period_optitrack, n_points)
   offset = offset_arr[np.argmax(corr)] - offset0
 
-  if debug_mode:
+  if args.show_vx_t:
     plt.plot(ts_odom_resampled - ts_odom_resampled[0], vx_odom_resampled, label='fused_odom')
     plt.plot(ts_odom_resampled + offset - ts_odom_resampled[0], vx_marker_orig[0:n_points], label='optitrack')
     plt.title('Kinect sensor speed in x direction')
@@ -262,15 +269,17 @@ def convert(df, inbag, outbag):
   RFPoseList = createFootPoseList(RFF, RHF)
   RobotTransformList = createRobotTransformList(markers['KR4'], markers['KR5'], 0.5, -0.1)
   KinectTransformList = createKinectTransformList(markers['KR1'], markers['KR2'], markers['KR2'], 0.5, -0.01)
-  if plot_th: 
+  if args.show_th_t: 
     plt.legend()
+    plt.title('Yaw Angle Comparison')
     plt.show()
     return
 
   # Write messages to outbag
   for i, (LFPose, RFPose, RobotTransform, KinectTransform) in enumerate(zip(LFPoseList, RFPoseList, RobotTransformList, KinectTransformList)):
     t = rospy.Time.from_sec(float(ts[i]))
-    t_record = rospy.Time.from_sec(float(ts[i]) + 0.5)
+    t_record = rospy.Time.from_sec(float(ts[i]) + 0.3)
+    t_record_ahead_of_time = rospy.Time.from_sec(float(ts[i]) - 0.3)
     header = Header(stamp=t, frame_id='optitrack')
     foot_pose = PoseWithCovarianceStamped(header=header, pose=PoseWithCovariance(pose=LFPose))
     outbag.write(topic_foot_pose_l, foot_pose, t_record)
@@ -283,11 +292,11 @@ def convert(df, inbag, outbag):
     tf_robot = tfMessage(transforms=[TransformStamped(
       header=Header(stamp=t, frame_id=robot_frame_ids[0]), 
       child_frame_id=robot_frame_ids[1], transform=RobotTransform)])
-    outbag.write('/tf', tf_robot, t)
+    outbag.write('/tf', tf_robot, t_record_ahead_of_time)
     tf_kinect = tfMessage(transforms=[TransformStamped(
       header=Header(stamp=t, frame_id=kinect_frame_ids[0]), 
       child_frame_id=kinect_frame_ids[1], transform=KinectTransform)])
-    outbag.write('/tf', tf_kinect, t)
+    outbag.write('/tf', tf_kinect, t_record_ahead_of_time)
     if i < len(vx_robot):
       msg_vx_robot = Vector3Stamped(header=header, vector=Vector3(x=vx_robot[i]))
       outbag.write('/optitrack/vx_robot', msg_vx_robot, t_record)
@@ -304,7 +313,7 @@ def main():
       path_csv = os.path.join(path_gta, 'optitrack', 'csv', 'SCH_Trial_' + trial_id + '.csv')
       path_inbag = os.path.join(path_gta, 'bags', inbag_relative_path , 'data' + trial_id + '.bag')
       path_outbag = os.path.join(path_gta, 'optitrack', 'bags', 'data' + trial_id + '.bag')
-      if not os.path.exists(path_inbag):
+      if not os.path.exists(path_inbag) or args.delete_odom_bag:
         generate_odom_bag(os.path.join(path_gta, 'bags', inbag_relative_path), trial_id)
       for path in [path_csv, path_inbag]:
         if not os.path.exists(path):
@@ -316,6 +325,10 @@ def main():
       print(e)
       continue
     print('Processing trial {0:3s} complted'.format(trial_id))
+
+  if args.calc_ga:
+    path_calc_ga = os.path.join(path_gta, 'utilities', 'calc_ga.py')
+    os.system('/usr/bin/python ' + path_calc_ga + ' ' + str(args.trial_id) + ' -l ' + str(args.len))
     
       
 
