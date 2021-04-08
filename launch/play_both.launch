@@ -1,13 +1,28 @@
 <launch>
-	<arg name="bag_name"              default="data226"/>
-	<arg name="enable_gait_analyzer"  default="true"/>
-	<arg name="record_gait_analytics" default="false"/>
-	<arg name="global_frame"          default="optitrack"/>                    <!-- fused_odom, optitrack -->
-	<arg name="rviz_config_file"      default="slam_rtabmap_ekf_ga.rviz"/>     <!-- slam_rtabmap_ekf.rviz -->
+	<arg name="bag_name"                  default="data226"/>
+	<arg name="enable_rviz"               default="true"/>
+	<arg name="enable_gait_analyzer"      default="true"/>
+	<arg name="record_gait_analytics"     default="false"/>
+	<arg name="record_all"  		      default="false"/>
+	<arg name="foot_pose_topic_prefix"    default="raw"/>							<!-- raw, fused -->
+	<arg name="global_frame_fpe"          default="fused_odom"/>                 <!-- fused_odom, odom -->
+	<arg name="global_frame"              default="optitrack"/>                 <!-- fused_odom, optitrack -->
+	<arg name="rviz_config_file"          default="slam_rtabmap_ekf.rviz"/>     <!-- slam_rtabmap_ekf.rviz pelvis_rect.rviz -->
+	<arg name="sport_sole_time_offset"    default="0.0"/>
+    <arg name="play_back_rate" 		      default="1.0" />
+    <arg name="comkf_measurement_scheme"  default="2" />
+
+	<!-- IMU -->
+	<!-- <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node">
+		<param name="use_mag" value="false" />
+		<param name="publish_tf" value="false" />
+		<param name="world_frame" value="enu" />
+		<remap from="/imu/data_raw" to="/imu" />
+	</node> -->
 
 	<!-- foot_pose_estimator -->
 	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
-		<param name="global_frame"                  value="fused_odom"/>
+		<param name="global_frame"                  value="$(arg global_frame_fpe)"/>
 		<param name="publish_frame"                 value="$(arg global_frame)"/>
 		<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
 		<rosparam command="load" file="$(find gait_training_robot)/params/foot_pose_estimator.yaml" />
@@ -27,7 +42,7 @@
 			<param name="publish_frame"                 value="$(arg global_frame)"/>
 			<param name="smoother_enabled"              value="false"/>
 			<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
-			<rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer.yaml" />
+			<rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer$(arg comkf_measurement_scheme).yaml" />
 		</node>
 			
 		<node name="gait_analyzer_optitrack" pkg="gait_training_robot" type="gait_analyzer_optitrack" output="screen" >
@@ -35,12 +50,7 @@
 			<param name="global_frame"                  value="optitrack" />
 			<param name="publish_frame"                 value="optitrack"/>
 			<param name="smoother_enabled"              value="false"/>
-			<param name="/comkf/system_noise_p"         value="0.0001"/>
-			<param name="/comkf/system_noise_v"         value="0.01"/>
-			<param name="/comkf/system_noise_b"         value="0.05"/>
-			<param name="/comkf/system_noise_cop"       value="0.3"/>
-			<param name="/comkf/measurement_noise_p"    value="0.01"/>
-			<param name="/comkf/measurement_noise_cop"  value="0.05"/>
+			<rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer_optitrack$(arg comkf_measurement_scheme).yaml" />
 			<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
 		</node>
 

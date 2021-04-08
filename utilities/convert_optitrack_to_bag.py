@@ -58,6 +58,7 @@ else:
   robot_frame_ids = [global_frame_id, 'base_link_optitrack']
   kinect_frame_ids = ['depth_camera_link', global_frame_id]
 
+kimu_topic = '/imu'
 odom_topic = '/kinect_pose_estimator/odom'
 inbag_relative_path = 'optitrack/odom'
 
@@ -133,7 +134,14 @@ def createRobotTransformList(KR4, KR5, alpha_left=0.5, z_offset=0.):
       rotation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])))
   return res
 
-def createKinectTransformList(KR1, KR2, KR3, alpha_left=0.5, z_offset=0.):
+def wrapToPi(angle):
+  return math.atan2(math.sin(angle), math.cos(angle))
+
+def createKinectTransformList(ts, KR1, KR2, KR3, inbag, alpha_left=0.5, z_offset=0.):
+  # Extract KIMU data
+  omega_arr = np.array([[msg.header.stamp.to_sec(), msg.angular_velocity.z] for _, msg, _ in inbag.read_messages(topics=kimu_topic)])
+
+  # Process Optitrack data
   rows = KR1.shape[0]
 
   # Apply offset
@@ -149,9 +157,31 @@ def createKinectTransformList(KR1, KR2, KR3, alpha_left=0.5, z_offset=0.):
   vi = KR1 - KR2
   vi[:, 2] = 0.
   vi /= norm(vi, axis=1)[:, np.newaxis]
-  if not args.use_base_link_as_root and args.show_th_t: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_raw')
-  vi = filter(vi, 6)
-  if not args.use_base_link_as_root and args.show_th_t: plt.plot(np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_filtered')
+  if not args.use_base_link_as_root and args.show_th_t: plt.plot(ts, np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_raw')
+  # vi = filter(vi, 6)
+  K = 0.01
+  j = 0
+  ts_prev = ts[0]
+  omega_arr[:, 1] -= np.average(omega_arr[0:5000, 1])
+  while j < len(omega_arr) and omega_arr[j][0] < ts_prev: j += 1
+  angle_prev = math.atan2(vi[0][1], vi[0][0])
+  for i in range(vi.shape[0]):
+    omega_sum, omega_cnt = 0., 0
+    while j < len(omega_arr) and omega_arr[j][0] < ts[i]:
+      omega_sum += omega_arr[j][1]
+      omega_cnt += 1
+      j += 1
+    if omega_cnt == 0: continue
+    angle_measured = math.atan2(vi[i][1], vi[i][0])
+    angle_predicted = angle_prev - omega_sum / omega_cnt * 1.0 / 210.0
+    angle_innovation = wrapToPi(angle_measured - angle_predicted)
+    angle_filtered = angle_predicted + K * angle_innovation
+    vi[i][0], vi[i][1] = math.cos(angle_filtered), math.sin(angle_filtered)
+    angle_prev = angle_filtered
+    if j == len(omega_arr): break
+  if not args.use_base_link_as_root and args.show_th_t: 
+    plt.plot(ts, np.arctan2(vi[:, 1], vi[:, 0]), label='kinect_filtered')
+    plt.plot(omega_arr[:, 0], omega_arr[:, 1], label='omega_z')
 
   # Find orientation bases k and i
   tilt_down_radians = -6. / 180. * math.pi
@@ -268,7 +298,7 @@ def convert(df, inbag, outbag):
   LFPoseList = createFootPoseList(LFF, LHF)
   RFPoseList = createFootPoseList(RFF, RHF)
   RobotTransformList = createRobotTransformList(markers['KR4'], markers['KR5'], 0.5, -0.1)
-  KinectTransformList = createKinectTransformList(markers['KR1'], markers['KR2'], markers['KR2'], 0.5, -0.01)
+  KinectTransformList = createKinectTransformList(ts, markers['KR1'], markers['KR2'], markers['KR3'], inbag, 0.5, -0.01)
   if args.show_th_t: 
     plt.legend()
     plt.title('Yaw Angle Comparison')

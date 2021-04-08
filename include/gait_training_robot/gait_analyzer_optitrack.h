@@ -61,9 +61,11 @@ typedef double T;
   LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 2e-2)          \
   LIST_ENTRY(system_noise_b, "The standard deviation of noise added to the CoM offset state.", T, 1e-1)               \
   LIST_ENTRY(system_noise_cop, "The standard deviation of noise added to the CoP state.", T, 3e-1)                    \
+  LIST_ENTRY(system_noise_copb, "The standard deviation of noise added to the CoP state.", T, 5e-2)                   \
   LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 2e-2)                   \
   LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 4e-1)                   \
   LIST_ENTRY(measurement_noise_cop, "The standard deviation of CoP measurement noise.", T, 1e-1)                      \
+  LIST_ENTRY(measurement_scheme, "1: Model CoM measurement offset; 2: Model CoP measurement offset", int , 1)         \
 
 
 namespace comkf {

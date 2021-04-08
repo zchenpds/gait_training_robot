@@ -13,4 +13,4 @@ measurement_noise_q: 0.02
 measurement_noise_y: 0.05
 measurement_noise_va: 0.00001
 confidence_pos_a_priori_alpha: 0.1
-enable_debug_log: false
+enable_debug_log: true

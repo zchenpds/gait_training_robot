@@ -1,0 +1,5 @@
+<launch>
+    <!-- <node name="rviz_pelvis_rect" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/pelvis_rect.rviz"/> -->
+    <node name="rviz_pelvis_rect" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf.rviz"/>
+    <include file="$(find gait_training_robot)/launch/includes/robot_state_publisher.launch" />
+</launch>

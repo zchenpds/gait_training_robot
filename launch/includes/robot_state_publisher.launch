@@ -1,0 +1,5 @@
+<launch>
+    <!-- Robot base -->
+    <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+	<node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher"/>
+</launch>

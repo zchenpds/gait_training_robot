@@ -1,9 +1,12 @@
 <launch>
-	<arg name="bag_name"               default="data213"/>
+	<arg name="bag_name"               default="data226"/>
+	<arg name="enable_rviz"            default="true"/>
 	<arg name="enable_gait_analyzer"   default="true"/>
 	<arg name="record_odom"            default="false"/>
 	<arg name="rviz_config_file"       default="slam_rtabmap_ekf.rviz"/>     <!-- slam_rtabmap_ekf_ga.rviz -->
-	
+	<arg name="sport_sole_time_offset" default="0.0"/>
+    <arg name="play_back_rate" 		   default="1.0" />
+
 	<!-- foot_pose_estimator -->
 	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
 		<param name="global_frame"                  value="fused_odom"/>
@@ -38,5 +41,5 @@
 	<!-- Record odom -->
 	<node name="record_tf" pkg="rosbag" type="record" if="$(arg record_odom)"
 		  args="record -o $(find gait_training_robot)/bags/optitrack/odom/$(arg bag_name)
-		  		/kinect_pose_estimator/odom /odom"/>
+		  		/kinect_pose_estimator/odom /odom /imu"/>
 </launch>

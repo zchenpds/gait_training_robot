@@ -149,7 +149,7 @@ private:
 
   // Acceleration bias
   Kalman::Vector<T, 3> acc_bias_[LEFT_RIGHT];
-  Average<Kalman::Vector<T, 3>> acc_bias_ave_[LEFT_RIGHT];
+  Averager<Kalman::Vector<T, 3>> acc_bias_ave_[LEFT_RIGHT];
 
   // Data logging
   std::ofstream ofs_process_[LEFT_RIGHT];

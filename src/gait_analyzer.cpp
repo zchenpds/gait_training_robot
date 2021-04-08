@@ -1,5 +1,7 @@
 //Purpose: bring together data from  1) accel, quaternion, pressures of left & right sport soles  2) kinect IMU  3) kinect skeleton info
 
+#include <fstream>
+#include <stdlib.h>
 #include <iostream>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -94,6 +96,11 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
   COMKF_PARAM_LIST
 #undef LIST_ENTRY
+  if (comkf_params_.measurement_scheme < 1 && comkf_params_.measurement_scheme > 3) {
+    ROS_ERROR_STREAM("Undefined measurement scheme: " << comkf_params_.measurement_scheme << ". ");
+    ros::shutdown();
+  }
+  comkf_.updateMeasurementScheme(comkf_params_.measurement_scheme);
   comkf_params_.print();
 
   // Set the parameters for comkf
@@ -101,10 +108,13 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   T var_v = pow(comkf_params_.system_noise_v, 2);
   T var_b = pow(comkf_params_.system_noise_b, 2);
   T var_cop = pow(comkf_params_.system_noise_cop, 2);
-  setModelCovariance(comkf_.sys, {var_p, var_p, var_v, var_v, var_b, var_b});
+  setModelCovariance(comkf_.sys, {var_p, var_p, var_v, var_v, var_b, var_b, var_cop, var_cop});
   T var_zp = pow(comkf_params_.measurement_noise_p, 2);
   // T var_zv = pow(comkf_params_.measurement_noise_v, 2);
   setModelCovariance(comkf_.pmm, {var_zp, var_zp});
+  T var_zcop = pow(comkf_params_.measurement_noise_cop, 2);
+  setModelCovariance(comkf_.copmm, {var_zcop, var_zcop});
+  // setModelCovariance(comkf_, {var_zp, var_zp, var_v, var_v, var_b, var_b, var_zcop, var_zcop});
 
   if (ga_params_.data_source == "k4a")
   {
@@ -336,12 +346,12 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
   // If at least one com/skeleton message has been received after the receipt of the first sport_sole message, do an EKF prediction
   if (!stamp_com_prev_.isZero())
   {
-    auto sport_sole_ptrs = cache_sport_sole_.getInterval(stamp_com_prev_, stamp_skeleton_curr);
-    for (const auto & ss_ptr : sport_sole_ptrs)
-    {
-      // CoMKF prediction is done here
-      processSportSole(*ss_ptr);
-    }
+    // auto sport_sole_ptrs = cache_sport_sole_.getInterval(stamp_com_prev_, stamp_skeleton_curr);
+    // for (const auto & ss_ptr : sport_sole_ptrs)
+    // {
+    //   // CoMKF prediction is done here
+    //   processSportSole(*ss_ptr);
+    // }
     // ROS_INFO_STREAM(sport_sole_ptrs.size() << " predictions between t=" <<
     //   (stamp_com_prev_ - stamp_base_).toSec() << "s and t=" << (stamp_skeleton_curr - stamp_base_).toSec() << "s are done");
   }
@@ -352,10 +362,11 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
 
 
   // Find the sport_sole message sampled immediately before the current skeleton message
-  auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(stamp_skeleton_curr);
+  // auto msg_sport_sole_ptr = cache_sport_sole_.getElemBeforeTime(stamp_skeleton_curr);
+  auto sport_sole_ptrs = cache_sport_sole_.getInterval(stamp_com_prev_, stamp_skeleton_curr);
 
   // At least one sport_sole message should have been received before we can initialize the Kalman filter
-  if (!msg_sport_sole_ptr)
+  if (sport_sole_ptrs.empty())
   {
     // No msg_sport_sole_ptr has been found in the cache,
     // Check what's happened.
@@ -372,6 +383,7 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
   }
   else
   {
+    auto msg_sport_sole_ptr = sport_sole_ptrs.back();
     auto delay_sport_sole = stamp_skeleton_curr - msg_sport_sole_ptr->header.stamp;
     if (delay_sport_sole > ros::Duration(0.05))
     {
@@ -387,8 +399,8 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
       // This is the first time skeleton message received
       // Use the position measurement to initialize the state
       comkf::S x0 = comkf::S::Zero();
-      x0.px() = msg_com->point.x;
-      x0.py() = msg_com->point.y;
+      x0.copx() = x0.px() = msg_com->point.x;
+      x0.copy() = x0.py() = msg_com->point.y;
       x0.vx() = msg_comv->vector.x;
       x0.vy() = msg_comv->vector.y;
       comkf_.init(x0);
@@ -396,10 +408,47 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
       ROS_DEBUG_STREAM("COMKF state initialized to " << x0.transpose());
       comkf_initialized_ = true;
       stamp_predict_prev_ = stamp_sport_sole_prev_ = stamp_skeleton_curr;
+      zp_prev_ = zp;
     }
     else {
-      const auto & x = comkf_.update(zp);
-      updateCoMEstimate(stamp_skeleton_curr, x); // A posteriori estimate
+      double dt_com = (stamp_skeleton_curr - stamp_com_prev_).toSec();
+      ROS_ASSERT_MSG(dt_com > 1e-4, "The time step is less than 1e-4 sec between CoM messages!");
+
+      // Define helper function for com measurement update
+      auto zp_update = [this](const ros::Time& stamp, const comkf_t::ZP& zp){
+        if (comkf_params_.robust_com_update)
+        {
+          const auto & x = comkf_.update(zp);
+          updateCoMEstimate(stamp, x); // A posteriori estimate
+        }
+        else
+        {
+          T gamma = 2.0; //params_.outlier_threashold
+          auto psi = [gamma](T zeta){
+            if (fabs(zeta) < gamma) return T(1.0);
+            return gamma / fabs(zeta);
+          };
+          const auto & x = comkf_.updateHuber(zp, psi);
+          updateCoMEstimate(stamp, x); // A posteriori estimate
+        }
+      };
+
+      for (const auto & ss_ptr : sport_sole_ptrs)
+      {
+        processSportSole(*ss_ptr);
+        if (comkf_params_.hyper_kinect_update_rate)
+        {
+          double w1 = (ss_ptr->header.stamp - stamp_com_prev_).toSec() / dt_com;
+          comkf_t::ZP zp_interp = zp_prev_ * (1.0 - w1) + zp * w1;
+          zp_update(ss_ptr->header.stamp, zp_interp);
+        }
+      }
+      if (!comkf_params_.hyper_kinect_update_rate)
+      {
+        zp_update(msg_comv->header.stamp, zp);
+      }
+      printDebugMessage("Posteriori", stamp_skeleton_curr);
+      zp_prev_ = zp;
       gait_training_robot::ComkfCopMeasurement msg;
       msg.header.stamp = stamp_skeleton_curr;
       msg.header.frame_id = ga_params_.global_frame;
@@ -497,25 +546,26 @@ void GaitAnalyzer::processSportSole(const sport_sole::SportSole& msg)
   auto & cop = cop_;
   cop = sport_sole::getCoP(pressures_, vec_refpoints_, vec_refvecs_);
 
-  //Update control input
-  comkf::C u;
-  u.copx() = cop.getX();
-  u.copy() = cop.getY();
+  //Update CoP measurement
+  comkf::ZCOP zcop;
+  zcop.px() = cop.getX();
+  zcop.py() = cop.getY();
 
   if(!stamp_predict_prev_.isZero())
   {
     T dt = (stamp_sport_sole_curr - stamp_predict_prev_).toSec();
     // Predict only if dt is large enough
     if (dt > 1e-3) {
-      const auto& x = comkf_.predict(u, dt);
-      updateCoMEstimate(stamp_sport_sole_curr, x); // A priori estmiate
+      comkf_.predict(dt);
       stamp_predict_prev_ = stamp_sport_sole_curr;
     }
+    const auto & x = comkf_.update(zcop);
+    // updateCoMEstimate(stamp_sport_sole_curr, x);
     gait_training_robot::ComkfCopMeasurement msg;
     msg.header.stamp = stamp_sport_sole_curr;
     msg.header.frame_id = ga_params_.global_frame;
-    msg.px = u.x();
-    msg.py = u.y();
+    msg.px = zcop.px();
+    msg.py = zcop.py();
     pub_comkf_cop_measurement_.publish(msg);
   }
   stamp_sport_sole_prev_ = stamp_sport_sole_curr;
@@ -619,8 +669,16 @@ void GaitAnalyzer::updateXCoM(com_t & xcom, const com_t & com, const comv_t & co
 
 void GaitAnalyzer::updateCoMEstimate(const ros::Time & stamp, const comkf::S & x)
 {
-  com_[ESTIMATE].setX(x.px());
-  com_[ESTIMATE].setY(x.py());
+  if (comkf_params_.measurement_scheme == 2)
+  {
+    com_[ESTIMATE].setX(x.px() + x.bx());
+    com_[ESTIMATE].setY(x.py() + x.by());
+  }
+  else
+  {
+    com_[ESTIMATE].setX(x.px());
+    com_[ESTIMATE].setY(x.py());
+  }
   com_[ESTIMATE].setZ(z_ground_);
   comv_[ESTIMATE].setX(x.vx());
   comv_[ESTIMATE].setY(x.vy());
@@ -651,6 +709,8 @@ void GaitAnalyzer::updateCoMEstimate(const ros::Time & stamp, const comkf::S & x
   msg.vy = x.vy();
   msg.bx = x.bx();
   msg.by = x.by();
+  msg.copx = x.copx();
+  msg.copy = x.copy();
   pub_comkf_state_.publish(msg);
 }
 
@@ -900,6 +960,7 @@ void GaitAnalyzer::updateRefPoints(const PoseType::ConstPtr& msg_foot_l, const P
     }
 
     vec_refvecs_[lr] = tf2::quatRotate(quat, {1.0, 0.0, 0.0});
+    vec_refpoints_[HIND][lr] -= vec_refvecs_[lr] * (0.5 * FOOT_LENGTH);
     vec_refpoints_[FORE][lr] = vec_refpoints_[HIND][lr] + vec_refvecs_[lr] * FOOT_LENGTH;
     
     vec_refvecs_[lr].setZ(0);
@@ -1030,6 +1091,20 @@ visualization_msgs::MarkerArrayPtr GaitAnalyzer::constructMosMarkerArrayMessage(
   }
   return markerArrayPtr;
 }
+
+std::string path_to_home = getenv("HOME");
+std::ofstream ofs_log(path_to_home + "/.ros/gait_training_robot/comkf.log");
+
+void GaitAnalyzer::printDebugMessage(const char* message, const ros::Time& stamp) const
+{
+  if (!comkf_params_.enable_debug_log) return;
+  ofs_log.precision(15);
+  ofs_log << stamp.toSec() << " " << message << " ";
+  ofs_log.precision(3);
+  ofs_log << "x:\n" << comkf_.x.transpose() << "\n";
+  ofs_log << "P:\n" << comkf_.P << "\n\n";
+}
+
 
 int main(int argc, char **argv)
 {

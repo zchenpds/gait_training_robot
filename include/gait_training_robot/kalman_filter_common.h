@@ -37,13 +37,13 @@ void setModelCovariance(Kalman::StandardBase<StateType>& model, typename StateTy
 
 
 template<class VectorType>
-struct Average {
+struct Averager {
   VectorType sum;
   size_t num;
-  Average() {sum.setZero(); num = 0;}
+  Averager() {sum.setZero(); num = 0;}
   void clear() {sum.setZero(); num = 0;}
   void put(const VectorType & v) { sum += v; num++;}
-  VectorType getAverage() {return sum / num;}
+  VectorType getAverage() {assert(num); return sum / num;}
 };
 
 

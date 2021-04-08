@@ -36,6 +36,7 @@ typedef double FloatType;
   LIST_ENTRY(measurement_noise_q, "The standard deviation of quaternion measurement noise.", FloatType, 2e-1)                    \
   LIST_ENTRY(measurement_noise_y, "The standard deviation of yaw measurement noise.", FloatType, 1e-1)                           \
   LIST_ENTRY(measurement_noise_va, "The standard deviation of va measurement noise.", FloatType, 1e-5)                           \
+  LIST_ENTRY(odom_lead_time, "The time offset of wheel odometry.", FloatType, 0.0)                                               \
  
 
 

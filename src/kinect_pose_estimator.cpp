@@ -45,6 +45,8 @@ KinectPoseEstimator::KinectPoseEstimator(const ros::NodeHandle& n, const ros::No
       {var_q, var_q, var_q, var_q, var_w, var_w, var_w,                   // q, w
         var_p, var_p, var_p, var_v, var_v, var_v, var_a, var_a, var_a, // p, v, a
         var_ab, var_ab, var_ab, var_wb, var_wb, var_wb});                    // ab wb
+  const auto& var_P = 1e-3;
+  setModelCovariance(ekf_, var_P);
   // auto var_zp = pow(params_.measurement_noise_p,  2);
   setModelCovariance(ekf_.pmm,  pow(params_.measurement_noise_p,  2));
   setModelCovariance(ekf_.vmm,  pow(params_.measurement_noise_v,  2));
@@ -81,7 +83,7 @@ void KinectPoseEstimator::odomCB(const nav_msgs::Odometry & msg)
   tf2::Quaternion quat;
   tf2::fromMsg(msg.pose.pose.orientation, quat);
   zv_ros = tf2::quatRotate(quat, zv_ros);
-  constexpr static FloatType alpha = 0.2;
+  FloatType alpha = params_.odom_lead_time / 0.1;
   auto zv_current = zv_ros_last_ * alpha + zv_ros * (1.0 - alpha);
   zv_ros_last_ = zv_ros;
   ekf_t::ZV zv;
@@ -148,7 +150,7 @@ void KinectPoseEstimator::odomUpdate(const ros::Time& stamp)
   try
   {
     geometry_msgs::TransformStamped tf_msg;
-    tf_msg = tf_buffer_.lookupTransform(params_.global_frame, params_.kimu_frame, stamp, ros::Duration(0.05));
+    tf_msg = tf_buffer_.lookupTransform(params_.global_frame, params_.kimu_frame, stamp - ros::Duration(params_.odom_lead_time), ros::Duration(0.05));
     tf2::fromMsg(tf_msg.transform, tf_global_to_kimu_);
   }
   catch (tf2::TransformException& ex)

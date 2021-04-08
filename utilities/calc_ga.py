@@ -3,6 +3,7 @@
 # roscd gait_training_robot/bags/new/
 # rosbag play
 
+import datetime
 import math
 import rosbag
 import rospy
@@ -24,11 +25,14 @@ parser = argparse.ArgumentParser(description="Run the gait analyzer and foot pos
 parser.add_argument('trial_id', type=int)
 parser.add_argument('-l', '--len', type=int, default=1, help='how many trials to process in range(trial_id, trial_id + len)')
 parser.add_argument('--rate', type=float, default=1.0, help='playback rate.')
-parser.add_argument('-r', '--use_raw_foot_pose',      action='store_true')
-parser.add_argument('-o', '--transform_to_optitrack', action='store_true')
-parser.add_argument('-g', '--enable_rviz_ga',         action='store_true')
-parser.add_argument('-e', '--enable_rviz_3d',         action='store_true')
-parser.add_argument('-s', '--skip_bag_gen',           action='store_true')
+parser.add_argument('-m', '--message', type=str, default='', help='Remarks to be logged.')
+parser.add_argument('-zs', '--comkf_measurement_scheme', type=int, default=2)
+parser.add_argument('-rawfpose', '--use_raw_foot_pose',  action='store_true')
+parser.add_argument('-o', '--transform_to_optitrack',    action='store_true')
+parser.add_argument('-rawodom', '--express_in_raw_odom', action='store_true')
+parser.add_argument('-g', '--enable_rviz_ga',            action='store_true')
+parser.add_argument('-e', '--enable_rviz_3d',            action='store_true')
+parser.add_argument('-s', '--skip_bag_gen',              action='store_true')
 args = parser.parse_args()
 
 rp = rospkg.RosPack()
@@ -89,12 +93,20 @@ def run_both():
     if args.transform_to_optitrack: launch_options.append('global_frame:=optitrack')
     else: launch_options.append('global_frame:=fused_odom')
 
+    if args.express_in_raw_odom: launch_options.append('global_frame_fpe:=odom')
+    else: launch_options.append('global_frame_fpe:=fused_odom')
+
+    launch_options.append('comkf_measurement_scheme:=' + str(args.comkf_measurement_scheme))
+
     if args.enable_rviz_ga: launch_options.append('enable_rviz:=true rviz_config_file:=slam_rtabmap_ekf_ga.rviz')
     elif args.enable_rviz_3d: launch_options.append('enable_rviz:=true rviz_config_file:=slam_rtabmap_ekf.rviz')
     else: launch_options.append('enable_rviz:=false')
 
-    for bag_name in bag_names:
-        os.system('roslaunch gait_training_robot play_both.launch bag_name:=' + bag_name + ' ' + ' '.join(launch_options))
+    str_options_joined = ' '.join(launch_options)
+    logging.info('[' + str(datetime.datetime.now()) + ']: ' + args.message)
+    logging.info('roslaunch options: ' + str_options_joined)
+    for bag_name in bag_names:        
+        os.system('roslaunch gait_training_robot play_both.launch bag_name:=' + bag_name + ' ' + str_options_joined)
         time.sleep(3)
     bag_ops.rectify_bag_names(bag_path)
     # print(os.listdir(bag_path))

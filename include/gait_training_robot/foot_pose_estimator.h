@@ -76,9 +76,9 @@ public:
   void updateTf(const ros::Time& stamp);
 
 protected:
-  void predict(sport_sole::SportSoleConstPtr msg_ptr);
-  void update(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
-              geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT]);
+  void sportSoleUpdate(sport_sole::SportSoleConstPtr msg_ptr);
+  void kinectUpdate(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
+                    geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT]);
   void publishFusedPoses(const ros::Time& stamp);
   void printDebugMessage(const char* message, const ros::Time& stamp, left_right_t lr) const;
   geometry_msgs::PoseWithCovarianceStampedPtr constructPoseWithCovarianceStamped(tf2::Vector3 position, tf2::Quaternion quat) const;
@@ -127,6 +127,7 @@ private:
   // ts
   ros::Time ts_kinect_last_;
   ros::Time ts_sport_sole_last_;
+  ros::Time ts_predict_last_;
   ros::Time ts_init_;
   ros::Time ts_next_desired_publish_;
   ros::Time ts_last_quaternion_update_;

@@ -1,7 +1,9 @@
 <launch>
+    <arg name="play_back_rate" default="1.0" />
     <param name="use_sim_time" value="true"/>
     <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
           args="--clock $(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag 
+                -r $(arg play_back_rate)
 		  		$(find gait_training_robot)/optitrack/bags/$(arg bag_name).bag" >
 		<remap from="/tf" to="/tf_old"/>
 	</node>
@@ -9,7 +11,11 @@
     <!-- Remap frame to allow change of tf -->
     <node name="tf_remap" pkg="tf_remapper_cpp" type="tf_remap">
         <rosparam param="mappings" >
-            [{old: camera_mount_top, new: camera_mount_top_old}]
+            [{old: camera_mount_top, new: camera_mount_top_old},
+             {old: caster_swivel, new: caster_swivel_old},
+             {old: caster_swivel, new: caster_swivel_old},
+             {old: caster_wheel,  new: caster_wheel_old },
+            ]
         </rosparam>
     </node>
     <node name="tf_broadcaster_azure_kinect" pkg="tf" type="static_transform_publisher"  

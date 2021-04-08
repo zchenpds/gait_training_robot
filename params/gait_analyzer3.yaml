@@ -1,0 +1,13 @@
+
+comkf:
+  system_noise_p: 0.0001
+  system_noise_v: 0.001
+  system_noise_b: 0.001
+  system_noise_cop: 0.3
+  measurement_noise_p: 0.01
+  measurement_noise_cop: 0.05
+  # measurement_noise_copb: 0.05
+  enable_debug_log: false
+  hyper_kinect_update_rate: true
+  robust_com_update: false
+  measurement_scheme: 3

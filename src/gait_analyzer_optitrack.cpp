@@ -93,6 +93,11 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
 
   COMKF_PARAM_LIST
 #undef LIST_ENTRY
+  if (comkf_params_.measurement_scheme < 1 && comkf_params_.measurement_scheme > 3) {
+    ROS_ERROR_STREAM("Undefined measurement scheme: " << comkf_params_.measurement_scheme << ". ");
+    ros::shutdown();
+  }
+  comkf_.updateMeasurementScheme(comkf_params_.measurement_scheme);
   comkf_params_.print();
 
   // Set the parameters for comkf
@@ -106,6 +111,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
   setModelCovariance(comkf_.pmm, {var_zp, var_zp});
   T var_zcop = pow(comkf_params_.measurement_noise_cop, 2);
   setModelCovariance(comkf_.copmm, {var_zcop, var_zcop});
+  // setModelCovariance(comkf_, {var_zp, var_zp, var_v, var_v, var_b, var_b, var_zcop, var_zcop});
 
   if (ga_params_.data_source == "k4a")
   {
@@ -322,6 +328,7 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
     }
 
     vec_refvecs_[lr] = tf2::quatRotate(quat, {1.0, 0.0, 0.0});
+    vec_refpoints_[HIND][lr] -= vec_refvecs_[lr] * (0.5 * FOOT_LENGTH);
     vec_refpoints_[FORE][lr] = vec_refpoints_[HIND][lr] + vec_refvecs_[lr] * FOOT_LENGTH;
     
     vec_refvecs_[lr].setZ(0);
@@ -619,8 +626,16 @@ void GaitAnalyzer::updateXCoM(com_t & xcom, const com_t & com, const comv_t & co
 
 void GaitAnalyzer::updateCoMEstimate(const ros::Time & stamp, const comkf::S & x)
 {
-  com_[ESTIMATE].setX(x.px());
-  com_[ESTIMATE].setY(x.py());
+  if (comkf_params_.measurement_scheme == 2)
+  {
+    com_[ESTIMATE].setX(x.px() + x.bx());
+    com_[ESTIMATE].setY(x.py() + x.by());
+  }
+  else
+  {
+    com_[ESTIMATE].setX(x.px());
+    com_[ESTIMATE].setY(x.py());
+  }
   com_[ESTIMATE].setZ(z_ground_);
   comv_[ESTIMATE].setX(x.vx());
   comv_[ESTIMATE].setY(x.vy());

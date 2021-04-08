@@ -29,7 +29,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 
-#include "comkf/comkf.hpp"
+#include "comkf_optitrack/comkf.hpp"
 #include "sport_sole/sport_sole_common.h"
 
 typedef double T;
@@ -54,21 +54,30 @@ typedef double T;
   LIST_ENTRY(smoother_enabled, "Enable moving average smoother or not. May cause latency.", bool, false)                      \
   LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                  \
 
+
 #define COMKF_PARAM_LIST \
-  LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", T, 0.01)     \
-  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", T, 2e-3)          \
-  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 2e-2)          \
-  LIST_ENTRY(system_noise_b, "The standard deviation of noise added to the CoM offset state.", T, 1e-1)               \
-  LIST_ENTRY(system_noise_cop, "The standard deviation of noise added to the CoP state.", T, 3e-1)                    \
-  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 2e-2)                   \
-  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 4e-1)                   \
-  LIST_ENTRY(measurement_noise_cop, "The standard deviation of CoP measurement noise.", T, 1e-1)                      \
+  LIST_ENTRY(sampling_period, "The sampling period that is used by the system equation for prediction.", T, 0.01)                \
+  LIST_ENTRY(system_noise_p, "The standard deviation of noise added to the linear position state.", T, 2e-3)                     \
+  LIST_ENTRY(system_noise_v, "The standard deviation of noise added to the linear velocity state.", T, 2e-2)                     \
+  LIST_ENTRY(system_noise_b, "The standard deviation of noise added to the CoM offset state.", T, 1e-1)                          \
+  LIST_ENTRY(system_noise_cop, "The standard deviation of noise added to the CoP state.", T, 3e-1)                               \
+  LIST_ENTRY(system_noise_copb, "The standard deviation of noise added to the CoP state.", T, 5e-2)                              \
+  LIST_ENTRY(measurement_noise_p, "The standard deviation of position measurement noise.", T, 2e-2)                              \
+  LIST_ENTRY(measurement_noise_v, "The standard deviation of velocity measurement noise.", T, 4e-1)                              \
+  LIST_ENTRY(measurement_noise_cop, "The standard deviation of CoP measurement noise.", T, 1e-1)                                 \
+  LIST_ENTRY(enable_debug_log, "If enabled, debug log would be written to ~/.ros/gait_training_robot/comkf.log", bool , false)   \
+  LIST_ENTRY(hyper_kinect_update_rate, "If enabled, the com measurement by Kinect would be interpolated to achieve"              \
+                                " same frequency as sport sole", bool , false)                                                   \
+  LIST_ENTRY(robust_com_update, "If enabled, the com measurement will be updated using the cost "                                \
+                                "defined using Huber loss function", bool , false)                                               \
+  LIST_ENTRY(measurement_scheme, "1: Model CoM measurement offset; 2: Model CoP measurement offset; 3: No offset", int , 1)      \
 
 
 namespace comkf {
   using S = State<T>;
   using C = Control<T>;
   using ZP = PositionMeasurement<T>;
+  using ZCOP = CopMeasurement<T>;
   struct KalmanFilterParams 
   {
     // Print the value of all parameters
@@ -331,8 +340,11 @@ private:
   ros::Timer timer_update_tf_global_to_publish_;
 
   // comkf
-  comkf::KalmanFilter<T> comkf_;
+  using comkf_t = comkf::KalmanFilter<T>;
+  comkf_t      comkf_;
+  comkf_t::ZP  zp_prev_;
   bool comkf_initialized_;
+  
   ros::Time stamp_sport_sole_prev_;
   ros::Time stamp_predict_prev_;
   ros::Time stamp_com_prev_;
@@ -348,6 +360,7 @@ private:
   geometry_msgs::Vector3StampedPtr constructVector3StampedMessage(const ros::Time & stamp, const comv_t & vec);
   geometry_msgs::PolygonStamped constructPolygonMessage(const ros::Time & stamp, const bos_t & bos_points);
   visualization_msgs::MarkerArrayPtr constructMosMarkerArrayMessage(const ros::Time & stamp, const com_t & xcom, const mos_t & mos);
+  void printDebugMessage(const char* message, const ros::Time& stamp) const;
 
   inline tf2::Vector3 constructMosVector(const mos_t& mos)
   {

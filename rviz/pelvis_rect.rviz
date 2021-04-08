@@ -223,7 +223,7 @@ Visualization Manager:
         caster_wheel:
           Value: false
         depth_camera_link:
-          Value: true
+          Value: false
         depth_camera_link_optitrack:
           Value: false
         front_sonar:
@@ -387,8 +387,8 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Alpha: 1
-      Axes Length: 0.5
-      Axes Radius: 0.10000000149011612
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.07000000029802322
       Class: rviz/PoseWithCovariance
       Color: 255; 25; 0
       Covariance:
@@ -417,8 +417,8 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Axes Length: 0.5
-      Axes Radius: 0.10000000149011612
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.07000000029802322
       Class: rviz/PoseWithCovariance
       Color: 255; 25; 0
       Covariance:
@@ -436,7 +436,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
+      Enabled: true
       Head Length: 0.20000000298023224
       Head Radius: 0.07999999821186066
       Name: PoseWithCovariance
@@ -445,7 +445,7 @@ Visualization Manager:
       Shape: Axes
       Topic: /foot_pose_estimator/fused_pose_r
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Axes Length: 0.20000000298023224
       Axes Radius: 0.10000000149011612
@@ -536,7 +536,7 @@ Visualization Manager:
       Unreliable: false
       Value: false
     - Alpha: 1
-      Axes Length: 1
+      Axes Length: 0.30000001192092896
       Axes Radius: 0.029999999329447746
       Class: rviz/PoseWithCovariance
       Color: 255; 25; 0
@@ -566,7 +566,7 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Axes Length: 1
+      Axes Length: 0.30000001192092896
       Axes Radius: 0.029999999329447746
       Class: rviz/PoseWithCovariance
       Color: 255; 25; 0
@@ -585,7 +585,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
+      Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
       Name: PoseWithCovariance
@@ -594,7 +594,7 @@ Visualization Manager:
       Shape: Axes
       Topic: /foot_pose_estimator/raw_pose_r
       Unreliable: false
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -635,9 +635,9 @@ Visualization Manager:
       Pitch: 0.32479754090309143
       Point towards: arbitrary
       Position:
-        X: 2.9645652770996094
-        Y: 3.06988263130188
-        Z: 0.9295390844345093
+        X: 2.2315492630004883
+        Y: 2.2003743648529053
+        Z: 0.5465987324714661
       Roll: 1.7063665325167676e-7
       Target Frame: joint_pelvis_rect
       Value: FrameAligned (rviz)

@@ -6,6 +6,10 @@
 
 namespace comkf
 {
+
+template<typename T>
+class KalmanFilter;
+
 /**
  * @brief Measurement vector measuring the body CoM and CoMv
  *
@@ -14,6 +18,8 @@ namespace comkf
 template<typename T>
 class CopMeasurement : public Kalman::Vector<T, 2>
 {
+    friend class KalmanFilter<T>;
+
 public:
     KALMAN_VECTOR(CopMeasurement, T, 2)
     
@@ -41,6 +47,8 @@ public:
 template<typename T, template<class> class CovarianceBase = Kalman::StandardBase>
 class CopMeasurementModel : public Kalman::LinearizedMeasurementModel<State<T>, CopMeasurement<T>, CovarianceBase>
 {
+    friend class KalmanFilter<T>;
+
 public:
     //! State type shortcut definition
     typedef  State<T> S;
@@ -60,7 +68,7 @@ public:
         //this->V *= pow(0.05, 2.0);
 
         // H = dh/dx (Jacobian of measurement function w.r.t. the state)
-        //this->H.setZero();
+        this->H.setZero();
         this->H.template block<2, 2>(M::PX, S::COPX).setIdentity();
     }
     
@@ -76,8 +84,7 @@ public:
      */
     M h(const S& x) const
     {
-        M measurement;
-        measurement.template segment<2>(M::PX) = x.cop();
+        M measurement = this->H * x;
         
         return measurement;
     }

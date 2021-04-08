@@ -1,0 +1,18 @@
+<launch>
+  <arg name="bag_name" default="optitrack/data194x"/>
+  <include file="$(find gait_training_robot)/launch/test1_rtabmap_headless.launch" >
+    <arg name="localization" value="true" />
+    <arg name="enable_distance_controller" value="false" />
+    <arg name="preview" value="true" />
+  </include>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_playbag.rviz" />
+
+  <node name="refine_waypoints" pkg="gait_training_robot" type="refine_waypoints.py" />
+
+  <include file="$(find gait_training_robot)/launch/test5_comkf.launch" >
+    <arg name="play_bag" value="true"/>
+    <arg name="record_bag" value="false"/>
+    <arg name="bag_name" value="$(arg bag_name)"/>
+    <arg name="disable_rviz" value="true"/>
+  </include>
+</launch>

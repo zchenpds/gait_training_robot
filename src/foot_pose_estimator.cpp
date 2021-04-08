@@ -57,6 +57,7 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   for (auto lr : {LEFT, RIGHT})
   {
     auto& ekf = ekf_[lr];
+    setModelCovariance(ekf, pow(1e-2, 2)); 
     setModelCovariance(ekf.sys, 
         {var_q, var_q, var_q, var_q, var_w, var_w, var_w,                   // q, w
          var_p, var_p, var_p, var_v, var_v, var_v, var_a, var_a, var_a, // p, v, a
@@ -133,6 +134,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
       geometry_msgs::TransformStamped tf_msg;
       tf_msg = tf_buffer_.lookupTransform(params_.global_frame, "depth_camera_link", stamp_skeleton_curr, ros::Duration(0.2));
       tf2::fromMsg(tf_msg.transform, tf_depth_to_global);
+      // std::cout << "[" << stamp_skeleton_curr << "]: " << params_.global_frame << ": " << tf_msg.transform.rotation << std::endl;
     }
     catch (tf2::TransformException& ex)
     {
@@ -192,7 +194,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
         ekf.initialized = true;
 
         ts_sport_sole_last_ = stamp_skeleton_curr;
-        ts_kinect_last_ = stamp_skeleton_curr;
+        ts_predict_last_ = ts_kinect_last_ = stamp_skeleton_curr;
         ts_init_ = stamp_skeleton_curr;
       }
 
@@ -235,24 +237,7 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
 
   static int cnt_predict, cnt_predict_prev, cnt_update;
   static int num_of_predictions_between_updates;
-  // Predict only 33 ms into the future from the previuos skeletons measurement
-  ros::Time ts_predict_until = ts_kinect_last_ + ros::Duration(0.033);
-  if (ts_sport_sole_last_ < ts_predict_until)
-  {
-    int cnt_predict_local = 0;
-    auto msg_ptrs = cache_sport_sole_.getInterval(ts_sport_sole_last_, ts_predict_until);
-    for (auto msg_ptr : msg_ptrs)
-    {
-      if (msg_ptr->header.stamp <= ts_sport_sole_last_) continue;
 
-      ++cnt_predict_local;
-      predict(msg_ptr);
-    }
-    cnt_predict += cnt_predict_local;
-    // if (cnt_predict_local) std::cout << "Predict " << (ts_sport_sole_last_ - ts_init_).toSec() << " " << cnt_predict_local << " steps" << std::endl;
-
-  }
-  
   // Update:
   geometry_msgs::TransformStampedConstPtr msg_kinect_ptrs[LEFT_RIGHT] = {
     cache_kinect_measurements_[LEFT].getElemAfterTime(ts_kinect_last_),
@@ -260,16 +245,33 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
   };
 
   if (// Update only if kinect measurement is available
-      msg_kinect_ptrs[LEFT] && msg_kinect_ptrs[RIGHT] && 
-      // Put off update if sport_sole message is delayed
-      msg_kinect_ptrs[LEFT]->header.stamp < ts_sport_sole_curr + ros::Duration(0.005)) 
+      msg_kinect_ptrs[LEFT] && msg_kinect_ptrs[RIGHT]) 
   {
+    // Update using sport sole measurements
+    ros::Time ts_predict_until = msg_kinect_ptrs[LEFT]->header.stamp;
+    if (ts_sport_sole_last_ < ts_predict_until)
+    {
+      int cnt_predict_local = 0;
+      auto msg_ptrs = cache_sport_sole_.getInterval(ts_sport_sole_last_, ts_predict_until);
+      for (auto msg_ptr : msg_ptrs)
+      {
+        if (msg_ptr->header.stamp <= ts_sport_sole_last_) continue;
+
+        ++cnt_predict_local;
+        sportSoleUpdate(msg_ptr);
+      }
+      cnt_predict += cnt_predict_local;
+      // if (cnt_predict_local) std::cout << "Predict " << (ts_sport_sole_last_ - ts_init_).toSec() << " " << cnt_predict_local << " steps" << std::endl;
+
+    }
+
+    // Get previous Kinect message
     geometry_msgs::TransformStampedConstPtr prev_msg_kinect_ptrs[LEFT_RIGHT] = {
       cache_kinect_measurements_[LEFT].getElemBeforeTime(msg_kinect_ptrs[LEFT]->header.stamp),
       cache_kinect_measurements_[RIGHT].getElemBeforeTime(msg_kinect_ptrs[RIGHT]->header.stamp)
     };
 
-    update(msg_kinect_ptrs, prev_msg_kinect_ptrs);
+    kinectUpdate(msg_kinect_ptrs, prev_msg_kinect_ptrs);
     // std::cout << "Update  " << (msg_kinect_ptrs[LEFT]->header.stamp - ts_init_).toSec() << std::endl;
     num_of_predictions_between_updates = cnt_predict - cnt_predict_prev;
     cnt_predict_prev = cnt_predict;
@@ -298,9 +300,9 @@ void FootPoseEstimator::updateTf(const ros::Time& stamp)
   }
 }
 
-void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
+void FootPoseEstimator::sportSoleUpdate(sport_sole::SportSoleConstPtr msg_ptr)
 { 
-  double dt = (msg_ptr->header.stamp - ts_sport_sole_last_).toSec();
+  double dt = (msg_ptr->header.stamp - ts_predict_last_).toSec();
 
   gait_phase_fsm_.update(msg_ptr->pressures);
   uint8_t gait_state = gait_phase_fsm_.getGaitState();
@@ -313,9 +315,12 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
     msg_state.header.frame_id = params_.global_frame;
 
     ekf_t& ekf = ekf_[lr];
-    printDebugMessage("Predicting",ts_sport_sole_last_, lr);
-    ekf.predict(dt);
-    printDebugMessage("Predicted", msg_ptr->header.stamp, lr);
+    if (dt > 1e-3)
+    {
+      printDebugMessage("Predicting",ts_predict_last_, lr);
+      ekf.predict(dt);
+      printDebugMessage("Predicted", msg_ptr->header.stamp, lr);
+    }
 
     ekf_t::ZG zg;
     zg.x() = msg_measurement.w.x = msg_ptr->angular_velocity[lr].x;
@@ -422,7 +427,7 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
         // Last contact
         zg_y_max_[lr] = zg.y();
         tf2::Quaternion quat(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
-        tf2::Vector3 r{-0.07, 0., 0.};
+        tf2::Vector3 r{-0.1, 0., 0.};
         tf2::Vector3 omega{ekf.x.wx(), ekf.x.wy(), ekf.x.wz()};
         tf2::Vector3 v = tf2::quatRotate(quat, omega.cross(r));
         zv << v.x(), v.y(), v.z();
@@ -462,14 +467,15 @@ void FootPoseEstimator::predict(sport_sole::SportSoleConstPtr msg_ptr)
       pub_ekf_state_[lr].publish(msg_state);
     }
   }
-  ts_sport_sole_last_ = msg_ptr->header.stamp;
+  ts_predict_last_ = ts_sport_sole_last_ = msg_ptr->header.stamp;
 
   publishFusedPoses(ts_sport_sole_last_);
 }
 
-void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
-                               geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT])
+void FootPoseEstimator::kinectUpdate(geometry_msgs::TransformStampedConstPtr msg_ptrs[LEFT_RIGHT],
+                                     geometry_msgs::TransformStampedConstPtr prev_msg_ptrs[LEFT_RIGHT])
 {
+  double dt = (msg_ptrs[LEFT]->header.stamp - ts_predict_last_).toSec();
   for (auto lr : {LEFT, RIGHT})
   {
     auto& msg_measurement = msg_kinect_measurement_[lr];
@@ -500,6 +506,13 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
           printDebugMessage("Velocity update", msg_kinect_ptr->header.stamp, lr);
         }
       }
+    }
+
+    if (dt > 1e-3)
+    {
+      printDebugMessage("Predicting",ts_predict_last_, lr);
+      ekf.predict(dt);
+      printDebugMessage("Predicted", msg_state.header.stamp, lr);
     }
 
     // Position update
@@ -555,8 +568,13 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
     }
     
     // Special update
-    double MU = 0.02;
+#if 1
+    double MU = 0.04;
     auto zy_correction = MU * (zp - ekf.x.p()).cross(ekf.x.v());
+#else
+    double MU = 6.0;
+    auto zy_correction = MU * (zv - ekf.x.v()).cross(ekf.x.v());
+#endif
     refUnitY[lr] = (refUnitY[lr] - refUnitY[lr].cross({zy_correction.x(), zy_correction.y(), zy_correction.z()})).normalize();
 
     // Quaternion update (relative)
@@ -626,7 +644,7 @@ void FootPoseEstimator::update(geometry_msgs::TransformStampedConstPtr msg_ptrs[
   }
 
   // Update for next iteration
-  ts_kinect_last_ = msg_ptrs[LEFT]->header.stamp;
+  ts_predict_last_ = ts_kinect_last_ = msg_ptrs[LEFT]->header.stamp;
 
   // Publish pose_fused
   publishFusedPoses(ts_kinect_last_);
