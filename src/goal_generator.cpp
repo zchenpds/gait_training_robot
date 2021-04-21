@@ -117,7 +117,7 @@ void GoalGenerator::sigintHandler(int sig)
       action_client_.cancelAllGoals();
     }
     // Wait in case the robot is running at full speed before killing rosaria
-    system("sleep 4; rosnode kill -a");
+    if (params_.stop_upon_completion) system("sleep 4; rosnode kill -a");
   }
   ros::shutdown();
 }

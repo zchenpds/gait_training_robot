@@ -32,6 +32,7 @@ typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseCl
   LIST_ENTRY(preview, "If true, the goal will not be executed.", bool, false)    \
   LIST_ENTRY(max_num_laps, "The maximum number of laps the robot will run before shutting down.", int, 3)    \
   LIST_ENTRY(delay_start_secs, "The number of seconds that this node will wait for before sending the first goal.", double, 0.0)    \
+  LIST_ENTRY(stop_upon_completion, "If true, will send SIGINT to all other running nodes.", bool, true)    \
 
 
 struct GoalGeneratorParams 
