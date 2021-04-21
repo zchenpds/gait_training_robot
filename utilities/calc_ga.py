@@ -14,6 +14,8 @@ import numpy as np
 import time
 import yaml
 
+import ga
+
 import time, sys
 import os.path
 import bag_ops
@@ -35,22 +37,23 @@ parser.add_argument('-e', '--enable_rviz_3d',            action='store_true')
 parser.add_argument('-s', '--skip_bag_gen',              action='store_true')
 args = parser.parse_args()
 
-rp = rospkg.RosPack()
-gta_path = rp.get_path('gait_training_robot')
-bag_path = os.path.join(gta_path, 'bags/optitrack/ga/')
-# bag_names = ['data' + s for s in [str(i).rjust(3, '0') for i in range(213,230)]]
-bag_names = ['data' + s for s in [str(i).rjust(3, '0') for i in range(args.trial_id, args.trial_id + args.len)]]
 
 
 def main():
+    rp = rospkg.RosPack()
+    gta_path = rp.get_path('gait_training_robot')
+    bag_path = os.path.join(gta_path, 'bags/optitrack/ga/')
+
     bag_info = {}
     with open(os.path.join(gta_path, 'bags', 'optitrack', 'bag_info.yaml'), 'r') as stream:
         try:
             bag_info = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
+    bag_names = ['data' + s for s in [str(i).rjust(3, '0') for i in range(args.trial_id, args.trial_id + args.len)]]
+    bag_names = [bag_name for bag_name in bag_names if bag_name in bag_info.keys()]
     if not args.skip_bag_gen:
-        run_both()
+        run_both(bag_names, bag_path)
     for bag_name in bag_names:
         bag_file = os.path.join(bag_path, bag_name + '.bag')
         if not os.path.exists(bag_file):
@@ -58,8 +61,9 @@ def main():
             continue
         mat_file = gta_path + '/matlab/mat/' + bag_name + '.mat'
         with rosbag.Bag(bag_file, 'r') as inbag:
-            KINECT    = get_mos_vec_dict(inbag, '/gait_analyzer/estimate/mos_vec')
-            OPTITRACK = get_mos_vec_dict(inbag, '/gait_analyzer_optitrack/estimate/mos_vec')
+            # Compare MoS
+            KINECT    = ga.get_mos_vec_dict(inbag, '/gait_analyzer/estimate/mos_vec')
+            OPTITRACK = ga.get_mos_vec_dict(inbag, '/gait_analyzer_optitrack/estimate/mos_vec')
             t_min = OPTITRACK['t'][0]
             t_max = OPTITRACK['t'][-1]
             if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
@@ -68,21 +72,55 @@ def main():
             trim_time(KINECT, t_min, t_max)
             KINECT['MOS_OPTITRACK'] = interp1d(OPTITRACK['t'], OPTITRACK['MOS'], axis=0, copy=True, assume_sorted=True)(KINECT['t'])
             KINECT['MOS_RMSE'] = np.sqrt(np.mean((KINECT['MOS_OPTITRACK'] - KINECT['MOS'])**2, axis=0))
-            mos_arr = KINECT['MOS_RMSE'] * 100
-            str_output = '{3:s}: RMSE [cm] {{MOS: {0:3.2f}, MOSAP: {1:3.2f}, MOSML: {2:3.2f}}}: '.format(mos_arr[0], mos_arr[1], mos_arr[2], bag_name)
+            mos_rmse = KINECT['MOS_RMSE'] * 100
+
+            # Compare foot pose
+            stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
+            STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
+            STEP_OPTITRACK = ga.StepData(inbag, '/optitrack/foot_pose_', stance_intervals)
+            STEP_ERROR = STEP_KINECT - STEP_OPTITRACK
+            
+            step_rmse = np.array([ga.calc_rmse(STEP_ERROR.get_stride_lengths()),
+                                  ga.calc_rmse(STEP_ERROR.get_step_lengths()),
+                                  ga.calc_rmse(STEP_ERROR.get_step_widths())]) * 100
+
+            str_output = '{0:s}: RMSE [cm] {{MOS: {1:3.2f}, MOSAP: {2:3.2f}, MOSML: {3:3.2f}, StrideL: {4:3.2f}, StepL: {5:3.2f}, StepW: {6:3.2f}}}'.format(
+                bag_name, mos_rmse[0], mos_rmse[1], mos_rmse[2], step_rmse[0], step_rmse[1], step_rmse[2])
+            
+            step_mae = np.array([ga.calc_mae(STEP_ERROR.get_stride_lengths()),
+                                 ga.calc_mae(STEP_ERROR.get_step_lengths()),
+                                 ga.calc_mae(STEP_ERROR.get_step_widths())]) * 100
+            str_output += ', MAE [cm] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:3.2f}}}'.format(
+                step_mae[0], step_mae[1], step_mae[2])
+
+            step_mae = np.array([ga.calc_mae(STEP_ERROR.get_stride_lengths()),
+                                 ga.calc_mae(STEP_ERROR.get_step_lengths()),
+                                 ga.calc_mae(STEP_ERROR.get_step_widths())]) * 100
+            str_output += ', MAE [cm] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:3.2f}}}'.format(
+                step_mae[0], step_mae[1], step_mae[2])
+
+            step_mae_percentage = np.array([ga.calc_mae_percentage(STEP_ERROR.get_stride_lengths(), STEP_OPTITRACK.get_stride_lengths(), 0.3),
+                                            ga.calc_mae_percentage(STEP_ERROR.get_step_lengths(), STEP_OPTITRACK.get_step_lengths(), 0.3),
+                                            ga.calc_mae_percentage(STEP_ERROR.get_step_widths(), STEP_OPTITRACK.get_step_widths())]) * 100
+            str_output += ', MAE [%] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:4.2f}}}'.format(
+                step_mae_percentage[0], step_mae_percentage[1], step_mae_percentage[2])
+
             logging.info(str_output)
             print(str_output)
 
-            continue
+            pass
 
-            sio.savemat(mat_file, {'KINECT': KINECT, 'OPTITRACK': OPTITRACK})
-            print('Saved to ' + mat_file)
+
+            # continue
+
+            # sio.savemat(mat_file, {'KINECT': KINECT, 'OPTITRACK': OPTITRACK})
+            # print('Saved to ' + mat_file)
 
 def trim_time(A, t_min, t_max):
     idx = np.logical_and(A['t'] >= t_min, A['t'] <= t_max)
     A.update({k: v[idx] for k, v in A.items()})
     
-def run_both():
+def run_both(bag_names, bag_path):
     bag_ops.rectify_bag_names(bag_path)
 
     launch_options = ['record_gait_analytics:=true', 'play_back_rate:=' + str(args.rate)]
@@ -94,6 +132,7 @@ def run_both():
     else: launch_options.append('global_frame:=fused_odom')
 
     if args.express_in_raw_odom: launch_options.append('global_frame_fpe:=odom')
+    elif args.transform_to_optitrack: launch_options.append('global_frame_fpe:=optitrack')
     else: launch_options.append('global_frame_fpe:=fused_odom')
 
     launch_options.append('comkf_measurement_scheme:=' + str(args.comkf_measurement_scheme))
@@ -111,10 +150,6 @@ def run_both():
     bag_ops.rectify_bag_names(bag_path)
     # print(os.listdir(bag_path))
 
-def get_mos_vec_dict(inbag, topic):
-    msg_list = [msg for _, msg, _ in inbag.read_messages(topics=topic)]
-    return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
-            "MOS": np.array([[msg.vector.x, msg.vector.y, msg.vector.z] for msg in msg_list])}
 
 if __name__ == '__main__':
     main()
