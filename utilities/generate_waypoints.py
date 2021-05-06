@@ -9,7 +9,14 @@ import sys
 from tf.transformations import quaternion_from_euler
 from tf.transformations import euler_from_quaternion
 
-ds = 0.5
+import argparse
+parser = argparse.ArgumentParser(description="Prescribe the path for the robot to follow.")
+parser.add_argument('room_id', type=str)
+parser.add_argument('-ds', type=float, default=0.5, help='Separation between consecutive waypoints.')
+parser.add_argument('-yaw_degrees', type=float, default=0.0, help='Rotation of the whole trajectory')
+
+args = parser.parse_args()
+ds = args.ds
 yaw_degrees = 0
 frame_id = "map" # map, odom
 
@@ -120,50 +127,90 @@ def writeYaml(path, suffix):
             yaml.dump(wp, outfile, default_flow_style=False, explicit_start=True)
 
 
-r = 1.4
-R = 3.9
-alpha = math.pi * 0.2
 PI = math.pi
 
 
 def main():
-    dx = (R - r) * math.cos(alpha)
-    dy = (R - r) * math.sin(alpha)
-    xc1, yc1 = 4.0, 1.2
-    xc2, yc2 = 4.0, -2.7
-    path = []
-    # Upper semicircle
-    appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI, PI - alpha)
-    appendCircularPath(path, xc1, yc1, r, PI - alpha, alpha)
-    appendCircularPath(path, xc1 - dx, yc1 - dy, R, alpha, 0.0)
-    # Lower semicircle
-    appendCircularPath(path, xc2 - dx, yc2 + dy, R, 0.0, -alpha)
-    appendCircularPath(path, xc2, yc2, r, -alpha, -PI + alpha)
-    appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI + alpha, -PI)
-    closePath(path)
-    rotateAround(path, 4.0, -0.75, -yaw_degrees * math.pi / 180.0)
-    suffix = '_cw'
-    writeYaml(path, suffix)
+    if args.room_id == 'eas102':
+        r = 1.4
+        R = 3.9
+        alpha = math.pi * 0.2
+        dx = (R - r) * math.cos(alpha)
+        dy = (R - r) * math.sin(alpha)
 
-    dx = (R - r) * math.cos(alpha)
-    dy = (R - r) * math.sin(alpha)
-    xc1, yc1 = 4.2, 1.2
-    xc2, yc2 = 4.2, -2.7
-    path = []
-    # Lower semicircle
-    appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI, -PI + alpha)
-    appendCircularPath(path, xc2, yc2, r, -PI + alpha, -alpha)
-    appendCircularPath(path, xc2 - dx, yc2 + dy, R, -alpha, 0.0)
-    # Upper semicircle
-    appendCircularPath(path, xc1 - dx, yc1 - dy, R, 0.0, alpha)
-    appendCircularPath(path, xc1, yc1, r, alpha, PI - alpha)
-    appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI - alpha, PI)
-    closePath(path)
-    rotateAround(path, 4.0, -0.75, yaw_degrees * math.pi / 180.0)
-    suffix = '_ccw'
-    writeYaml(path, suffix)
+        # cw
+        xc1, yc1 = 4.0, 1.2
+        xc2, yc2 = 4.0, -2.7
+        path = []
+        # Upper semicircle
+        appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI, PI - alpha)
+        appendCircularPath(path, xc1, yc1, r, PI - alpha, alpha)
+        appendCircularPath(path, xc1 - dx, yc1 - dy, R, alpha, 0.0)
+        # Lower semicircle
+        appendCircularPath(path, xc2 - dx, yc2 + dy, R, 0.0, -alpha)
+        appendCircularPath(path, xc2, yc2, r, -alpha, -PI + alpha)
+        appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI + alpha, -PI)
+        closePath(path)
+        rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, args.yaw_degrees * PI / 180.0)
+        suffix = '_cw'
+        writeYaml(path, suffix)
 
-    
+        # ccw
+        xc1, yc1 = 4.2, 1.2
+        xc2, yc2 = 4.2, -2.7
+        path = []
+        # Lower semicircle
+        appendCircularPath(path, xc2 + dx, yc2 + dy, R, -PI, -PI + alpha)
+        appendCircularPath(path, xc2, yc2, r, -PI + alpha, -alpha)
+        appendCircularPath(path, xc2 - dx, yc2 + dy, R, -alpha, 0.0)
+        # Upper semicircle
+        appendCircularPath(path, xc1 - dx, yc1 - dy, R, 0.0, alpha)
+        appendCircularPath(path, xc1, yc1, r, alpha, PI - alpha)
+        appendCircularPath(path, xc1 + dx, yc1 - dy, R, PI - alpha, PI)
+        closePath(path)
+        rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, yaw_degrees * PI / 180.0)
+        suffix = '_ccw'
+        writeYaml(path, suffix)
+    elif args.room_id == 'eas101':
+        r = 1.2
+        R = 1.7
+        alpha = math.pi * 0.3
+        dx = (R - r) * math.cos(alpha)
+        dy = (R - r) * math.sin(alpha)
+        
+        # cw
+        xc1, yc1 = 0.0, 1.5
+        xc2, yc2 = -2.0, 1.5
+        path = []
+        # Upper semicircle
+        appendCircularPath(path, xc2 + dx, yc2 + dy, R, 3*PI/2,         3*PI/2 - alpha)
+        appendCircularPath(path, xc2,      yc2,      r, 3*PI/2 - alpha, PI/2 + alpha)
+        appendCircularPath(path, xc2 + dx, yc2 - dy, R, PI/2 + alpha,   PI/2)
+        # Lower semicircle
+        appendCircularPath(path, xc1 - dx, yc1 - dy, R, PI/2,           PI/2 - alpha)
+        appendCircularPath(path, xc1,      yc1,      r, PI/2 - alpha,  -PI/2 + alpha)
+        appendCircularPath(path, xc1 - dx, yc1 + dy, R, -PI/2 + alpha, -PI/2)
+        closePath(path)
+        rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, args.yaw_degrees * PI / 180.0)
+        suffix = '_cw'
+        writeYaml(path, suffix)
+
+        # ccw
+        path = []
+        # Lower semicircle
+        appendCircularPath(path, xc1 - dx, yc1 + dy, R, -PI/2,        -PI/2 + alpha)
+        appendCircularPath(path, xc1,      yc1,      r, -PI/2 + alpha, PI/2 - alpha)
+        appendCircularPath(path, xc1 - dx, yc1 - dy, R,  PI/2 - alpha, PI/2)
+        # Upper semicircle
+        appendCircularPath(path, xc2 + dx, yc2 - dy, R, PI/2,           PI/2 + alpha)
+        appendCircularPath(path, xc2,      yc2,      r, PI/2 + alpha,   3*PI/2 - alpha)
+        appendCircularPath(path, xc2 + dx, yc2 + dy, R, 3*PI/2 - alpha, 3*PI/2)
+        closePath(path)
+        rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, args.yaw_degrees * PI / 180.0)
+        suffix = '_ccw'
+        writeYaml(path, suffix)
+    else:
+        raise Exception('Unknown room_id.')
 
 
 if __name__ == '__main__':
