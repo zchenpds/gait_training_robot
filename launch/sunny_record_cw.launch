@@ -1,0 +1,12 @@
+<launch>
+  <arg name="bag_name" default="data" />
+  <arg name="wired_sync_enabled" default="false"/>
+  <arg name="online_mos_estimation_enabled" default="false"/>
+  <arg name="disable_rviz" default="true"/>
+  
+  <include file="$(find gait_training_robot)/launch/test5_comkf.launch" pass_all_args="true">
+    <arg name="waypoints_file_suffix" value="_cw"/>
+  </include>
+	<node name="record_monitor" pkg="gait_training_robot" type="record_monitor.py" output="screen"/>
+
+</launch>

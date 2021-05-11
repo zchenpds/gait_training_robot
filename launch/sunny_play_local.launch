@@ -1,0 +1,47 @@
+<launch>
+	<arg name="bag_path1"          />
+	<arg name="bag_name"                  default=""/>
+	<arg name="enable_rviz"               default="true"/>
+	<arg name="enable_kpe"                default="true"/>
+	<arg name="enable_fpe"                default="true"/>
+	<arg name="enable_ga"                 default="true"/>
+	<arg name="record_odom"               default="false"/>
+	<arg name="record_all"                default="false"/>
+	<arg name="rviz_config_file"          default="slam_rtabmap_ekf.rviz"/>     <!-- slam_rtabmap_ekf_ga.rviz -->
+	<arg name="sport_sole_time_offset"    default="0.0"/>
+    <arg name="play_back_rate" 		      default="1.0" />
+    <arg name="comkf_measurement_scheme"  default="2" />
+    <arg name="enable_debug_log"  		  default="false" />
+
+	<!-- foot_pose_estimator -->
+	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen" if="$(arg enable_fpe)">
+		<param name="global_frame"                  value="fused_odom"/>
+		<param name="publish_frame"                 value="fused_odom"/>
+		<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)\"/>
+		<param name="enable_debug_log"              value="$(arg enable_debug_log)"/>
+		<rosparam command="load" file="$(find gait_training_robot)/params/foot_pose_estimator.yaml" />
+	</node>
+
+	<!-- kinect_pose_estimator -->
+	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator" output="screen" if="$(arg enable_kpe)">
+		<rosparam command="load" file="$(find gait_training_robot)/params/kinect_pose_estimator.yaml" />
+	</node>
+	
+	<!-- Gait analyzer -->
+	<group if="$(arg enable_ga)">
+		<node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+			<param name="data_source"                   value="k4a" />
+			<param name="global_frame"                  value="fused_odom" />
+			<param name="publish_frame"                 value="fused_odom"/>
+			<param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
+			<param name="smoother_enabled"              value="false"/>
+			<rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer$(arg comkf_measurement_scheme).yaml" />
+		</node>
+	</group>
+	
+	<!-- rosbag play -->
+	<include file="$(find gait_training_robot)/launch/includes/playback.launch" pass_all_args="true" />
+
+	<!-- Rviz -->
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen"  if="$(arg enable_rviz)" />
+</launch>
