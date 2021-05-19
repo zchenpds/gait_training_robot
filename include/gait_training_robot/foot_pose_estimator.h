@@ -52,6 +52,7 @@ typedef double FloatType;
   LIST_ENTRY(publish_frame, "The reference frame for pose messages.", std::string, std::string("odom"))                          \
   LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                     \
   LIST_ENTRY(enable_debug_log, "If set to true, verbose log will be saved at '~/.ros/gait_training_robot/fpe.log'.", bool, false)\
+  LIST_ENTRY(enable_huber_update, "If set to true, robustness to outliers'll increase at the cost of reliability.", bool, true)  \
 
 
 struct FootPoseEstimatorParams

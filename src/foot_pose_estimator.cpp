@@ -526,44 +526,48 @@ void FootPoseEstimator::kinectUpdate(geometry_msgs::TransformStampedConstPtr msg
     }
     else
     {
-#if 0
-      if (current_gait_phase_[lr] != GaitPhase::Stance2)
+      if (params_.enable_huber_update)
       {
-        FloatType gamma = confidence_pos_a_priori_[lr];
-        FloatType outlier_threshold = params_.system_noise_p * params_.outlier_threashold;
-        auto psi = [gamma, outlier_threshold](FloatType zeta){
-          zeta = fabs(zeta);
-          if (zeta < outlier_threshold) return FloatType(0);
-          else return gamma * (zeta - outlier_threshold);
-        };
-        ekf.update(zp, psi);
-        spme_[lr].clear();
-      }
-      else
-      {
-        // Initialize spme with prior estimate
-        if (spme_[lr].empty()) spme_[lr].put(ekf.x.p());
-        spme_[lr].put(zp);
-        ekf_t::ZP zp_new = spme_[lr].getAverage();
-        ekf.update(zp_new);
-      }
-#else
-      FloatType gamma = params_.outlier_threashold;
-      auto psi = [gamma](FloatType zeta){
-        if (fabs(zeta) < gamma)
+        if (current_gait_phase_[lr] != GaitPhase::Stance2)
         {
-          return FloatType(1.0);
+          FloatType gamma = confidence_pos_a_priori_[lr];
+          FloatType outlier_threshold = params_.system_noise_p * params_.outlier_threashold;
+          auto psi = [gamma, outlier_threshold](FloatType zeta){
+            zeta = fabs(zeta);
+            if (zeta < outlier_threshold) return FloatType(0);
+            else return gamma * (zeta - outlier_threshold);
+          };
+          ekf.update(zp, psi);
+          spme_[lr].clear();
         }
         else
         {
-          return gamma / fabs(zeta);
+          // Initialize spme with prior estimate
+          if (spme_[lr].empty()) spme_[lr].put(ekf.x.p());
+          spme_[lr].put(zp);
+          ekf_t::ZP zp_new = spme_[lr].getAverage();
+          ekf.update(zp_new);
         }
-      };
-      if (params_.enable_debug_log)
-        ekf.updateHuber(zp, psi, &ofs_log[lr]);
-      else
-        ekf.updateHuber(zp, psi);
-#endif
+      }
+      else 
+      {
+        FloatType gamma = params_.outlier_threashold;
+        auto psi = [gamma](FloatType zeta){
+          if (fabs(zeta) < gamma)
+          {
+            return FloatType(1.0);
+          }
+          else
+          {
+            return gamma / fabs(zeta);
+          }
+        };
+        setModelCovariance(ekf.pmm,  pow(params_.measurement_noise_p,  2));
+        if (params_.enable_debug_log)
+          ekf.updateHuber(zp, psi, &ofs_log[lr]);
+        else
+          ekf.updateHuber(zp, psi);
+      }
       printDebugMessage("Position update", msg_kinect_ptr->header.stamp, lr);
     }
     
