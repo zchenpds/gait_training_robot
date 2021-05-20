@@ -190,6 +190,7 @@ add_executable(gait_analyzer_optitrack src/gait_analyzer_optitrack.cpp)
 add_executable(foot_pose_estimator src/foot_pose_estimator.cpp)
 add_executable(kinect_pose_estimator src/kinect_pose_estimator.cpp)
 add_executable(test_sport_sole_ekf test/test_sport_sole_ekf.cpp)
+add_executable(skeleton_publisher src/skeleton_publisher.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -233,6 +234,10 @@ target_link_libraries(foot_pose_estimator
 )
 
 target_link_libraries(kinect_pose_estimator 
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(skeleton_publisher 
   ${catkin_LIBRARIES}
 )
 
