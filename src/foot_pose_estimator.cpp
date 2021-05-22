@@ -304,7 +304,7 @@ void FootPoseEstimator::sportSoleUpdate(sport_sole::SportSoleConstPtr msg_ptr)
 { 
   double dt = (msg_ptr->header.stamp - ts_predict_last_).toSec();
 
-  gait_phase_fsm_.update(msg_ptr->pressures);
+  gait_phase_fsm_.update(*msg_ptr);
   uint8_t gait_state = gait_phase_fsm_.getGaitState();
 
   for (auto lr: {LEFT, RIGHT})

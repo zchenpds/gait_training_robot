@@ -527,7 +527,7 @@ void GaitAnalyzer::processSportSole(const sport_sole::SportSole& msg)
 {
   const auto & stamp_sport_sole_curr = msg.header.stamp;
 
-  gait_phase_fsm_.update(msg.pressures);
+  gait_phase_fsm_.update(msg);
   uint8_t gait_state = gait_phase_fsm_.getGaitState();
   updateGaitState(gait_state);
   

@@ -394,7 +394,7 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
       ROS_WARN_STREAM_THROTTLE(1.0, ga_params_.data_source << 
         " sport_sole messages found but is " << delay_sport_sole.toSec() << "s too old!");
     }
-    gait_phase_fsm_.update(msg_sport_sole_ptr->pressures);
+    gait_phase_fsm_.update(*msg_sport_sole_ptr);
     uint8_t gait_state = gait_phase_fsm_.getGaitState();
     updateGaitState(gait_state);
     // updateGaitState(msg_sport_sole_ptr->gait_state);
