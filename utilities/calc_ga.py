@@ -51,6 +51,8 @@ def main():
         except yaml.YAMLError as exc:
             print(exc)
     bag_names = ['data' + s for s in [str(i).rjust(3, '0') for i in range(args.trial_id, args.trial_id + args.len)]]
+    bag_names_skipped = [bag_name for bag_name in bag_names if bag_name not in bag_info.keys()]
+    if bag_names_skipped: print("Skipping bags not specified in bag_info: " + ' '.join(bag_names_skipped))
     bag_names = [bag_name for bag_name in bag_names if bag_name in bag_info.keys()]
     if not args.skip_bag_gen:
         run_both(bag_names, bag_path)
