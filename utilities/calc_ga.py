@@ -93,12 +93,6 @@ def main():
             str_output += ', MAE [cm] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:3.2f}}}'.format(
                 step_mae[0], step_mae[1], step_mae[2])
 
-            step_mae = np.array([ga.calc_mae(STEP_ERROR.get_stride_lengths()),
-                                 ga.calc_mae(STEP_ERROR.get_step_lengths()),
-                                 ga.calc_mae(STEP_ERROR.get_step_widths())]) * 100
-            str_output += ', MAE [cm] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:3.2f}}}'.format(
-                step_mae[0], step_mae[1], step_mae[2])
-
             step_mae_percentage = np.array([ga.calc_mae_percentage(STEP_ERROR.get_stride_lengths(), STEP_OPTITRACK.get_stride_lengths(), 0.3),
                                             ga.calc_mae_percentage(STEP_ERROR.get_step_lengths(), STEP_OPTITRACK.get_step_lengths(), 0.3),
                                             ga.calc_mae_percentage(STEP_ERROR.get_step_widths(), STEP_OPTITRACK.get_step_widths())]) * 100
