@@ -35,6 +35,7 @@ parser.add_argument('-rawodom', '--express_in_raw_odom', action='store_true')
 parser.add_argument('-g', '--enable_rviz_ga',            action='store_true')
 parser.add_argument('-e', '--enable_rviz_3d',            action='store_true')
 parser.add_argument('-s', '--skip_bag_gen',              action='store_true')
+parser.add_argument('-p', '--export_mat',                action='store_true')
 args = parser.parse_args()
 
 
@@ -61,11 +62,14 @@ def main():
         if not os.path.exists(bag_file):
             print("Skipping nonexistent bag: " + bag_file)
             continue
-        mat_file = gta_path + '/matlab/mat/' + bag_name + '.mat'
+        # mat_file = gta_path + '/matlab/mat/' + bag_name + '.mat'
+        mat_file = os.path.join('/home/ral2020/projects/gta_data2/OptiTrack/simple', bag_name + '.mat')
         with rosbag.Bag(bag_file, 'r') as inbag:
             # Compare MoS
             KINECT    = ga.get_mos_vec_dict(inbag, '/gait_analyzer/estimate/mos_vec')
             OPTITRACK = ga.get_mos_vec_dict(inbag, '/gait_analyzer_optitrack/estimate/mos_vec')
+            KINECT    = ga.merge(KINECT,    ga.get_gait_state_dict(inbag, '/gait_analyzer/gait_state'))
+            OPTITRACK = ga.merge(OPTITRACK, ga.get_gait_state_dict(inbag, '/gait_analyzer_optitrack/gait_state'))
             t_min = OPTITRACK['t'][0]
             t_max = OPTITRACK['t'][-1]
             if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
@@ -104,13 +108,10 @@ def main():
             logging.info(str_output)
             print(str_output)
 
-            pass
-
-
-            # continue
-
-            # sio.savemat(mat_file, {'KINECT': KINECT, 'OPTITRACK': OPTITRACK})
-            # print('Saved to ' + mat_file)
+            if args.export_mat:
+                assert(os.path.exists(os.path.dirname(mat_file)))
+                sio.savemat(mat_file, {'KINECT': KINECT, 'OPTITRACK': OPTITRACK})
+                print('Saved to ' + mat_file)
 
 def trim_time(A, t_min, t_max):
     idx = np.logical_and(A['t'] >= t_min, A['t'] <= t_max)
