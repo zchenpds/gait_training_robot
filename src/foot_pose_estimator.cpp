@@ -78,8 +78,18 @@ FootPoseEstimator::FootPoseEstimator(const ros::NodeHandle& n, const ros::NodeHa
   }
 
   // Initialize publishers
+  pub_fused_pose_marker_array_ = private_nh_.advertise<visualization_msgs::MarkerArray>("fused_pose_marker_array", 1);
+  fused_pose_marker_array_msg_.markers.resize(2);
   for (auto lr : {LEFT, RIGHT})
   {
+    auto& marker_msg = fused_pose_marker_array_msg_.markers[lr];
+    marker_msg.type = visualization_msgs::Marker::MESH_RESOURCE;
+    marker_msg.color.a = 1.0;
+    marker_msg.color.r = 0.0;
+    marker_msg.color.g = 1.0;
+    marker_msg.color.b = 0.0;
+    marker_msg.lifetime = ros::Duration(1000);
+    marker_msg.mesh_resource = "package://gait_training_robot/meshes/shoe.stl";
     std::string str_lr = (lr == LEFT ? "l" : "r");
     pub_fused_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("fused_pose_" + str_lr, 600);
     pub_raw_poses_[lr] = private_nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("raw_pose_" + str_lr, 5);
@@ -678,7 +688,17 @@ void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp)
       }
     }
     pub_fused_poses_[lr].publish(pose_fused);
+
+    // Update marker array
+    auto& marker_msg = fused_pose_marker_array_msg_.markers[lr];
+    marker_msg.header.stamp = stamp;
+    marker_msg.header.frame_id = params_.publish_frame;
+    marker_msg.id = lr;
+    marker_msg.pose = pose_fused->pose.pose;
+    marker_msg.scale.x = marker_msg.scale.y = marker_msg.scale.z = 0.00013;
+    correctShoeMarkerOrientation(&marker_msg, lr);
   }
+  pub_fused_pose_marker_array_.publish(fused_pose_marker_array_msg_);
 }
 
 void FootPoseEstimator::printDebugMessage(const char* message, const ros::Time& stamp, left_right_t lr) const

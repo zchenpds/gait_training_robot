@@ -26,6 +26,7 @@
 #include "robust_estimator.h"
 #include <deque>
 
+#include <gait_training_robot/skeleton_common.h>
 
 typedef double FloatType;
 
@@ -106,6 +107,8 @@ private:
   // std::deque<ros::Time> spme_ts_queue_[LEFT_RIGHT];
 
   // SportSoleEKF
+  ros::Publisher                  pub_fused_pose_marker_array_;
+  visualization_msgs::MarkerArray     fused_pose_marker_array_msg_;
   ekf_t ekf_[LEFT_RIGHT];
   FloatType confidence_pos_a_priori_[LEFT_RIGHT] = {0.0, 0.0};
   FloatType zg_y_max_[LEFT_RIGHT];
