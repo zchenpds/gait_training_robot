@@ -22,6 +22,8 @@
 		<rosparam command="load" file="$(find gait_training_robot)/params/foot_pose_estimator.yaml" />
 	</node>
 
+	<node name="skeleton_publisher" pkg="gait_training_robot" type="skeleton_publisher" output="screen"/>
+
 	<!-- kinect_pose_estimator -->
 	<node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator" output="screen" if="$(arg enable_kpe)">
 		<rosparam command="load" file="$(find gait_training_robot)/params/kinect_pose_estimator.yaml" />

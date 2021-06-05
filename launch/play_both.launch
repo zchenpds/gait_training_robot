@@ -20,6 +20,8 @@
 		<remap from="/imu/data_raw" to="/imu" />
 	</node> -->
 
+	<node name="skeleton_publisher" pkg="gait_training_robot" type="skeleton_publisher" output="screen"/>
+
 	<!-- foot_pose_estimator -->
 	<node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
 		<param name="global_frame"                  value="$(arg global_frame_fpe)"/>

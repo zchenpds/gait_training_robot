@@ -24,11 +24,10 @@ std::array<tf2::Transform, K4ABT_JOINT_COUNT> joint_tfs_;
 
 std::string global_frame_;
 
-bool use_fused_foot_pose_ = true;
-
 int sub_id_ = -1;
 
-ros::Publisher pub_skeleton_;
+ros::Publisher pub_skeleton_raw_;
+ros::Publisher pub_skeleton_fused_;
 MarkerArray segment_marker_array_;
 
 geometry_msgs::PoseStamped fused_foot_poses_[LEFT_RIGHT];
@@ -93,28 +92,7 @@ void skeletonsCB(const visualization_msgs::MarkerArray& msg)
       joint_tfs_[i] = tf_depth_to_global * joint_tfs_[i];
     }
 
-    if (use_fused_foot_pose_)
-    {
-      for (left_right_t lr: {LEFT, RIGHT})
-      {
-        auto ankle_joint_id = lr == LEFT ? K4ABT_JOINT_ANKLE_LEFT: K4ABT_JOINT_ANKLE_RIGHT;
-        auto knee_joint_id  = lr == LEFT ? K4ABT_JOINT_KNEE_LEFT:  K4ABT_JOINT_KNEE_RIGHT;
-
-        // Get fused poses
-        tf2::Vector3 position; tf2::fromMsg(fused_foot_poses_[lr].pose.position, position);
-        tf2::Quaternion quat; tf2::fromMsg(fused_foot_poses_[lr].pose.orientation, quat);
-        position += tf2::quatRotate(quat, {-0.1, 0.0, 0.1});
-
-        // Get delta (correction)
-        tf2::Vector3 delta_position_ankle = position - joint_tfs_[ankle_joint_id].getOrigin();
-
-        // Correct ankle and foot joints
-        joint_tfs_[ankle_joint_id].setOrigin(position);
-        joint_tfs_[ankle_joint_id].setRotation(quat);
-        joint_tfs_[knee_joint_id].setOrigin(joint_tfs_[knee_joint_id].getOrigin() + delta_position_ankle * 0.5);
-      }
-    }
-
+    // skeleton_raw
     for (size_t i = 0; i < vec_segments.size(); ++i)
     {
       Marker* segment_msg = &segment_marker_array_.markers[i];
@@ -137,19 +115,15 @@ void skeletonsCB(const visualization_msgs::MarkerArray& msg)
 
       if (isAnkle(proximal_joint_id))
       {
-#if 0
-        segment_msg->color.a = 0.0;
-#else
         segment_msg->type = Marker::MESH_RESOURCE;
         segment_msg->mesh_resource = "package://gait_training_robot/meshes/shoe.stl";
         
         segment_msg->scale.x = segment_msg->scale.y = segment_msg->scale.z = 0.00013;
 
         tf2::toMsg(joint_tfs_[proximal_joint_id], segment_msg->pose);
-        if (!use_fused_foot_pose_) correctAnkleMarkerOrientation(segment_msg, proximal_joint_id);
+        correctAnkleMarkerOrientation(segment_msg, proximal_joint_id);
         correctAnkleMarkerDisplacement(segment_msg);
         correctShoeMarkerOrientation(segment_msg, proximal_joint_id);
-#endif
       }
       else
       {        
@@ -157,8 +131,48 @@ void skeletonsCB(const visualization_msgs::MarkerArray& msg)
         tf2::toMsg(joint_tfs_[distal_joint_id].getOrigin(), segment_msg->points[1]);
       }
     }
+    pub_skeleton_raw_.publish(segment_marker_array_);
 
-    pub_skeleton_.publish(segment_marker_array_);
+    // Skeleton_fused
+    for (left_right_t lr: {LEFT, RIGHT})
+    {
+      auto ankle_joint_id = lr == LEFT ? K4ABT_JOINT_ANKLE_LEFT: K4ABT_JOINT_ANKLE_RIGHT;
+      auto knee_joint_id  = lr == LEFT ? K4ABT_JOINT_KNEE_LEFT:  K4ABT_JOINT_KNEE_RIGHT;
+
+      // Get fused poses
+      tf2::Vector3 position; tf2::fromMsg(fused_foot_poses_[lr].pose.position, position);
+      tf2::Quaternion quat; tf2::fromMsg(fused_foot_poses_[lr].pose.orientation, quat);
+      position += tf2::quatRotate(quat, {-0.1, 0.0, 0.1});
+
+      // Get delta (correction)
+      tf2::Vector3 delta_position_ankle = position - joint_tfs_[ankle_joint_id].getOrigin();
+
+      // Correct ankle and foot joints
+      joint_tfs_[ankle_joint_id].setOrigin(position);
+      joint_tfs_[ankle_joint_id].setRotation(quat);
+      joint_tfs_[knee_joint_id].setOrigin(joint_tfs_[knee_joint_id].getOrigin() + delta_position_ankle * 0.5);
+    }
+
+    for (size_t i = 0; i < vec_segments.size(); ++i)
+    {
+      Marker* segment_msg = &segment_marker_array_.markers[i];
+      k4abt_joint_id_t proximal_joint_id = vec_segments[i].joint_pair_.first;
+      k4abt_joint_id_t distal_joint_id = vec_segments[i].joint_pair_.second;
+
+      if (isAnkle(proximal_joint_id))
+      {
+        tf2::toMsg(joint_tfs_[proximal_joint_id], segment_msg->pose);
+        correctAnkleMarkerDisplacement(segment_msg);
+        correctShoeMarkerOrientation(segment_msg, proximal_joint_id);
+      }
+      else
+      {        
+        tf2::toMsg(joint_tfs_[proximal_joint_id].getOrigin(), segment_msg->points[0]);
+        tf2::toMsg(joint_tfs_[distal_joint_id].getOrigin(), segment_msg->points[1]);
+      }
+    }
+    pub_skeleton_fused_.publish(segment_marker_array_);
+
   }
 }
 
@@ -186,7 +200,8 @@ int main(int argc, char **argv)
       nh.subscribe("/foot_pose_estimator/fused_pose_l", 10, FusedPoseLCB), 
       nh.subscribe("/foot_pose_estimator/fused_pose_r", 10, FusedPoseRCB)};
 
-  pub_skeleton_ = nh.advertise<MarkerArray>("/skeleton", 1);
+  pub_skeleton_raw_   = nh.advertise<MarkerArray>("/skeleton_raw",   1);
+  pub_skeleton_fused_ = nh.advertise<MarkerArray>("/skeleton_fused", 1);
   segment_marker_array_.markers.resize(body_segment_count);
   for (int i = 0; i < body_segment_count; ++i)
   {
