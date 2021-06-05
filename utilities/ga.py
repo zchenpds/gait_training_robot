@@ -7,6 +7,19 @@ def get_mos_vec_dict(inbag, topic):
     return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
             "MOS": np.array([[msg.vector.x, msg.vector.y, msg.vector.z] for msg in msg_list])}
 
+def get_gait_state_dict(inbag, topic):
+    msg_list = [msg for _, msg, _ in inbag.read_messages(topics=topic)]
+    return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
+            "LState": np.array([[ord(msg.gait_phase[0]) & 1, ord(msg.gait_phase[0]) & 2] for msg in msg_list], dtype=bool),
+            "RState": np.array([[ord(msg.gait_phase[1]) & 1, ord(msg.gait_phase[1]) & 2] for msg in msg_list], dtype=bool)}
+
+def merge(data1, data2):
+    res = {}
+    res["t"], idx1, idx2 = np.intersect1d(data1["t"], data2["t"], return_indices=True)
+    res.update({k: v[idx1] for k, v in data1.items()})
+    res.update({k: v[idx2] for k, v in data2.items()})
+    return res
+
 class SpatialParams:
     """
     A class that represents the spatial gait parameters.
