@@ -4,22 +4,40 @@
         ```bash
         $ rosrun gait_training_robot generate_waypoints.py sunny
         ```
+    1. Preview waypoints.
+        ```bash
+        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_gnccw
+        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_ccw
+        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_cw
+        ```
     1. Start roscore
     1. Run the following
         ```bash
         $ roslaunch gait_training_robot rtabmap_map.launch disable_rviz:=true
-        $ rosrun gait_training_robot goal_generator _suffix:=_ccw _max_num_laps:=1 _preview:=false _stop_upon_completion:=false
-        $ rosrun gait_training_robot goal_generator _suffix:=_cw _max_num_laps:=1 _preview:=false _stop_upon_completion:=false
+        $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_ccw
+        $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_cw
         ```
 
 ## Data Collection
 1. On the robot computer (192.168.1.100):
     1. Start roscore
-    1. Run the following (cannot be from ssh)
+    1. Start sport_sole_publisher_vibration node (ssh-friendly)
+        * `argc` must be 3 or higher;
+        * `argv[1]` must follow the format "sbj001_0_1.0", where 0 is the mode and 1.0 is the target speed;
+        * `argv[2]` is the path to the directory where .dat file will be stored.
+        ```bash
+        $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log
+        $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log -s
+        ```
+    1. Send parameters to Teensy through the GUI as shown in the screenshot below. And after the walk test, we need to download the data and then calculate the average speed which would be used as target speed.
+
+        <img src="images/vibration_param_gui.png" alt="drawing" width="300"/>
+    1. Run the following (cannot be through ssh)
         ```bash
         $ roslaunch gait_training_robot sunny_record_ccw.launch
+        $ roslaunch gait_training_robot sunny_record_cw.launch
         ```
-2. On the remote computer (192.168.1.102):
+2. (To be removed soon) On the remote computer (192.168.1.102):
     1. Run the following and select the bag file to play back
         ```bash
         $ roslaunch gait_training_robot sunny_play_remote.launch

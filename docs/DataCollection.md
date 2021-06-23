@@ -22,3 +22,5 @@ rosrun gait_training_robot goal_generator _stop_upon_completion:=false _max_num_
 roslaunch gait_training_robot record_cw.launch bag_name:=data243
 roslaunch gait_training_robot record_ccw.launch bag_name:=data243
 ```
+
+* If the depth image does not show sufficient contrast between foreground and background, abort the program, and disconnect and reconnect USB-C cable from/to the Azure Kinect sensor.
