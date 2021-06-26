@@ -196,6 +196,7 @@ if __name__=="__main__":
                 if (status == 14):
                     print(msg)
                 status = (status + 1) % 15
+                continue
             else:
                 # Skip updating cmd_vel if key timeout and robot already
                 # stopped.
