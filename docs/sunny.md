@@ -25,9 +25,11 @@
         * `argc` must be 3 or higher;
         * `argv[1]` must follow the format "sbj001_0_1.0", where 0 is the mode and 1.0 is the target speed;
         * `argv[2]` is the path to the directory where .dat file will be stored.
+        * `-s`: send enable packet
+        * `-e`: require either insole data to be received before proceeding
         ```bash
         $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log
-        $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log -s
+        $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log -s # send enable packet
         ```
     1. Send parameters to Teensy through the GUI as shown in the screenshot below. And after the walk test, we need to download the data and then calculate the average speed which would be used as target speed.
 
@@ -48,21 +50,21 @@
         ```
 
 ## Data Playback
-1. On the robot computer (192.168.1.100) (optionally ssh from the remote computer):
-    1. Start roscore
-    1. Run the following and select the bag file to play back
-        ```bash
-        $ rosrun gait_training_robot sunny_play.py
-        ```
-2. On the remote computer (192.168.1.102):
-    1. Run the following and select the bag file to play back
-        ```bash
-        $ roslaunch gait_training_robot sunny_play_remote.launch
-        ```
-    1. Start plotjuggler and load configuration "mos_only.xml"
-        ```bash
-        $ rosrun plotjuggler plotjuggler
-        ```
+```
+$ rosrun gait_training_robot sunny_play.py -h
+usage: sunny_play.py [-h] [-r] [-p] [-s]
+
+Play a bag file of user selection:
+
+optional arguments:
+  -h, --help          show this help message and exit
+  -r, --record_all
+  -p, --export_mat
+  -s, --skip_bag_gen
+
+```
+Then run MATLAB script `sunny_plot_simple.m`.
+
 
 ## Network
 ### IP addresses
@@ -72,6 +74,7 @@
 |192.168.1.100 | ral2020    |  Robot computer, HP-omen
 |192.168.1.11  |            |  Left insole
 |192.168.1.12  |            |  Right insole
+|192.168.1.13  |            |  Sync board
 |192.168.1.102 | ral        |  Remote computer 1, Thinkpad P51, wired connection
 
 
