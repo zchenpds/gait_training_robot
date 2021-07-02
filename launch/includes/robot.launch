@@ -5,7 +5,7 @@
   <arg name="preview" default="false"/>
   <node name="rosaria" pkg="rosaria" type="RosAria" required="true" output="screen" unless="$(arg preview)">
     <param name="port" value="$(arg com_port)" />
-    <param name="publish_sonar_pointcloud2" value="false" />
+    <param name="publish_sonar" value="true" />
     <remap from="/rosaria/pose" to="/odom"/>
     <remap from="/rosaria/cmd_vel" to="/cmd_vel"/>
   </node>
