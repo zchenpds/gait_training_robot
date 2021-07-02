@@ -4,8 +4,9 @@ raytrace_range: 3.0
 robot_radius: 0.3
 inflation_radius: 0.45
 
-observation_sources: laser_scan_sensor #point_cloud_sensor
+observation_sources: laser_scan_sensor sonar_pointcloud #point_cloud_sensor
 
 laser_scan_sensor: {sensor_frame: camera_link, data_type: LaserScan, topic: scan, marking: true, clearing: true}
+sonar_pointcloud: {sensor_frame: sonar, data_type: sensor_msgs/PointCloud2, topic: /rosaria/sonar_pointcloud2, marking: true, clearing: true}
 
 # point_cloud_sensor: {sensor_frame: frame_name, data_type: PointCloud, topic: topic_name, marking: true, clearing: true}

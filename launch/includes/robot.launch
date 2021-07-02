@@ -5,9 +5,11 @@
   <arg name="preview" default="false"/>
   <node name="rosaria" pkg="rosaria" type="RosAria" required="true" output="screen" unless="$(arg preview)">
     <param name="port" value="$(arg com_port)" />
+    <param name="publish_sonar_pointcloud2" value="false" />
     <remap from="/rosaria/pose" to="/odom"/>
     <remap from="/rosaria/cmd_vel" to="/cmd_vel"/>
   </node>
+  <node name="sonar_static_tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 base_link sonar 100" />
   <node name="rqt_robot_steering" pkg="rqt_robot_steering" type="rqt_robot_steering" if="$(arg enable_teleop)" />
   <param name="robot_description" textfile="$(find gait_training_robot)/urdf/$(arg urdf)" />
   <node name="joint_state_publisher_gtr2" pkg="joint_state_publisher" type="joint_state_publisher" />
