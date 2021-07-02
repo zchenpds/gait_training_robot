@@ -66,55 +66,70 @@ def main():
         mat_file = os.path.join('/home/ral2020/projects/gta_data2/OptiTrack/simple', bag_name + '.mat')
         with rosbag.Bag(bag_file, 'r') as inbag:
             # Compare MoS
-            KINECT    = ga.get_mos_vec_dict(inbag, '/gait_analyzer/estimate/mos_vec')
+            KINECT_OV = ga.get_mos_vec_dict(inbag, '/gait_analyzer/estimate/mos_vec')
             OPTITRACK = ga.get_mos_vec_dict(inbag, '/gait_analyzer_optitrack/estimate/mos_vec')
-            KINECT    = ga.merge(KINECT,    ga.get_gait_state_dict(inbag, '/gait_analyzer/gait_state'))
+            KINECT_OV    = ga.merge(KINECT_OV,    ga.get_gait_state_dict(inbag, '/gait_analyzer/gait_state'))
             OPTITRACK = ga.merge(OPTITRACK, ga.get_gait_state_dict(inbag, '/gait_analyzer_optitrack/gait_state'))
             t_min = OPTITRACK['t'][0]
             t_max = OPTITRACK['t'][-1]
             if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
                 t_min = max(t_min, bag_info[bag_name]['time_range'][0])
                 t_max = min(t_max, bag_info[bag_name]['time_range'][1])
-            trim_time(KINECT, t_min, t_max)
-            KINECT['MOS_OPTITRACK'] = interp1d(OPTITRACK['t'], OPTITRACK['MOS'], axis=0, copy=True, assume_sorted=True)(KINECT['t'])
-            KINECT['MOS_RMSE'] = np.sqrt(np.mean((KINECT['MOS_OPTITRACK'] - KINECT['MOS'])**2, axis=0))
-            mos_rmse = KINECT['MOS_RMSE'] * 100
-
-            # Compare foot pose
-            stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
-            STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
-            STEP_OPTITRACK = ga.StepData(inbag, '/optitrack/foot_pose_', stance_intervals)
-            STEP_ERROR = STEP_KINECT - STEP_OPTITRACK
             
-            step_rmse = np.array([ga.calc_rmse(STEP_ERROR.get_stride_lengths()),
-                                  ga.calc_rmse(STEP_ERROR.get_step_lengths()),
-                                  ga.calc_rmse(STEP_ERROR.get_step_widths())]) * 100
+            # Loop {0: OV(overall), 1: ST(straight)}
+            KINECT_ST = KINECT_OV.copy()
+            for c in [0, 1]:
+                if c == 0:
+                    KINECT = KINECT_OV
+                    trim_time(KINECT, [(t_min, t_max)])
+                    c_str = 'OV'
+                else:
+                    KINECT = KINECT_ST
+                    time_ranges_straight = ga.get_straight_segment_time_ranges(inbag, (t_min, t_max))
+                    trim_time(KINECT, time_ranges_straight)
+                    c_str = 'ST'
+                    print(time_ranges_straight)
+                
+                KINECT['MOS_OPTITRACK'] = interp1d(OPTITRACK['t'], OPTITRACK['MOS'], axis=0, copy=True, assume_sorted=True)(KINECT['t'])
+                KINECT['MOS_RMSE'] = np.sqrt(np.mean((KINECT['MOS_OPTITRACK'] - KINECT['MOS'])**2, axis=0))
+                mos_rmse = KINECT['MOS_RMSE'] * 100
 
-            str_output = '{0:s}: RMSE [cm] {{MOS: {1:3.2f}, MOSAP: {2:3.2f}, MOSML: {3:3.2f}, StrideL: {4:3.2f}, StepL: {5:3.2f}, StepW: {6:3.2f}}}'.format(
-                bag_name, mos_rmse[0], mos_rmse[1], mos_rmse[2], step_rmse[0], step_rmse[1], step_rmse[2])
-            
-            step_mae = np.array([ga.calc_mae(STEP_ERROR.get_stride_lengths()),
-                                 ga.calc_mae(STEP_ERROR.get_step_lengths()),
-                                 ga.calc_mae(STEP_ERROR.get_step_widths())]) * 100
-            str_output += ', MAE [cm] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:3.2f}}}'.format(
-                step_mae[0], step_mae[1], step_mae[2])
+                # Compare foot pose
+                stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
+                STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
+                STEP_OPTITRACK = ga.StepData(inbag, '/optitrack/foot_pose_', stance_intervals)
+                STEP_ERROR = STEP_KINECT - STEP_OPTITRACK
+                
+                step_rmse = np.array([ga.calc_rmse(STEP_ERROR.get_stride_lengths()),
+                                    ga.calc_rmse(STEP_ERROR.get_step_lengths()),
+                                    ga.calc_rmse(STEP_ERROR.get_step_widths())]) * 100
 
-            step_mae_percentage = np.array([ga.calc_mae_percentage(STEP_ERROR.get_stride_lengths(), STEP_OPTITRACK.get_stride_lengths(), 0.3),
-                                            ga.calc_mae_percentage(STEP_ERROR.get_step_lengths(), STEP_OPTITRACK.get_step_lengths(), 0.3),
-                                            ga.calc_mae_percentage(STEP_ERROR.get_step_widths(), STEP_OPTITRACK.get_step_widths())]) * 100
-            str_output += ', MAE [%] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:4.2f}}}'.format(
-                step_mae_percentage[0], step_mae_percentage[1], step_mae_percentage[2])
+                str_output = '{0:s} ({7:s}): RMSE [cm] ' \
+                    '{{MOS: {1:3.2f}, MOSAP: {2:3.2f}, MOSML: {3:3.2f}, StrideL: {4:3.2f}, StepL: {5:3.2f}, StepW: {6:3.2f}}}'.format(
+                    bag_name, mos_rmse[0], mos_rmse[1], mos_rmse[2], step_rmse[0], step_rmse[1], step_rmse[2], c_str)
+                
+                step_mae = np.array([ga.calc_mae(STEP_ERROR.get_stride_lengths()),
+                                    ga.calc_mae(STEP_ERROR.get_step_lengths()),
+                                    ga.calc_mae(STEP_ERROR.get_step_widths())]) * 100
+                str_output += ', MAE [cm] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:3.2f}}}'.format(
+                    step_mae[0], step_mae[1], step_mae[2])
 
-            logging.info(str_output)
-            print(str_output)
+                step_mae_percentage = np.array([ga.calc_mae_percentage(STEP_ERROR.get_stride_lengths(), STEP_OPTITRACK.get_stride_lengths(), 0.3),
+                                                ga.calc_mae_percentage(STEP_ERROR.get_step_lengths(), STEP_OPTITRACK.get_step_lengths(), 0.3),
+                                                ga.calc_mae_percentage(STEP_ERROR.get_step_widths(), STEP_OPTITRACK.get_step_widths())]) * 100
+                str_output += ', MAE [%] {{StrideL: {0:3.2f}, StepL: {1:3.2f}, StepW: {2:4.2f}}}'.format(
+                    step_mae_percentage[0], step_mae_percentage[1], step_mae_percentage[2])
+
+                logging.info(str_output)
+                print(str_output)
 
             if args.export_mat:
                 assert(os.path.exists(os.path.dirname(mat_file)))
-                sio.savemat(mat_file, {'KINECT': KINECT, 'OPTITRACK': OPTITRACK})
+                sio.savemat(mat_file, {'KINECT': KINECT_OV, 'OPTITRACK': OPTITRACK})
                 print('Saved to ' + mat_file)
 
-def trim_time(A, t_min, t_max):
-    idx = np.logical_and(A['t'] >= t_min, A['t'] <= t_max)
+def trim_time(A, t_ranges):
+    idx = np.any(tuple(np.logical_and(A['t'] >= t_min, A['t'] <= t_max) for t_min, t_max in t_ranges), axis=0)
     A.update({k: v[idx] for k, v in A.items()})
     
 def run_both(bag_names, bag_path):

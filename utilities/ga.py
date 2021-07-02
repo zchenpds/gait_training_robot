@@ -2,6 +2,35 @@ import numpy as np
 import rospy
 import math
 
+def get_straight_segment_time_ranges(inbag, time_range, odom_topic='/odom', 
+        moving_mean_window_size=50):
+    msg_list = [msg for _, msg, _ in inbag.read_messages(topics=odom_topic)]
+    t = np.array([msg.header.stamp.to_sec() for msg in msg_list])
+    wz = np.array([msg.twist.twist.angular.z for msg in msg_list])
+    # Moving mean filter and absolute value
+    wz_filtered_abs = np.fabs(np.convolve(wz,
+        np.ones(moving_mean_window_size)/float(moving_mean_window_size), mode='same'))
+    lower_threshold = 0.3 * np.max(wz_filtered_abs)
+    upper_threshold = 2.0 * lower_threshold
+    
+    res = [] # Time ranges
+    t_min, t_max = time_range
+    t1 = t_min
+    for i in range(len(t)):
+        if t[i] < t_min: continue
+        elif t[i] > t_max: break
+        if not t1:
+            if wz_filtered_abs[i] < lower_threshold:
+                t1 = t[i]
+        else:
+            if wz_filtered_abs[i] > upper_threshold or i == len(t) - 1:
+                t2 = t[i]
+                res.append((t1, t2))
+                t1 = None
+
+    return res
+
+
 def get_mos_vec_dict(inbag, topic):
     msg_list = [msg for _, msg, _ in inbag.read_messages(topics=topic)]
     return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
