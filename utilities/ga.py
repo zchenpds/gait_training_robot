@@ -73,6 +73,7 @@ class SpatialParams:
         self.stride_lengths = []
         self.step_lengths = []
         self.step_widths = []
+        self.stride_velocities = []
 
     def get_stride_lengths(self):
         return self.stride_lengths
@@ -82,6 +83,9 @@ class SpatialParams:
 
     def get_step_widths(self):
         return self.step_widths
+
+    def get_stride_velocities(self):
+        return self.stride_velocities
 
 class StepData(SpatialParams):
     """
@@ -101,6 +105,7 @@ class StepData(SpatialParams):
     def __init__(self, inbag, topic_pose, stance_intervals):
         self.stance_intervals = stance_intervals
         #! [pos_l, pos_r]
+        self.ts_ff = [[], []]
         self.data = [[], []]
         
         def get_mean(pos_list):
@@ -118,19 +123,30 @@ class StepData(SpatialParams):
                 elif msg.header.stamp >= stance_intervals[lr][i][0] and msg.header.stamp < stance_intervals[lr][i][1]:
                     pos_list.append(np.array([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z]))
                 else:
+                    self.ts_ff[lr].append(stance_intervals[lr][i][0].to_sec())
                     self.data[lr].append(get_mean(pos_list))
                     pos_list = []
                     i += 1
             if pos_list:
+                self.ts_ff[lr].append(stance_intervals[lr][i][0].to_sec())
                 self.data[lr].append(get_mean(pos_list))
                 pos_list = []
 
         #! [SL_l, SL_r]
         self.stride_lengths = [[], []]
+        self.stride_velocities = [[], []]
         for lr in [0, 1]:
             for i in range(1, len(self.data[lr])):
-                self.stride_lengths[lr].append(np.linalg.norm(self.data[lr][i] - self.data[lr][i - 1]))
+                # Calculate stride length
+                strideL = np.linalg.norm(self.data[lr][i] - self.data[lr][i - 1])
+                self.stride_lengths[lr].append(strideL)
+                # Calculate stride velocity
+                strideT = self.ts_ff[lr][i] - self.ts_ff[lr][i - 1]
+                if strideT < 2.0: # Exclude strides that last too long
+                    self.stride_velocities[lr].append(strideL / strideT)
             self.stride_lengths[lr] = np.array(self.stride_lengths[lr])
+            self.stride_velocities[lr] = np.array(self.stride_velocities[lr])
+            # print(lr, len(self.stride_lengths[lr]), len(self.stride_velocities[lr]))
         
         #! [lrl, rlr]
         self.step_lengths = [[], []]
@@ -156,7 +172,7 @@ class StepData(SpatialParams):
     def __sub__(self, other):
         res = SpatialParams()
         for lr in [0, 1]:
-            for attr in ['stride_lengths', 'step_lengths', 'step_widths']:
+            for attr in ['stride_lengths', 'step_lengths', 'step_widths', 'stride_velocities']:
                 l1 = len(getattr(self, attr)[lr])
                 l2 = len(getattr(other, attr)[lr])
                 l = min(l1, l2)

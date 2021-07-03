@@ -88,10 +88,13 @@ def main():
             strideL = np.array(np.concatenate(STEP_KINECT.get_stride_lengths())) * 100
             stepL   = np.array(np.concatenate(STEP_KINECT.get_step_lengths())) * 100
             stepW   = np.array(np.concatenate(STEP_KINECT.get_step_widths())) * 100
-            str_output = 'StrideL: {:3.1f}({:3.1f}) cm, StepL: {:3.1f}({:3.1f}) cm, StepW: {:3.1f}({:3.1f}) cm'.format(
+            strideV = np.array(np.concatenate(STEP_KINECT.get_stride_velocities())) * 100
+            str_output = 'StrideL: {:3.1f}({:3.1f}) cm, StepL: {:3.1f}({:3.1f}) cm, StepW: {:3.1f}({:3.1f}) cm, StrideV:{:3.1f}({:3.1f}) cm/s'.format(
                 np.mean(strideL), np.std(strideL), 
                 np.mean(stepL), np.std(stepL), 
-                np.mean(stepW), np.std(stepW))
+                np.mean(stepW), np.std(stepW),
+                np.mean(strideV), np.std(strideV),
+                )
             print(str_output)
 
             if args.export_mat:
