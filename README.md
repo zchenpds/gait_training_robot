@@ -101,6 +101,32 @@ optional arguments:
   -p, --export_mat
 ```
 
+## [compare_foot_pose.py](utilities/compare_foot_pose.py)
+Example:
+```
+rosrun gait_training_robot compare_foot_pose.py 226 -tr 50 56 -r -lw 0.5 -s
+rosrun gait_training_robot compare_foot_pose.py -h
+```
+
+```text
+usage: compare_foot_pose.py [-h] [-tr TIME_RANGE TIME_RANGE] [-lw LINEWIDTH]
+                            [-l] [-r] [-s]
+                            trial_id
+
+Plot foot pose estimates.
+
+positional arguments:
+  trial_id
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -tr TIME_RANGE TIME_RANGE, --time-range TIME_RANGE TIME_RANGE
+  -lw LINEWIDTH, --linewidth LINEWIDTH
+  -l, --left-only
+  -r, --right-only
+  -s, --save
+```
+
 # Installation From Source
 ## Prerequisites
 - [P3-DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf)

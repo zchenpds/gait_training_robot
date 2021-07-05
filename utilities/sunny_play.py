@@ -14,6 +14,7 @@ import yaml
 
 import bag_ops
 import ga
+from bag_ops import trim_time
 
 parser = argparse.ArgumentParser(description="Play a bag file of user selection:")
 parser.add_argument('-r', '--record_all',                action='store_true')
@@ -80,7 +81,7 @@ def main():
             if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
                 t_min = bag_info[bag_name]['time_range'][0]
                 t_max = bag_info[bag_name]['time_range'][1]
-                trim_time(KINECT, t_min, t_max)
+                trim_time(KINECT, [(t_min, t_max)])
             
             stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
             STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
@@ -101,11 +102,6 @@ def main():
                 assert(os.path.exists(os.path.dirname(mat_file)))
                 sio.savemat(mat_file, {'KINECT': KINECT})
                 print('Saved to ' + mat_file)
-
-
-def trim_time(A, t_min, t_max):
-    idx = np.logical_and(A['t'] >= t_min, A['t'] <= t_max)
-    A.update({k: v[idx] for k, v in A.items()})
 
 if __name__ == '__main__':
     main()

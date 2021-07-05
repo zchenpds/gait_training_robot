@@ -15,6 +15,7 @@ import time
 import yaml
 
 import ga
+from bag_ops import trim_time
 
 import time, sys
 import os.path
@@ -133,10 +134,6 @@ def main():
                 assert(os.path.exists(os.path.dirname(mat_file)))
                 sio.savemat(mat_file, {'KINECT': KINECT_OV, 'OPTITRACK': OPTITRACK})
                 print('Saved to ' + mat_file)
-
-def trim_time(A, t_ranges):
-    idx = np.any(tuple(np.logical_and(A['t'] >= t_min, A['t'] <= t_max) for t_min, t_max in t_ranges), axis=0)
-    A.update({k: v[idx] for k, v in A.items()})
     
 def run_both(bag_names, bag_path):
     bag_ops.rectify_bag_names(bag_path)
