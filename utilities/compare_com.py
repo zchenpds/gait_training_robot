@@ -20,22 +20,27 @@ import sys
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
 
 import rospkg
 import rosbag
 from tf.transformations import quaternion_from_matrix, rotation_matrix
 
-from bag_ops import trim_time, extractPointStamped, Aligner
+from bag_ops import trim_time, MessageExtractor, Aligner
 
 
 def process_inbag(inbag, args):
-    fsd = extractPointStamped(inbag, "/gait_analyzer/estimate/com", "Fused CoM")
+    me = MessageExtractor(inbag)
 
-    raw = extractPointStamped(inbag, "/gait_analyzer/measurement/com", "Raw CoM")
+    # CoM
+    fsd = me.extractPointStamped("/gait_analyzer/estimate/com", "Fused CoM")
+    raw = me.extractPointStamped("/gait_analyzer/measurement/com", "Raw CoM")
+    ref = me.extractPointStamped("/gait_analyzer_optitrack/measurement/com", "Ref. CoM")
+    
+    cop = me.extractPointStamped("/gait_analyzer/cop", "CoP")
 
-    ref = extractPointStamped(inbag, "/gait_analyzer_optitrack/measurement/com", "Ref. CoM")
-
-    cop = extractPointStamped(inbag, "/gait_analyzer/cop", "CoP")
+    footprint = [me.extractFootprint("/gait_analyzer/footprint_l", "Left Footprint"),
+                 me.extractFootprint("/gait_analyzer/footprint_r", "Right Footprint")]
 
 
     pd_list = [fsd, raw, ref, cop]
@@ -49,20 +54,32 @@ def process_inbag(inbag, args):
     t_min += args.time_range[0]
 
     # Trim the positions to the time range
-    for pd in pd_list:
+    for pd in pd_list + [footprint[0], footprint[1]]:
         trim_time(pd, [(t_min, t_max)])
 
     # Align the trajectories
     Aligner.rotate(ref, -math.pi/2)
     tf = Aligner(ref, fsd)
-    for pd in [fsd, raw, cop]:
+    for pd in [fsd, raw, cop, footprint[0], footprint[1]]:
         pd = tf.transform(pd)
 
-    # Plot
+    # Plot CoM and CoP
     plt.figure()
     for pd in pd_list:
         plt.plot(pd["xyz"][:, 0], pd["xyz"][:, 1], 
             label=pd["legend"], linewidth=args.linewidth)
+    
+    # Plot footprints
+    for lr in [0, 1]:
+        t_prev = None
+        for k, t in enumerate(footprint[lr]["t"]):
+            if t_prev: 
+                if t - t_prev < 0.3: 
+                    continue
+            plt.gca().add_patch(Polygon(footprint[lr]["pts"][k, :, 0:2]))
+            t_prev = t
+
+    plt.fill()
     plt.legend()
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
@@ -71,7 +88,7 @@ def process_inbag(inbag, args):
     # Save
     if args.save:
         eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
-            "Foot pose data" + str(args.trial_id).rjust(3, '0') + 
+            "CoM data" + str(args.trial_id).rjust(3, '0') + 
             " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
             datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
         plt.savefig(eps_path, format='eps')

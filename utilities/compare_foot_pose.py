@@ -27,18 +27,20 @@ import rospkg
 import rosbag
 from tf.transformations import quaternion_from_matrix, rotation_matrix
 
-from bag_ops import trim_time, extractPoseWithCovarianceStamped, Aligner
+from bag_ops import trim_time, MessageExtractor, Aligner
 
 
 def process_inbag(inbag, args):
-    fsd = [extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/fused_pose_l", "Fused"),
-           extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/fused_pose_r", "Fused")]
+    me = MessageExtractor(inbag)
 
-    raw = [extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/raw_pose_l", "Raw"),
-           extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/raw_pose_r", "Raw")]
+    fsd = [me.extractPoseWithCovarianceStamped("/foot_pose_estimator/fused_pose_l", "Fused"),
+           me.extractPoseWithCovarianceStamped("/foot_pose_estimator/fused_pose_r", "Fused")]
 
-    ref = [extractPoseWithCovarianceStamped(inbag, "/optitrack/foot_pose_l", "Ref."),
-           extractPoseWithCovarianceStamped(inbag, "/optitrack/foot_pose_r", "Ref.")]
+    raw = [me.extractPoseWithCovarianceStamped("/foot_pose_estimator/raw_pose_l", "Raw"),
+           me.extractPoseWithCovarianceStamped("/foot_pose_estimator/raw_pose_r", "Raw")]
+
+    ref = [me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_l", "Ref."),
+           me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_r", "Ref.")]
 
     pd_list = [fsd, raw, ref]
 

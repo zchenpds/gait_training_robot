@@ -63,10 +63,18 @@ class Aligner:
         return np.array([qx, qy])
     
     def transform(self, B):
-        xyB = B["xyz"][:, 0:2]
-        for i in range(len(xyB)):
-            xyB[i, :] = self.__rotate(self.centroidA, xyB[i, :] + self.displacement[0:2], self.theta)
-        return B
+        if "xyz" in B.keys():
+            xyB = B["xyz"][:, 0:2]
+            for i in range(len(xyB)):
+                xyB[i, :] = self.__rotate(self.centroidA, xyB[i, :] + self.displacement[0:2], self.theta)
+            return B
+        elif "pts" in B.keys():
+            xyB = B["pts"][:, :, 0:2]
+            for i in range(xyB.shape[0]):
+                for j in range(xyB.shape[1]):
+                    xyB[i, j, :] = self.__rotate(self.centroidA, xyB[i, j, :] + self.displacement[0:2], self.theta)
+            return B
+
     
     @staticmethod
     def rotate(B, theta):
@@ -77,50 +85,73 @@ class Aligner:
         return B
 
 
+class MessageExtractor:
+    def __init__(self, inbag):
+        self.inbag = inbag
 
-def extractPoseWithCovarianceStamped(inbag, topic, legend=""):
-    """
-    [geometry_msgs/PoseWithCovarianceStamped]:
-    std_msgs/Header header
-      uint32 seq
-      time stamp
-      string frame_id
-    geometry_msgs/PoseWithCovariance pose
-      geometry_msgs/Pose pose
-        geometry_msgs/Point position
+    def extractPoseWithCovarianceStamped(self, topic, legend=""):
+        """
+        [geometry_msgs/PoseWithCovarianceStamped]:
+        std_msgs/Header header
+          uint32 seq
+          time stamp
+          string frame_id
+        geometry_msgs/PoseWithCovariance pose
+          geometry_msgs/Pose pose
+            geometry_msgs/Point position
+              float64 x
+              float64 y
+              float64 z
+            geometry_msgs/Quaternion orientation
+              float64 x
+              float64 y
+              float64 z
+              float64 w
+          float64[36] covariance
+        """
+        msg_list = [msg for _, msg, _ in self.inbag.read_messages(topics=topic)]
+        return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
+                "xyz": np.array([[msg.pose.pose.position.x, 
+                                  msg.pose.pose.position.y, 
+                                  msg.pose.pose.position.z] for msg in msg_list]),
+                "legend": legend}
+    
+    def extractPointStamped(self, topic, legend=""):
+        """ 
+        [geometry_msgs/PointStamped]:
+        std_msgs/Header header
+          uint32 seq
+          time stamp
+          string frame_id
+        geometry_msgs/Point point
           float64 x
           float64 y
           float64 z
-        geometry_msgs/Quaternion orientation
-          float64 x
-          float64 y
-          float64 z
-          float64 w
-      float64[36] covariance
-    """
-    msg_list = [msg for _, msg, _ in inbag.read_messages(topics=topic)]
-    return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
-            "xyz": np.array([[msg.pose.pose.position.x, 
-                              msg.pose.pose.position.y, 
-                              msg.pose.pose.position.z] for msg in msg_list]),
-            "legend": legend}
-
-
-def extractPointStamped(inbag, topic, legend=""):
-    """ 
-    [geometry_msgs/PointStamped]:
-    std_msgs/Header header
-      uint32 seq
-      time stamp
-      string frame_id
-    geometry_msgs/Point point
-      float64 x
-      float64 y
-      float64 z
-    """
-    msg_list = [msg for _, msg, _ in inbag.read_messages(topics=topic)]
-    return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
-            "xyz": np.array([[msg.point.x, 
-                              msg.point.y, 
-                              msg.point.z] for msg in msg_list]),
-            "legend": legend}
+        """
+        msg_list = [msg for _, msg, _ in self.inbag.read_messages(topics=topic)]
+        return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
+                "xyz": np.array([[msg.point.x, 
+                                  msg.point.y, 
+                                  msg.point.z] for msg in msg_list]),
+                "legend": legend}
+    
+    def extractFootprint(self, topic, legend=""):
+        """
+        std_msgs/Header header
+          uint32 seq
+          time stamp
+          string frame_id
+        geometry_msgs/Polygon polygon
+          geometry_msgs/Point32[] points
+            float32 x
+            float32 y
+            float32 z
+        """
+        msg_list = [msg for _, msg, _ in self.inbag.read_messages(topics=topic) if len(msg.polygon.points) == 6]
+        return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
+                "pts": np.array([[[msg.polygon.points[i].x, 
+                                   msg.polygon.points[i].y, 
+                                   msg.polygon.points[i].z]
+                                   for i in range(len(msg.polygon.points))]
+                                  for msg in msg_list]),
+                "legend": legend}
