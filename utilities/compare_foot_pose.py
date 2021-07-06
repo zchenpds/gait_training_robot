@@ -31,14 +31,14 @@ from bag_ops import trim_time, extractPoseWithCovarianceStamped, Aligner
 
 
 def process_inbag(inbag, args):
-    fsd = [extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/fused_pose_l", "fused"),
-           extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/fused_pose_r", "fused")]
+    fsd = [extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/fused_pose_l", "Fused"),
+           extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/fused_pose_r", "Fused")]
 
-    raw = [extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/raw_pose_l", "raw"),
-           extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/raw_pose_r", "raw")]
+    raw = [extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/raw_pose_l", "Raw"),
+           extractPoseWithCovarianceStamped(inbag, "/foot_pose_estimator/raw_pose_r", "Raw")]
 
-    ref = [extractPoseWithCovarianceStamped(inbag, "/optitrack/foot_pose_l", "ref"),
-           extractPoseWithCovarianceStamped(inbag, "/optitrack/foot_pose_r", "ref")]
+    ref = [extractPoseWithCovarianceStamped(inbag, "/optitrack/foot_pose_l", "Ref."),
+           extractPoseWithCovarianceStamped(inbag, "/optitrack/foot_pose_r", "Ref.")]
 
     pd_list = [fsd, raw, ref]
 
@@ -74,7 +74,8 @@ def process_inbag(inbag, args):
         for xy in xy_list:
             ax = axs[xy, lr] if len(lr_list) > 1 else axs[xy]
             for pd in pd_list:
-                ax.plot(pd[lr]["t"] - t_min, pd[lr]["xyz"][:, xy], 
+                ax.plot(pd[lr]["t"] - t_min + args.time_range[0], 
+                    pd[lr]["xyz"][:, xy], 
                     label=pd[lr]["legend"], linewidth=args.linewidth)
             ax.legend()
             ax.set_xlabel("t [s]")
@@ -84,7 +85,8 @@ def process_inbag(inbag, args):
     # Save
     if args.save:
         eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
-            "Foot pose data" + str(args.trial_id).rjust(3, '0') + 
+            "Foot pose data" + str(args.trial_id).rjust(3, '0') +
+            " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
             datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
         plt.savefig(eps_path, format='eps')
 

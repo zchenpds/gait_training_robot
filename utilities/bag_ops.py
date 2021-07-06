@@ -48,13 +48,14 @@ class Aligner:
         def rmse(theta):
             xyBRotated = xyB.copy()
             for i in range(len(xyB)):
-                xyBRotated[i, :] = self.rotate(centroidA, xyB[i, :], theta)
+                xyBRotated[i, :] = self.__rotate(centroidA, xyB[i, :], theta)
             error = xyAInterp - xyBRotated
             return np.sqrt(np.mean(error[:, 0]**2 + error[:, 1]**2))
         
         self.theta = fmin(rmse, 0)[0]
-        
-    def rotate(self, origin, point, angle):
+
+    @staticmethod
+    def __rotate(origin, point, angle):
         ox, oy = origin[0], origin[1]
         px, py = point[0], point[1]
         qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
@@ -64,8 +65,17 @@ class Aligner:
     def transform(self, B):
         xyB = B["xyz"][:, 0:2]
         for i in range(len(xyB)):
-            xyB[i, :] = self.rotate(self.centroidA, xyB[i, :] + self.displacement[0:2], self.theta)
+            xyB[i, :] = self.__rotate(self.centroidA, xyB[i, :] + self.displacement[0:2], self.theta)
         return B
+    
+    @staticmethod
+    def rotate(B, theta):
+        centroidB = np.mean(B["xyz"], axis=0)
+        xyB = B["xyz"][:, 0:2]
+        for i in range(len(xyB)):
+            xyB[i, :] = Aligner.__rotate(centroidB, xyB[i, :], theta)
+        return B
+
 
 
 def extractPoseWithCovarianceStamped(inbag, topic, legend=""):
