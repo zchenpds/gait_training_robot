@@ -123,6 +123,7 @@
     <node name="rosbag_record_node" pkg="rosbag" type="record" 
           args="record -o $(find gait_training_robot)/bags/$(arg bag_name)
                 /sport_sole_publisher/sport_sole
+                /sport_sole_publisher/t0_zeno
                 /imu /odom /cmd_vel
                 /body_tracking_data /tf /tf_static
                 /joint_states"
