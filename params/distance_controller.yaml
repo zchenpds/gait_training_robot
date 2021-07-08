@@ -1,0 +1,9 @@
+dist_desired: 1.5
+use_marker: true
+timeout_threshold: 0.8
+v_in_threshold: 0.2
+u_i_max: 0.4
+K_p: 0.6
+K_i: 0.13
+v_nominal: 0.9
+v_max: 1.2

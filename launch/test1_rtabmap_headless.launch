@@ -28,14 +28,6 @@
 
   <!-- distance_controller -->
   <arg name="enable_distance_controller" default="false"/>
-  <arg name="dist_desired" default="1.4"/>
-  <arg name="use_marker" default="true"/>
-  <arg name="timeout_threshold" default="0.8"/>
-  <arg name="v_in_threshold" default="0.2"/>
-  <arg name="u_i_max" default="0.2"/>
-  <arg name="K_p" default="0.6"/>
-  <arg name="K_i" default="0.13"/>
-  <arg name="v_nominal" default="0.8"/>
   <arg name="v_max" default="1.2"/>
 
   <!-- goal_generator -->
@@ -43,6 +35,7 @@
   <arg name="max_num_laps" default="3"/>
   <arg name="delay_start_secs" default="0.0"/>
   <arg name="suffix" default="_cw"/>
+  <arg name="stop_upon_completion" default="true"/>
 
   <!-- open_loop_controller -->
   <arg name="open_loop_controller_mode" default="straight"/>
@@ -121,15 +114,7 @@
       <!-- Distance controller node -->
       <node pkg="gait_training_robot" type="distance_controller" name="distance_controller" output="screen" >
         <remap from="/distance_controller/cmd_vel_out" to="/cmd_vel" />
-        <param name="dist_desired" value="$(arg dist_desired)" />
-        <param name="use_marker" value="$(arg use_marker)" />
-        <param name="timeout_threshold" value="$(arg timeout_threshold)" />
-        <param name="v_in_threshold" value="$(arg v_in_threshold)" />
-        <param name="u_i_max" value="$(arg u_i_max)" />
-        <param name="K_p" value="$(arg K_p)" />
-        <param name="K_i" value="$(arg K_i)" />
-        <param name="v_nominal" value="$(arg v_nominal)" />
-        <param name="v_max" value="$(arg v_max)" />
+        <rosparam file="$(find gait_training_robot)/params/distance_controller.yaml" command="load" />
       </node>
     </group>
 
@@ -138,6 +123,7 @@
       <param name="max_num_laps" value="$(arg max_num_laps)" />
       <param name="delay_start_secs" value="$(arg delay_start_secs)" />
       <param name="suffix" value="$(arg suffix)" />
+      <param name="stop_upon_completion" value="$(arg stop_upon_completion)" />
     </node>
   </group>
 

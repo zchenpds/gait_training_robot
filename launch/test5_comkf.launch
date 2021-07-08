@@ -14,12 +14,15 @@
   <arg name="recording_file" default="" />
   <arg name="recording_loop_enabled" default="true" />
   <arg name="belt_speed" default="0.0" /> 
+  <arg name="wired_sync_enabled" default="true"/>
 
   <!-- Arguments for sport_sole_publisher -->
   <arg name="watch_sport_sole" default="true" />
+  <arg name="launch_sport_sole" default="false" />
 
   <!-- Arguments for goal_generator -->
-  <arg name="max_num_laps" default="3" />
+  <arg name="max_num_laps" default="4" />
+  <arg name="stop_upon_completion" default="true"/>
 
   <!-- Arguments for straight line walking -->
   <arg name="straight_open_loop_enabled" default="false" />
@@ -33,6 +36,7 @@
 
   <!-- Arguments for gait_analyzer -->
   <arg name="enable_gait_analyzer" default="false" />
+  <arg name="online_mos_estimation_enabled" default="false" />
   <arg name="gait_analyzer_global_frame" default="odom" />
   <arg name="record_gait_analytics" default="true" />
 
@@ -57,7 +61,7 @@
   <group unless="$(arg play_bag)">
 
     <!-- sport_sole_publisher -->
-    <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" />
+    <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" if="$(arg launch_sport_sole)" />
     <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sport_sole)/rviz/accel_orient.rviz" if="$(arg watch_sport_sole)"/> -->
 
     <!-- If (static_test==true) -->
@@ -89,11 +93,11 @@
         <arg name="recording_loop_enabled" value="$(arg recording_loop_enabled)" />
         <arg name="enable_goal_generator" value="true" />
         <arg name="max_num_laps" value="$(arg max_num_laps)" />
-        <arg name="delay_start_secs" value="20.0" />
+        <arg name="delay_start_secs" value="6.0" />
         <arg name="v_max" value="$(arg v_max)" />
         <arg name="suffix" value="$(arg waypoints_file_suffix)"/>
-        <arg name="wired_sync_enabled" value="true" />
-        <param name="database_path" type="string" value="$(arg database_path)"/>
+        <arg name="wired_sync_enabled" value="$(arg wired_sync_enabled)" />
+        <arg name="database_path" type="string" value="$(arg database_path)"/>
       </include>
     </group>
 
@@ -143,5 +147,33 @@
                 --regex '(/gait_analyzer/.*|/kinect_pose_estimator/.*)'" 
           if="$(arg record_gait_analytics)"/> 
   </group>
+
+
+  <!-- <group if="$(arg online_mos_estimation_enabled)" />
+    <arg name="rviz_config_file"          default="slam_rtabmap_ekf.rviz"/>
+    <arg name="sport_sole_time_offset"    default="0.0"/>
+    <arg name="comkf_measurement_scheme"  default="2" />
+
+    <node name="foot_pose_estimator" pkg="gait_training_robot" type="foot_pose_estimator" output="screen">
+      <param name="global_frame"                  value="fused_odom"/>
+      <param name="publish_frame"                 value="fused_odom"/>
+      <param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
+      <rosparam command="load" file="$(find gait_training_robot)/params/foot_pose_estimator.yaml" />
+    </node>
+
+    <node name="kinect_pose_estimator" pkg="gait_training_robot" type="kinect_pose_estimator">
+      <rosparam command="load" file="$(find gait_training_robot)/params/kinect_pose_estimator.yaml" />
+    </node>
+
+    <node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+      <param name="data_source"                   value="k4a" />
+      <param name="foot_pose_topic"               value="/foot_pose_estimator/fused_pose_" />
+      <param name="global_frame"                  value="fused_odom" />
+      <param name="publish_frame"                 value="fused_odom" />
+      <param name="smoother_enabled"              value="false"/>
+      <param name="sport_sole_time_offset"        value="$(arg sport_sole_time_offset)"/>
+      <rosparam command="load" file="$(find gait_training_robot)/params/gait_analyzer$(arg comkf_measurement_scheme).yaml" />
+    </node>
+  </group> -->
 
 </launch>
