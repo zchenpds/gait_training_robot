@@ -11,6 +11,7 @@ import glob
 import argparse
 import time
 import yaml
+import csv
 
 import bag_ops
 import ga
@@ -19,6 +20,7 @@ from bag_ops import trim_time
 parser = argparse.ArgumentParser(description="Play a bag file of user selection:")
 parser.add_argument('-r', '--record_all',                action='store_true')
 parser.add_argument('-p', '--export_mat',                action='store_true')
+parser.add_argument('-c', '--export_csv',                action='store_true')
 parser.add_argument('-s', '--skip_bag_gen',              action='store_true')
 args = parser.parse_args()
 
@@ -70,7 +72,6 @@ def main():
             except yaml.YAMLError as exc:
                 print(exc)
 
-        mat_file = os.path.join('/home/ral2020/projects/gta_data2/sunny/simple', bag_names[bag_index_sel][:7] + '.mat')
         with rosbag.Bag(out_bag_path, 'r') as inbag:
             # Compare MoS
             KINECT = ga.get_mos_vec_dict(inbag, '/gait_analyzer/estimate/mos_vec')
@@ -99,9 +100,22 @@ def main():
             print(str_output)
 
             if args.export_mat:
+                mat_file = os.path.join('/home/ral2020/projects/gta_data2/sunny/simple', bag_names[bag_index_sel][:7] + '.mat')
                 assert(os.path.exists(os.path.dirname(mat_file)))
                 sio.savemat(mat_file, {'KINECT': KINECT})
                 print('Saved to ' + mat_file)
+            
+            if args.export_csv:
+                csv_file_path = os.path.join(os.getenv("HOME"), 'Documents', 'gta_data')
+                assert(os.path.exists(csv_file_path))
+                for csv_type in ['stride', 'step']:
+                    csv_filename = os.path.join(csv_file_path, bag_names[bag_index_sel][:7] + "_" + csv_type + ".csv")
+                    rows = getattr(STEP_KINECT, csv_type + "_table_sorted")
+                    with open(csv_filename, 'w') as csv_file:
+                        writer = csv.writer(csv_file)
+                        writer.writerow(rows[0]._fields)
+                        writer.writerows(rows)
+                        print('Saved to ' + csv_filename)
 
 if __name__ == '__main__':
     main()

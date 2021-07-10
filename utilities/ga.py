@@ -1,6 +1,8 @@
 import numpy as np
 import rospy
 import math
+from collections import namedtuple
+
 
 def get_straight_segment_time_ranges(inbag, time_range, odom_topic='/odom', 
         moving_mean_window_size=50):
@@ -107,6 +109,12 @@ class StepData(SpatialParams):
         #! [pos_l, pos_r]
         self.ts_ff = [[], []]
         self.data = [[], []]
+        self.stride_table = [[], []]
+        self.step_table = [[], []]
+
+        stamp_list = [msg.header.stamp.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/t0_zeno')]
+        if not stamp_list: stamp_list = [msg.header.stamp.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/sport_sole')]
+        self.t0_zeno = next(ts for ts in stamp_list if ts > 1.0 )
         
         def get_mean(pos_list):
             return np.mean(pos_list[-len(pos_list)/3-1:], axis=0)
@@ -132,6 +140,9 @@ class StepData(SpatialParams):
                 self.data[lr].append(get_mean(pos_list))
                 pos_list = []
 
+        self.StrideRow = namedtuple("StrideRow", ["ts", "LR", "StrideL", "StrideV"])
+        self.StepRow   = namedtuple("StepRow",   ["ts", "LR", "StepL", "StepW"])
+
         #! [SL_l, SL_r]
         self.stride_lengths = [[], []]
         self.stride_velocities = [[], []]
@@ -142,11 +153,19 @@ class StepData(SpatialParams):
                 self.stride_lengths[lr].append(strideL)
                 # Calculate stride velocity
                 strideT = self.ts_ff[lr][i] - self.ts_ff[lr][i - 1]
+                strideV = strideL / strideT
                 if strideT < 2.0: # Exclude strides that last too long
-                    self.stride_velocities[lr].append(strideL / strideT)
+                    self.stride_velocities[lr].append(strideV)
+                # Add to table
+                self.stride_table[lr].append(
+                    self.StrideRow(self.ts_ff[lr][i-1] - self.t0_zeno,
+                                   ("L" if lr == 0 else "R") + str(i),
+                                   strideL * 100,
+                                   strideV * 100))
             self.stride_lengths[lr] = np.array(self.stride_lengths[lr])
             self.stride_velocities[lr] = np.array(self.stride_velocities[lr])
             # print(lr, len(self.stride_lengths[lr]), len(self.stride_velocities[lr]))
+        self.stride_table_sorted = sorted(self.stride_table[0] + self.stride_table[1], key=lambda stride_row: stride_row.ts)
         
         #! [lrl, rlr]
         self.step_lengths = [[], []]
@@ -166,8 +185,15 @@ class StepData(SpatialParams):
                 step_width = math.sqrt(np.linalg.norm(pb - pa) ** 2  - step_length ** 2)
                 self.step_lengths[lr].append(step_length)
                 self.step_widths[lr].append(step_width)
+                # Add to table
+                self.step_table[lr].append(
+                    self.StepRow(self.ts_ff[lr][i-1] - self.t0_zeno,
+                                 ("L" if lr == 0 else "R") + str(i),
+                                 step_length * 100,
+                                 step_width * 100))
             self.step_lengths[lr] = np.array(self.step_lengths[lr])
             self.step_widths[lr] = np.array(self.step_widths[lr])
+        self.step_table_sorted = sorted(self.step_table[0] + self.step_table[1], key=lambda step_row: step_row.ts)
 
     def __sub__(self, other):
         res = SpatialParams()
