@@ -209,6 +209,44 @@ def main():
         rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, args.yaw_degrees * PI / 180.0)
         suffix = '_ccw'
         writeYaml(path, suffix)
+    elif args.room_id == 'sunny':
+        r = 1.4
+        R = 2.1
+        alpha = math.pi * 0.2
+        dx = (R - r) * math.cos(alpha)
+        dy = (R - r) * math.sin(alpha)
+        
+        # cw
+        xc1, yc1 = 0.0, 1.7
+        xc2, yc2 = -2.8, 1.7
+        path = []
+        # Upper semicircle
+        appendCircularPath(path, xc2 + dx, yc2 + dy, R, 3*PI/2,         3*PI/2 - alpha)
+        appendCircularPath(path, xc2,      yc2,      r, 3*PI/2 - alpha, PI/2 + alpha)
+        appendCircularPath(path, xc2 + dx, yc2 - dy, R, PI/2 + alpha,   PI/2)
+        # Lower semicircle
+        appendCircularPath(path, xc1 - dx, yc1 - dy, R, PI/2,           PI/2 - alpha)
+        appendCircularPath(path, xc1,      yc1,      r, PI/2 - alpha,  -PI/2 + alpha)
+        appendCircularPath(path, xc1 - dx, yc1 + dy, R, -PI/2 + alpha, -PI/2)
+        closePath(path)
+        rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, args.yaw_degrees * PI / 180.0)
+        suffix = '_cw'
+        writeYaml(path, suffix)
+
+        # ccw
+        path = []
+        # Lower semicircle
+        appendCircularPath(path, xc1 - dx, yc1 + dy, R, -PI/2,        -PI/2 + alpha)
+        appendCircularPath(path, xc1,      yc1,      r, -PI/2 + alpha, PI/2 - alpha)
+        appendCircularPath(path, xc1 - dx, yc1 - dy, R,  PI/2 - alpha, PI/2)
+        # Upper semicircle
+        appendCircularPath(path, xc2 + dx, yc2 - dy, R, PI/2,           PI/2 + alpha)
+        appendCircularPath(path, xc2,      yc2,      r, PI/2 + alpha,   3*PI/2 - alpha)
+        appendCircularPath(path, xc2 + dx, yc2 + dy, R, 3*PI/2 - alpha, 3*PI/2)
+        closePath(path)
+        rotateAround(path, (xc1 + xc2) / 2.0, (yc1 + yc2) / 2.0, args.yaw_degrees * PI / 180.0)
+        suffix = '_ccw'
+        writeYaml(path, suffix)
     else:
         raise Exception('Unknown room_id.')
 
