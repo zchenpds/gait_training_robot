@@ -1,16 +1,13 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
+import os
 import yaml
-import rospy
-import rospkg
 import math
 import sys
 from collections import namedtuple
 
 import numpy as np
-
-from tf.transformations import quaternion_from_euler
-from tf.transformations import euler_from_quaternion
+import scipy
 
 import argparse
 
@@ -18,7 +15,6 @@ import argparse
 Pose = namedtuple("Pose", ["x", "y", "th"])
 
 def getWaypoint(pose, seq):
-    q = quaternion_from_euler(0.0, 0.0, pose.th)
     # print("The quaternion representation is %s %s %s %s." % (q[0], q[1], q[2], q[3]))
     return {
         "header": {
@@ -31,8 +27,8 @@ def getWaypoint(pose, seq):
                 "y": float(pose.y),
             },
             "orientation": {
-                "z": float(q[2]),
-                "w": float(q[3]),
+                "z": float(math.sin(pose.th / 2)),
+                "w": float(math.cos(pose.th / 2)),
             }
         }
 
@@ -55,7 +51,7 @@ class Path:
         if radius < 1.0:
             print("Radius too small.")
             return
-        n_segments = radius * math.fabs(angle) // Path.ds
+        n_segments = int(radius * math.fabs(angle) // Path.ds)
         dth = angle / n_segments
         if dth == 0:
             return
@@ -68,7 +64,6 @@ class Path:
             y = yc + radius * math.sin(th)
             tangent = th + math.copysign(math.pi / 2.0, dth)
             self._path.append(Pose(x, y, tangent))
-        
         self.s += math.fabs(radius * angle)
 
     def appendStraight(self, x1, y1):
@@ -76,7 +71,7 @@ class Path:
         y0 = self._path[-1].y
         th = math.atan2(y1, x1)
         s1 = math.hypot(y1, x1)
-        n_segments = s1 // Path.ds
+        n_segments = int(s1 // Path.ds)
         for s in np.linspace(0, s1, n_segments, endpoint=False) + s1 / n_segments:
             x = x0 + s * math.cos(th)
             y = y0 + s * math.sin(th)
@@ -90,9 +85,17 @@ class Path:
         y1 = self._path[0].y - self._path[-1].y
         self.appendStraight(x1, y1)
 
+
     def writeYaml(self, suffix):
-        rp = rospkg.RosPack()
-        with open(rp.get_path('gait_training_robot') + '/data/waypoints' + suffix + '.yaml', 'w') as outfile:
+        # Helper function replacing rospkg.RosPack().get_path()
+        def get_ros_package_path(package_name):
+            for ros_path in os.getenv("ROS_PACKAGE_PATH").split(':'):
+                package_path = os.path.join(ros_path, package_name)
+                if os.path.exists(package_path):
+                    return package_path
+            raise Exception("Cannot find ROS package: " + package_name)
+
+        with open(get_ros_package_path('gait_training_robot') + '/data/waypoints' + suffix + '.yaml', 'w') as outfile:
             for i, pose in enumerate(self._path):
                 yaml.dump(getWaypoint(pose, i), outfile, default_flow_style=False, explicit_start=True)
 
