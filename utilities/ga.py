@@ -112,7 +112,7 @@ class StepData(SpatialParams):
         self.stride_table = [[], []]
         self.step_table = [[], []]
 
-        stamp_list = [msg.header.stamp.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/t0_zeno')]
+        stamp_list = [msg.data.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/t0_zeno')]
         if not stamp_list: stamp_list = [msg.header.stamp.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/sport_sole')]
         self.t0_zeno = next(ts for ts in stamp_list if ts > 1.0 )
         
