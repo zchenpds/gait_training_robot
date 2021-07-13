@@ -2,20 +2,19 @@
 1. On the robot computer (192.168.1.100) (optionally ssh from the remote computer):
     1. Generate waypoints for the environment.
         ```bash
-        $ rosrun gait_training_robot generate_waypoints.py sunny
+        $ rosrun gait_training_robot sunny_generate_waypoints.py
         ```
     1. Preview waypoints.
         ```bash
-        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_gnccw
-        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_ccw
-        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_cw
+        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_sunny_ccw
+        $ rosrun gait_training_robot goal_generator _preview:=true _suffix:=_sunny_cw
         ```
     1. Start roscore
     1. Run the following
         ```bash
         $ roslaunch gait_training_robot rtabmap_map.launch disable_rviz:=true
-        $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_ccw
-        $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_cw
+        $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_sunny_ccw
+        $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_sunny_cw
         ```
 
 ## Data Collection
@@ -36,9 +35,10 @@
         <img src="images/vibration_param_gui.png" alt="drawing" width="300"/>
     1. Run the following (cannot be through ssh)
         ```bash
-        $ roslaunch gait_training_robot sunny_record_ccw.launch
-        $ roslaunch gait_training_robot sunny_record_cw.launch
+        $ roslaunch gait_training_robot sunny_record.launch dir:=cw
+        $ roslaunch gait_training_robot sunny_record.launch dir:=ccw
         ```
+1. Start Zeno walkway.
 2. (To be removed soon) On the remote computer (192.168.1.102):
     1. Run the following and select the bag file to play back
         ```bash
