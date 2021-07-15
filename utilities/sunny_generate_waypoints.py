@@ -173,9 +173,9 @@ class HumanPath(Path):
  
 if __name__ == '__main__':
     elongation_term = 0.0
-    r = 2.0 - elongation_term / 2
-    l = 9.0 + elongation_term
-    b = 4.5 + elongation_term / 2
+    r = 2.5 - elongation_term / 2
+    l = 10.0 + elongation_term
+    b = 5.0 + elongation_term / 2
 
     parser = argparse.ArgumentParser(description="Prescribe the path for the robot to follow.")
     parser.add_argument('-ds', type=float, default=0.5, help='Separation between consecutive waypoints.')
@@ -188,15 +188,23 @@ if __name__ == '__main__':
         if dir == "cw":
             path_human = HumanPath(0, 0, math.pi)
             path_human.appendStraight(b - l, 0)
-            path_human.appendCircular(r, -math.pi)
+            path_human.appendCircular(r, -math.pi/2)
+            path_human.appendStraight(0, 1)
+            path_human.appendCircular(r, -math.pi/2)
             path_human.appendStraight(l, 0)
-            path_human.appendCircular(r, -math.pi)
+            path_human.appendCircular(r, -math.pi/2)
+            path_human.appendStraight(0, -1)
+            path_human.appendCircular(r, -math.pi/2)
         else:
             path_human = HumanPath(0, 0, 0)
             path_human.appendStraight(b, 0)
-            path_human.appendCircular(r, math.pi)
+            path_human.appendCircular(r, math.pi/2)
+            path_human.appendStraight(0, 1)
+            path_human.appendCircular(r, math.pi/2)
             path_human.appendStraight(-l, 0)
-            path_human.appendCircular(r, math.pi)
+            path_human.appendCircular(r, math.pi/2)
+            path_human.appendStraight(0, -1)
+            path_human.appendCircular(r, math.pi/2)
         path_human.closePath()
         print("Human path circumference {:3s}: {:.2f} m.".format(dir, path_human.s))
         path_human.writeYaml("_sunny_human_" + dir)
