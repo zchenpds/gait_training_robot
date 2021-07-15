@@ -167,6 +167,7 @@ class HumanPath(Path):
         res = Path()
         for row in np.transpose(sol.y)[1:, :]:
             res._path.append(Pose(row[0], row[1], row[2]))
+        res._path.reverse()
         return res
 
  
