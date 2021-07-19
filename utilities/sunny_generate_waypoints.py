@@ -11,6 +11,11 @@ import scipy.integrate
 
 import argparse
 
+import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerPatch
+import matplotlib.patches as mpatches
+
+
 # Pose in SE(2)
 Pose = namedtuple("Pose", ["x", "y", "th"])
 
@@ -42,13 +47,15 @@ def getWaypoint(pose, seq):
 
 
 class Path:
-    def __init__(self, x=None, y=None, th=None):
+    def __init__(self, x=None, y=None, th=None, agent_name="Robot", color='b'):
         """ Initialize the path with the first waypoint specified. """
         self._path = [] # Pose sequence
         if x is not None and y is not None and th is not None:
             self._path.append(Pose(x, y, th))
         self.s = 0.0
         self._u_path = [] # Control sequence
+        self.agent_name = agent_name
+        self.color = color
 
     @classmethod
     def setArgs(cls, args):
@@ -120,12 +127,25 @@ class Path:
                 yaml.dump(getWaypoint(pose, i), outfile, default_flow_style=False, explicit_start=True)
         print("Waypoints saved to {:%s}" % yaml_filename)
 
+    def preview(self, ax=None):
+        arrow_len = 0.7 * args.ds
+        if ax is None: ax = plt
+        for i, pose in enumerate(self._path):
+            if i == 0: kwargs = {"label": self.agent_name}
+            else: kwargs = {}
+            ax.arrow(pose.x, pose.y, 
+                     arrow_len * math.cos(pose.th), arrow_len * math.sin(pose.th),
+                     length_includes_head=True,
+                     width=arrow_len/12, linewidth=1e-4, color=self.color, **kwargs)
+        ax.set_aspect('equal')
+        ax.set_xlabel('x [m]')
+        ax.set_ylabel('y [m]')
 
 class HumanPath(Path):
     # Distance between human and robot
     RHO = 1.5
     def __init__(self, *args):
-        super(HumanPath, self).__init__(*args)
+        super(HumanPath, self).__init__(*args, agent_name="Human", color='g')
 
     def getRobotPath(self):
         if not self._u_path: return None
@@ -159,7 +179,7 @@ class HumanPath(Path):
         # Time span for which the ODE is solved
         t_start = ut[0][0]
         t_end = ut[-1][1]
-        t_segments = int((t_end - t_start) // 0.5)
+        t_segments = int((t_end - t_start) // self.ds)
         sol = scipy.integrate.solve_ivp(func, (t_end, t_start), xi0, 
                 t_eval=np.linspace(t_end, t_start, t_segments),
                 max_step=0.01)
@@ -168,6 +188,7 @@ class HumanPath(Path):
         for row in np.transpose(sol.y)[1:, :]:
             res._path.append(Pose(row[0], row[1], row[2]))
         res._path.reverse()
+        res.s = t_end - t_start
         return res
 
  
@@ -179,12 +200,15 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Prescribe the path for the robot to follow.")
     parser.add_argument('-ds', type=float, default=0.5, help='Separation between consecutive waypoints.')
+    parser.add_argument('-p', '--preview', action="store_true")
 
     args = parser.parse_args()
     Path.setArgs(args)
 
+    if args.preview:
+        _, axs = plt.subplots(2, 1)
 
-    for dir in ["cw", "ccw"]:
+    for i, dir in enumerate(["cw", "ccw"]):
         if dir == "cw":
             path_human = HumanPath(0, 0, math.pi)
             path_human.appendStraight(b - l, 0)
@@ -206,8 +230,27 @@ if __name__ == '__main__':
             path_human.appendStraight(0, -1)
             path_human.appendCircular(r, math.pi/2)
         path_human.closePath()
-        print("Human path circumference {:3s}: {:.2f} m.".format(dir, path_human.s))
-        path_human.writeYaml("_sunny_human_" + dir)
-        
         path_robot = path_human.getRobotPath()
-        if path_robot: path_robot.writeYaml("_sunny_" + dir)
+        for path in [path_human, path_robot]:
+            print("{:s} path circumference {:3s}: {:.2f} m, waypoints: {:3d}.".format(
+                path.agent_name, dir, path.s, len(path._path)))
+        
+        if args.preview:
+            path_human.preview(axs[i])
+            path_robot.preview(axs[i])
+        else:
+            path_human.writeYaml("_sunny_human_" + dir)
+            path_robot.writeYaml("_sunny_" + dir)
+    
+    if args.preview:
+        def make_legend_arrow(legend, orig_handle,
+                              xdescent, ydescent,
+                              width, height, fontsize):
+            p = mpatches.FancyArrow(0, 0.5*height, width, 0, 
+                length_includes_head=True, head_width=0.75*height, width=0.2*height)
+            return p
+        for ax in axs:
+            ax.legend(handler_map={mpatches.FancyArrow : HandlerPatch(patch_func=make_legend_arrow)})
+        plt.tight_layout()
+        plt.savefig(os.path.join(os.getenv("HOME"), "Pictures", "figs", "human_robot_path.eps"))
+        plt.show()
