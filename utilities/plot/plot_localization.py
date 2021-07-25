@@ -5,7 +5,7 @@ import os
 import glob
 import argparse
 import numpy as np
-from scipy.signal import argrelextrema
+from scipy.signal import argrelextrema, butter, filtfilt
 from collections import namedtuple
 
 
@@ -90,12 +90,31 @@ def process(inbag, filename):
         a, b = position_series.i_minima[k-1], position_series.i_minima[k]
         if mode == 0:
             return CurveData(position_series.xy[a:b, 0], position_series.xy[a:b, 1], opts)
-        elif mode == 1:
+        elif mode == 1: # Start point
             return CurveData(position_series.xy[a, 0], position_series.xy[a, 1], opts)
-        elif mode == 2:
+        elif mode == 2: # 2-norm
             return CurveData(position_series.t[a:b], np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2), opts)
-        elif mode == 3:
+        elif mode == 3: # Horizontal line y = 1.5
             return CurveData([position_series.t[a], position_series.t[b]], [1.5, 1.5], opts)
+        elif mode == 4: # Filtered 2-norm
+            v = np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2)
+            for i in range(1, len(v)):
+                if v[i] > 1.8: v[i] = v[i - 1]
+            b1, a1 = butter(4, 0.06)
+            v = filtfilt(b1, a1, v, padlen=0)
+            return CurveData(position_series.t[a:b], v, opts)
+        elif mode == 5: # Horizontal line y = 1.2
+            return CurveData([position_series.t[a], position_series.t[b]], [1.2, 1.2], opts)
+
+    # Calculate velocity
+    vel_robot_odom = PositionSeries(pos_robot_odom.t, 
+        np.diff(pos_robot_odom.xy, axis=0, prepend=[[0.0, 0.0]]) / 
+            np.tile(np.expand_dims(np.diff(pos_robot_odom.t, axis=0, prepend=1.0), axis=1), (1, 2)), 
+        pos_robot_odom.i_minima)
+    vel_human_odom = PositionSeries(pos_human_odom.t,
+        np.diff(pos_human_odom.xy, axis=0, prepend=[[0.0, 0.0]]) /
+            np.tile(np.expand_dims(np.diff(pos_human_odom.t, axis=0, prepend=1.0), axis=1), (1, 2)), 
+        pos_human_odom.i_minima)
 
     plot_list = []
     robot_color = 'b'
@@ -121,14 +140,21 @@ def process(inbag, filename):
                 'SLAM (Lap {:d})'.format(k), 'x [m]', 'y [m]'),
             PlotData(
                 [
-                    get_lap_curve_data(pos_human_robot, k, 2, {"color": 'b'}),
-                    get_lap_curve_data(pos_human_robot, k, 3, {"color": 'g', "ls": "--"}),
+                    get_lap_curve_data(pos_human_robot, k, 2, {"color": 'm'}),
+                    get_lap_curve_data(pos_human_robot, k, 3, {"color": 'y', "ls": "--"}),
                 ],
                 'Human-Robot Distance (Lap {:d})'.format(k), 't [s]', 'Distance [m]'),
+            PlotData(
+                [
+                    get_lap_curve_data(vel_robot_odom, k, 2, {"label": "Robot", "color": 'b'}),
+                    get_lap_curve_data(vel_human_odom, k, 4, {"label": "Human", "color": 'g'}),
+                    get_lap_curve_data(vel_robot_odom, k, 5, {"color": 'r', "ls": "--"}),
+                ],
+                'Velocity (Lap {:d})'.format(k), 't [s]', 'Velocity [m/s]'),
         ])
     
     fig, axs = plt.subplots(len(plot_list), len(plot_list[0]), squeeze=False)
-    fig.set_size_inches(20, 20)
+    fig.set_size_inches(25, 18)
     for i in range(len(plot_list)):
         for j in range(len(plot_list[0])):
             ax = axs[i][j]
@@ -139,6 +165,10 @@ def process(inbag, filename):
             ax.set_ylabel(ylabel)
             if "[m]" in ax.xaxis.get_label().get_text():
                 ax.set_aspect('equal')
+            if "Distance" in ax.yaxis.get_label().get_text():
+                ax.set_ylim([0.5, 2.5])
+            if "Velocity" in ax.yaxis.get_label().get_text():
+                ax.set_ylim([0.0, 1.5])
             ax.legend()
             ax.set_title(title)
     # plt.tight_layout()
