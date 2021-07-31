@@ -140,15 +140,15 @@ def process(inbag, filename):
                 'SLAM (Lap {:d})'.format(k), 'x [m]', 'y [m]'),
             PlotData(
                 [
-                    get_lap_curve_data(pos_human_robot, k, 2, {"color": 'm'}),
-                    get_lap_curve_data(pos_human_robot, k, 3, {"color": 'y', "ls": "--"}),
+                    get_lap_curve_data(pos_human_robot, k, 2, {"label": "Actual", "color": 'm'}),
+                    get_lap_curve_data(pos_human_robot, k, 3, {"label": "Desired", "color": 'y', "ls": "--"}),
                 ],
                 'Human-Robot Distance (Lap {:d})'.format(k), 't [s]', 'Distance [m]'),
             PlotData(
                 [
                     get_lap_curve_data(vel_robot_odom, k, 2, {"label": "Robot", "color": 'b'}),
                     get_lap_curve_data(vel_human_odom, k, 4, {"label": "Human", "color": 'g'}),
-                    get_lap_curve_data(vel_robot_odom, k, 5, {"color": 'r', "ls": "--"}),
+                    get_lap_curve_data(vel_robot_odom, k, 5, {"label": "Robot Max", "color": 'r', "ls": "--"}),
                 ],
                 'Velocity (Lap {:d})'.format(k), 't [s]', 'Velocity [m/s]'),
         ])
