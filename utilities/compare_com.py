@@ -36,9 +36,17 @@ def process_inbag(inbag, args):
     fsd = me.extractPointStamped("/gait_analyzer/estimate/com", "Fused CoM")
     raw = me.extractPointStamped("/gait_analyzer/measurement/com", "Raw CoM")
     ref = me.extractPointStamped("/gait_analyzer_optitrack/measurement/com", "Ref. CoM")
+
+    # CoMv
+    comv_fsd = me.extractVector3Stamped("/gait_analyzer/estimate/comv", "Fused CoMv")
+    comv_raw = me.extractVector3Stamped("/gait_analyzer/measurement/comv", "Raw CoMv")
+    comv_ref = me.extractVector3Stamped("/gait_analyzer_optitrack/estimate/comv", "Ref. CoMv")
+    comv_list = [comv_fsd, comv_raw, comv_ref]
     
+    # CoP
     cop = me.extractPointStamped("/gait_analyzer/cop", "CoP")
 
+    # Footprint
     footprint = [me.extractFootprint("/gait_analyzer/footprint_l", "Left Footprint"),
                  me.extractFootprint("/gait_analyzer/footprint_r", "Right Footprint")]
 
@@ -54,7 +62,7 @@ def process_inbag(inbag, args):
     t_min += args.time_range[0]
 
     # Trim the positions to the time range
-    for pd in pd_list + [footprint[0], footprint[1]]:
+    for pd in pd_list + [footprint[0], footprint[1]] + comv_list:
         trim_time(pd, [(t_min, t_max)])
 
     # Align the trajectories
@@ -63,6 +71,14 @@ def process_inbag(inbag, args):
     for pd in [fsd, raw, cop, footprint[0], footprint[1]]:
         pd = tf.transform(pd)
 
+    Aligner.rotate(comv_ref, -math.pi/2)
+    for pd in [comv_fsd, comv_raw]:
+        pd = tf.rotate(pd, tf.theta)
+
+    plot_com(pd_list, footprint, args)
+    plot_comv(comv_list, t_min, args)
+
+def plot_com(pd_list, footprint, args):
     # Plot CoM and CoP
     plt.figure()
     for pd in pd_list:
@@ -84,11 +100,39 @@ def process_inbag(inbag, args):
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
     plt.gca().set_aspect('equal', adjustable='box')
+    plt.tight_layout()
 
     # Save
     if args.save:
         eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
             "CoM data" + str(args.trial_id).rjust(3, '0') + 
+            " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
+            datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        plt.savefig(eps_path, format='eps')
+
+    plt.show()
+
+def plot_comv(comv_list, t_min, args):
+    # Plot CoMv
+    xy_list = [0, 1]
+    xy_str = ["x", "y"]
+    _, axs = plt.subplots(len(xy_list), 1)
+    for xy in xy_list:
+        ax = axs[xy]
+        for pd in comv_list:
+            ax.plot(pd["t"][:] - t_min + args.time_range[0], 
+                pd["xyz"][:, xy], 
+                label=pd["legend"], linewidth=args.linewidth)
+
+        ax.legend()
+        ax.set_xlabel("t [s]")
+        ax.set_ylabel("{0:s} [m/s]".format(xy_str[xy]))
+    plt.tight_layout()
+
+    # Save
+    if args.save:
+        eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
+            "CoMv data" + str(args.trial_id).rjust(3, '0') + 
             " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
             datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
         plt.savefig(eps_path, format='eps')

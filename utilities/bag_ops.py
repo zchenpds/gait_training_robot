@@ -135,6 +135,24 @@ class MessageExtractor:
                                   msg.point.z] for msg in msg_list]),
                 "legend": legend}
     
+    def extractVector3Stamped(self, topic, legend=""):
+        """
+        std_msgs/Header header
+          uint32 seq
+          time stamp
+          string frame_id
+        geometry_msgs/Vector3 vector
+          float64 x
+          float64 y
+          float64 z
+        """
+        msg_list = [msg for _, msg, _ in self.inbag.read_messages(topics=topic)]
+        return {"t": np.array([msg.header.stamp.to_sec() for msg in msg_list]),
+                "xyz": np.array([[msg.vector.x, 
+                                  msg.vector.y, 
+                                  msg.vector.z] for msg in msg_list]),
+                "legend": legend}
+    
     def extractFootprint(self, topic, legend=""):
         """
         std_msgs/Header header
