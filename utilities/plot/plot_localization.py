@@ -14,6 +14,8 @@ import rosbag
 from tf import Transformer
 import tf
 
+DESIRED_DIST = 1.5
+
 PositionSeries = namedtuple("PositionSeries", ["t", "xy", "i_minima"])
 CurveData = namedtuple("CurveData", ["x", "y", "opt"])
 PlotData = namedtuple('PlotData', ["curve_list", "title", "xlabel", "ylabel"])
@@ -73,6 +75,14 @@ def process(inbag, filename):
     pos_human_map = pos_human_map._replace(t=np.array(pos_human_map.t) - t0, xy=np.array(pos_human_map.xy))
     pos_human_robot = pos_human_robot._replace(t=np.array(pos_human_robot.t) - t0, xy=np.array(pos_human_robot.xy))
 
+    if args.print_distance_rmse:
+        dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
+        idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
+        dist_rmse = np.sqrt(np.mean(dist_error[idx]**2)) * 100
+        dist_error_sd = np.std(dist_error[idx]) * 100
+        print("{:.3} ({:.3})".format(dist_rmse, dist_error_sd))
+        return
+
     # Separate time series into laps
     dist_to_origin = (pos_robot_odom.xy[:, 0]**2 + pos_robot_odom.xy[:, 1]**2)**0.5
     i_minima_odom = argrelextrema(dist_to_origin, np.less)[0]
@@ -94,8 +104,8 @@ def process(inbag, filename):
             return CurveData(position_series.xy[a, 0], position_series.xy[a, 1], opts)
         elif mode == 2: # 2-norm
             return CurveData(position_series.t[a:b], np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2), opts)
-        elif mode == 3: # Horizontal line y = 1.5
-            return CurveData([position_series.t[a], position_series.t[b]], [1.5, 1.5], opts)
+        elif mode == 3: # Horizontal line y = DESIRED_DIST
+            return CurveData([position_series.t[a], position_series.t[b]], [DESIRED_DIST, DESIRED_DIST], opts)
         elif mode == 4: # Filtered 2-norm
             v = np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2)
             for i in range(1, len(v)):
@@ -182,6 +192,7 @@ if __name__ == "__main__":
     parser.add_argument("filenames", nargs='*', help="Bag file path(s). Wildcard is supported.")
     parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument("-p", "--preview", action="store_true")
+    parser.add_argument("-r", "--print-distance-rmse", action="store_true")
     args = parser.parse_args()
     if not args.filenames:
         print("Empty list of files.")

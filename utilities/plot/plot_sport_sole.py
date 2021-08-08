@@ -11,7 +11,7 @@ import rospy
 import rosbag
 
 
-def process(inbag, filename, t0=None):
+def process(inbag, png_raw_filename, png_gap_filename, t0=None):
     msg_list = [msg for _, msg, _ in inbag.read_messages(topics="/sport_sole_publisher/sport_sole")]
     ts = np.array([msg.header.stamp.to_sec() for msg in msg_list])
     if len(ts) == 0:
@@ -51,8 +51,21 @@ def process(inbag, filename, t0=None):
             # if legend: ax.legend()
             ax.set_title(legend)
     plt.tight_layout()
-    plt.savefig(filename)
+    plt.savefig(png_raw_filename)
+    print("Saved to " + png_raw_filename)
     if args.preview: plt.show()
+
+    plt.figure()
+    msg_list = [msg for _, msg, _ in inbag.read_messages("/sport_sole_publisher/sport_sole")]
+    plt.figure(figsize=(20, 6))
+    plt.plot(ts, np.diff(ts, prepend=ts[0]))
+    plt.plot([ts[0], ts[-1]], np.ones(2) * 0.1, 'g--')
+    plt.xlabel('t [s]')
+    plt.ylabel('Gap [s]')
+    plt.savefig(png_gap_filename)
+    print("Saved to " + png_gap_filename)
+    if args.preview: plt.show()
+
         
 
 
@@ -69,6 +82,8 @@ if __name__ == "__main__":
             print("Cannot find " + filename)
         print(filename)
         with rosbag.Bag(filename, 'r') as inbag:
-            png_filename = os.path.join(os.path.expanduser("~"), "Pictures", "sunnyside", "SportSole", 
+            png_raw_filename = os.path.join(os.path.expanduser("~"), "Pictures", "sunnyside", "SportSoleRaw", 
                 os.path.splitext(os.path.basename(filename))[0] + ".png")
-            process(inbag, png_filename)
+            png_gap_filename = os.path.join(os.path.expanduser("~"), "Pictures", "sunnyside", "SportSoleGaps", 
+                os.path.splitext(os.path.basename(filename))[0] + ".png")
+            process(inbag, png_raw_filename, png_gap_filename)

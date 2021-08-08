@@ -43,6 +43,7 @@ def process_inbag(inbag, args):
            me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_r", "Ref.")]
 
     pd_list = [fsd, raw, ref]
+    plot_style_list = [{"ls": "-", "color": "r"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}]
 
     # Find the min and max of all the poses
     t_min = max([pd[lr]["t"][0] for lr in [0, 1] for pd in pd_list])
@@ -75,14 +76,15 @@ def process_inbag(inbag, args):
         xy_str = ["x", "y"]
         for xy in xy_list:
             ax = axs[xy, lr] if len(lr_list) > 1 else axs[xy]
-            for pd in pd_list:
+            for pd, plot_style in zip(pd_list, plot_style_list):
                 ax.plot(pd[lr]["t"] - t_min + args.time_range[0], 
                     pd[lr]["xyz"][:, xy], 
-                    label=pd[lr]["legend"], linewidth=args.linewidth)
+                    label=pd[lr]["legend"], linewidth=args.linewidth, **plot_style)
             ax.legend()
             ax.set_xlabel("t [s]")
             ax.set_ylabel("{0:s} [m]".format(xy_str[xy]))
             if xy == 0: ax.set_title(lr_str[lr])
+    plt.tight_layout()
 
     # Save
     if args.save:
