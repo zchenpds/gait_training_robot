@@ -89,6 +89,13 @@ class SpatialParams:
     def get_stride_velocities(self):
         return self.stride_velocities
 
+    def get_stride_times(self):
+        return self.stride_times
+
+
+StrideRow = namedtuple("StrideRow", ["ts_FC", "LR", "StrideL", "StrideV", "StrideT"])
+StepRow   = namedtuple("StepRow",   ["ts_FC", "LR", "StepL", "StepW"])
+
 class StepData(SpatialParams):
     """
     A class that represents the data for each step of both left and right feet.
@@ -140,32 +147,34 @@ class StepData(SpatialParams):
                 self.data[lr].append(get_mean(pos_list))
                 pos_list = []
 
-        self.StrideRow = namedtuple("StrideRow", ["ts", "LR", "StrideL", "StrideV"])
-        self.StepRow   = namedtuple("StepRow",   ["ts", "LR", "StepL", "StepW"])
-
         #! [SL_l, SL_r]
         self.stride_lengths = [[], []]
         self.stride_velocities = [[], []]
+        self.stride_times = [[], []]
         for lr in [0, 1]:
             for i in range(1, len(self.data[lr])):
                 # Calculate stride length
                 strideL = np.linalg.norm(self.data[lr][i] - self.data[lr][i - 1])
+                if strideL > 2.0: continue
                 self.stride_lengths[lr].append(strideL)
                 # Calculate stride velocity
                 strideT = self.ts_ff[lr][i] - self.ts_ff[lr][i - 1]
                 strideV = strideL / strideT
                 if strideT < 2.0: # Exclude strides that last too long
                     self.stride_velocities[lr].append(strideV)
+                    self.stride_times[lr].append(strideT)
                 # Add to table
                 self.stride_table[lr].append(
-                    self.StrideRow(self.ts_ff[lr][i-1] - self.t0_zeno,
+                    StrideRow(self.ts_ff[lr][i-1] - self.t0_zeno,
                                    ("L" if lr == 0 else "R") + str(i),
                                    strideL * 100,
-                                   strideV * 100))
+                                   strideV * 100, 
+                                   strideT))
             self.stride_lengths[lr] = np.array(self.stride_lengths[lr])
             self.stride_velocities[lr] = np.array(self.stride_velocities[lr])
+            self.stride_times[lr] = np.array(self.stride_times[lr])
             # print(lr, len(self.stride_lengths[lr]), len(self.stride_velocities[lr]))
-        self.stride_table_sorted = sorted(self.stride_table[0] + self.stride_table[1], key=lambda stride_row: stride_row.ts)
+        self.stride_table_sorted = sorted(self.stride_table[0] + self.stride_table[1], key=lambda stride_row: stride_row.ts_FC)
         
         #! [lrl, rlr]
         self.step_lengths = [[], []]
@@ -183,17 +192,18 @@ class StepData(SpatialParams):
                 pa, pb, pc = self.data[lr][a], self.data[1 - lr][b], self.data[lr][c]
                 step_length = np.dot(pc - pa, pb - pa) / np.linalg.norm(pc - pa)
                 step_width = math.sqrt(np.linalg.norm(pb - pa) ** 2  - step_length ** 2)
+                if step_length > 1.0 or step_length < 0.3: continue
                 self.step_lengths[lr].append(step_length)
                 self.step_widths[lr].append(step_width)
                 # Add to table
                 self.step_table[lr].append(
-                    self.StepRow(self.ts_ff[lr][i-1] - self.t0_zeno,
+                    StepRow(self.ts_ff[lr][i-1] - self.t0_zeno,
                                  ("L" if lr == 0 else "R") + str(i),
                                  step_length * 100,
                                  step_width * 100))
             self.step_lengths[lr] = np.array(self.step_lengths[lr])
             self.step_widths[lr] = np.array(self.step_widths[lr])
-        self.step_table_sorted = sorted(self.step_table[0] + self.step_table[1], key=lambda step_row: step_row.ts)
+        self.step_table_sorted = sorted(self.step_table[0] + self.step_table[1], key=lambda step_row: step_row.ts_FC)
 
     def __sub__(self, other):
         res = SpatialParams()
@@ -239,3 +249,19 @@ def get_stance_intervals(inbag, topic_gs, t_min, t_max):
         if len(res[lr]) and len(res[lr][-1]) == 1:
             res[lr][-1].append(res[lr][-1][0] + rospy.Duration(1.0))
     return res
+
+
+def print_stats(param_name, data, unit="cm", mode="mean_sd"):
+    m1, m2 = np.mean(data[0]), np.mean(data[1])
+    s1, s2 = np.std(data[0]),  np.std(data[1])
+    n1, n2 = len(data[0]),     len(data[1])
+    scale = 100.0 if "cm" in unit else 1000
+    combined_std = math.sqrt(( (n1 - 1) * s1 * s1 + (n2 - 1) * s2 * s2 
+        + n1 * n2 / (n1 + n2) * (m1**2 + m2**2 - 2 * m1 * m2))
+        / (n1 + n2 - 1)) * scale
+    combined_mean = (n1 * m1 + n2 * m2) / (n1 + n2) * scale
+
+    if mode == "mean_sd":
+        return ('{:3.1f}({:3.1f}) ').format(combined_mean, combined_std).ljust(15)
+    else: # cv
+        return ('{:3.2f} ').format(combined_std/combined_mean*100).ljust(10)
