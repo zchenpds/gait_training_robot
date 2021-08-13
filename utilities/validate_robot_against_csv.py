@@ -22,7 +22,7 @@ import ga
 
 
 class ValidationTableUpdater:
-    dataInfoNT = namedtuple("dataInfoNT", ["path"])
+    dataInfoNT = namedtuple("dataInfoNT", ["path", "sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny/"
 
     @classmethod
@@ -30,46 +30,55 @@ class ValidationTableUpdater:
         search_pattern = os.path.join(cls.ws_path, str_prefix, sbj, "*" + session + "_GaitParameters.csv")
         filename_list = glob.glob(search_pattern)
         assert(len(filename_list) == 1)
-        return filename_list[0]
+        return (filename_list[0], sbj, session)
 
     def __init__(self):
         self.data_info_dict = {
-            424: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ010", "d", "zeno")),
-            425: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ010", "e", "zeno")),
-            426: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ010", "f", "zeno")),
-            427: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ010", "g", "zeno")),
-            428: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ011", "d", "zeno")),
-            429: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ011", "e", "zeno")),
-            430: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ011", "f", "zeno")),
-            431: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ011", "g", "zeno")),
-            432: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ012", "d", "zeno")),
-            433: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ012", "e", "zeno")),
-            434: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ012", "f", "zeno")),
-            435: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ012", "g", "zeno")),
-            436: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ013", "d", "zeno")),
-            437: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ013", "e", "zeno")),
-            438: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ013", "f", "zeno")),
-            439: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ013", "g", "zeno")),
-            444: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ015", "d", "zeno")),
-            445: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ015", "e", "zeno")),
-            446: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ015", "f", "zeno")),
-            447: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ015", "g", "zeno")),
-            448: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ016", "d", "zeno")),
-            449: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ016", "e", "zeno")),
-            450: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ016", "f", "zeno")),
-            451: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ016", "g", "zeno")),
-            456: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ018", "d", "zeno")),
-            457: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ018", "e", "zeno")),
-            458: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ018", "f", "zeno")),
-            459: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ018", "g", "zeno")),
-            460: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ019", "d", "zeno")),
-            461: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ019", "e", "zeno")),
-            462: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ019", "f", "zeno")),
-            463: self.dataInfoNT(ValidationTableUpdater.getMatFileName("SBJ019", "g", "zeno")),
+            424: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ010", "d", "zeno")),
+            425: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ010", "e", "zeno")),
+            426: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ010", "f", "zeno")),
+            427: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ010", "g", "zeno")),
+            428: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ011", "d", "zeno")),
+            429: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ011", "e", "zeno")),
+            430: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ011", "f", "zeno")),
+            431: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ011", "g", "zeno")),
+            432: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ012", "d", "zeno")),
+            433: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ012", "e", "zeno")),
+            434: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ012", "f", "zeno")),
+            435: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ012", "g", "zeno")),
+            436: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ013", "d", "zeno")),
+            437: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ013", "e", "zeno")),
+            438: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ013", "f", "zeno")),
+            439: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ013", "g", "zeno")),
+            444: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ015", "d", "zeno")),
+            445: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ015", "e", "zeno")),
+            446: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ015", "f", "zeno")),
+            447: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ015", "g", "zeno")),
+            448: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ016", "d", "zeno")),
+            449: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ016", "e", "zeno")),
+            450: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ016", "f", "zeno")),
+            451: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ016", "g", "zeno")),
+            456: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ018", "d", "zeno")),
+            457: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ018", "e", "zeno")),
+            458: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ018", "f", "zeno")),
+            459: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ018", "g", "zeno")),
+            460: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ019", "d", "zeno")),
+            461: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ019", "e", "zeno")),
+            462: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ019", "f", "zeno")),
+            463: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("SBJ019", "g", "zeno")),
         }
-        self.param_types = ["StrideT", "StrideL", "StrideV", "StepL", "StepW"]
+        self.param_types = ["StrideT", "StrideL", "StrideV",     "StepL",  "StepW"]
+        self.param_units = [" (sec.)", " (cm.)",  " (cm./sec.)", " (cm.)", " (cm.)"]
+        self.param_names = [a + b for a, b in zip(self.param_types, self.param_units)]
         self.df = pd.DataFrame(np.nan, index=sorted(self.data_info_dict.keys()),
-            columns=[prefix + param_type for prefix in ["MAE_", "ESD_"] for param_type in self.param_types])
+            columns=[prefix + param_name for prefix in ["MAE_", "ESD_"] for param_name in self.param_names])
+
+        # Insert subject info columns
+        self.df.insert(0, "sbj",     "")
+        self.df.insert(1, "session", "")
+        for trial_id in self.data_info_dict.keys():
+            self.df.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
+            self.df.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
     def process_trial(self, trial_id):
         csv_filename_in = self.data_info_dict[trial_id].path
@@ -79,8 +88,8 @@ class ValidationTableUpdater:
                 "Stride Length (cm.)", "Stride Width (cm.)", 
                 "Stride Time (sec.)", "Stride Velocity (cm./sec.)"])
 
-        for param_type in self.param_types:
-            df["Err" + param_type] = np.nan
+        for param_name in self.param_names:
+            df["Err" + param_name] = np.nan
 
         pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
@@ -108,9 +117,9 @@ class ValidationTableUpdater:
             print("Saved to: " + csv_filename_out)
 
             # Update aggregate table
-            for param_type in self.param_types:
-                self.df.at[trial_id, "MAE_" + param_type] = np.mean(np.abs(df.loc[:, "Err" + param_type]))
-                self.df.at[trial_id, "ESD_"   + param_type] = np.std(df.loc[:, "Err" + param_type])
+            for param_type, param_name in zip(self.param_types, self.param_names):
+                self.df.at[trial_id, "MAE_" + param_name] = np.mean(np.abs(df.loc[:, "Err" + param_type]))
+                self.df.at[trial_id, "ESD_"   + param_name] = np.std(df.loc[:, "Err" + param_type])
     
     def update_and_save_csv(self):
         # Calculate Mean
