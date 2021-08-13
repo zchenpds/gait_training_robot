@@ -22,53 +22,52 @@ import numpy as np
 
 
 class ValidationTableUpdater:
-    dataInfoNT = namedtuple("dataInfoNT", ["path_ts", "path_val"])
+    dataInfoNT = namedtuple("dataInfoNT", ["path_ts", "path_val", "sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny/"
-
+    ts_prefix = "processed_"
+    val_prefix = "validation2"
     @classmethod
-    def getMatFileName(cls, sbj, session, prefix1, prefix2):
-        filename_list1 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", prefix1 + "*" + session + ".mat"))
+    def getMatFileName(cls, sbj, session):
+        filename_list1 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", cls.ts_prefix + "*" + session + ".mat"))
         assert(len(filename_list1) == 1)
-        filename_list2 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", prefix2 + "*" + session + ".mat"))
+        filename_list2 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", cls.val_prefix + "*" + session + ".mat"))
         assert(len(filename_list2) == 1)
-        return (filename_list1[0], filename_list2[0])
+        return (filename_list1[0], filename_list2[0], sbj, session)
 
     def __init__(self):
-        ts_prefix = "processed_"
-        val_prefix = "validation2"
         self.data_info_dict = {
-            424: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "D", ts_prefix, val_prefix)),
-            425: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "E", ts_prefix, val_prefix)),
-            426: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "F", ts_prefix, val_prefix)),
-            427: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "G", ts_prefix, val_prefix)),
-            428: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "D", ts_prefix, val_prefix)),
-            429: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "E", ts_prefix, val_prefix)),
-            430: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "F", ts_prefix, val_prefix)),
-            431: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "G", ts_prefix, val_prefix)),
-            432: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "D", ts_prefix, val_prefix)),
-            433: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "E", ts_prefix, val_prefix)),
-            434: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "F", ts_prefix, val_prefix)),
-            435: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "G", ts_prefix, val_prefix)),
-            436: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "D", ts_prefix, val_prefix)),
-            437: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "E", ts_prefix, val_prefix)),
-            438: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "F", ts_prefix, val_prefix)),
-            439: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "G", ts_prefix, val_prefix)),
-            444: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "D", ts_prefix, val_prefix)),
-            445: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "E", ts_prefix, val_prefix)),
-            446: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "F", ts_prefix, val_prefix)),
-            447: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "G", ts_prefix, val_prefix)),
-            448: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "D", ts_prefix, val_prefix)),
-            449: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "E", ts_prefix, val_prefix)),
-            450: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "F", ts_prefix, val_prefix)),
-            451: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "G", ts_prefix, val_prefix)),
-            456: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "D", ts_prefix, val_prefix)),
-            457: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "E", ts_prefix, val_prefix)),
-            458: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "F", ts_prefix, val_prefix)),
-            459: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "G", ts_prefix, val_prefix)),
-            460: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "D", ts_prefix, val_prefix)),
-            461: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "E", ts_prefix, val_prefix)),
-            462: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "F", ts_prefix, val_prefix)),
-            463: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "G", ts_prefix, val_prefix)),
+            424: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "D")),
+            425: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "E")),
+            426: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "F")),
+            427: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "G")),
+            428: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "D")),
+            429: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "E")),
+            430: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "F")),
+            431: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "G")),
+            432: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "D")),
+            433: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "E")),
+            434: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "F")),
+            435: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "G")),
+            436: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "D")),
+            437: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "E")),
+            438: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "F")),
+            439: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "G")),
+            444: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "D")),
+            445: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "E")),
+            446: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "F")),
+            447: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "G")),
+            448: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "D")),
+            449: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "E")),
+            450: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "F")),
+            451: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "G")),
+            456: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "D")),
+            457: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "E")),
+            458: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "F")),
+            459: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "G")),
+            460: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "D")),
+            461: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "E")),
+            462: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "F")),
+            463: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "G")),
         }
 
     def test(self, trial_id):
