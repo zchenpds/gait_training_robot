@@ -76,6 +76,7 @@ class SpatialParams:
         self.step_lengths = []
         self.step_widths = []
         self.stride_velocities = []
+        self.stride_times = []
 
     def get_stride_lengths(self):
         return self.stride_lengths
@@ -119,9 +120,13 @@ class StepData(SpatialParams):
         self.stride_table = [[], []]
         self.step_table = [[], []]
 
+        stamp_list_sportsole = [msg.header.stamp.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/sport_sole')]
+        if not stamp_list_sportsole: return
+
         stamp_list = [msg.data.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/t0_zeno')]
-        if not stamp_list: stamp_list = [msg.header.stamp.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/sport_sole')]
+        if not stamp_list: stamp_list = stamp_list_sportsole
         self.t0_zeno = next(ts for ts in stamp_list if ts > 1.0 )
+        self.t0_sportsole = stamp_list_sportsole[0]
         
         def get_mean(pos_list):
             return np.mean(pos_list[-len(pos_list)/3-1:], axis=0)
