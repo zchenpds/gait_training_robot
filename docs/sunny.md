@@ -29,6 +29,7 @@
         ```bash
         $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log
         $ rosrun sport_sole sport_sole_publisher_vibration sbj001_0_1.0 $HOME/log -s # send enable packet
+        $ sudo renice -n -15 -p $SPORT_SOLE_PID # change niceness level
         ```
     1. Send parameters to Teensy through the GUI as shown in the screenshot below. And after the walk test, we need to download the data and then calculate the average speed which would be used as target speed.
 
@@ -89,4 +90,22 @@ $ ip route delete default
 
 ```bash
 $ rostopic echo -b data_2021-05-07-22-45-18.bag -p /body_tracking_data/markers[0]/header/stamp > ~/.ros/tmp
+```
+
+# Data Processing
+
+## Compare with zeno data
+* Apply foot pose EKF and record (-r) data in a bag file
+```bash
+roscd gait_training_robot/bags
+rosrun gait_training_robot sunny_play.py data4[2-6]*.bag -r
+```
+* Skip recording (-s), calculate gait parameters and save them in pickle files (-i)
+```bash
+roscd gait_training_robot/bags
+rosrun gait_training_robot sunny_play.py data4[2-6]*.bag -si
+```
+* Generate csv files
+```bash
+rosrun gait_training_robot update_validation_table_csv.py
 ```
