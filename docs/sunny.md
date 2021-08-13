@@ -107,5 +107,5 @@ rosrun gait_training_robot sunny_play.py data4[2-6]*.bag -si
 ```
 * Generate csv files
 ```bash
-rosrun gait_training_robot update_validation_table_csv.py
+rosrun gait_training_robot validate_robot_against_csv.py
 ```
