@@ -28,7 +28,9 @@ class ValidationTableUpdater:
     ts_prefix = "processed_"
     val_prefix = "validation2"
     @classmethod
-    def getMatFileName(cls, sbj, session):
+    def constructDataInfo(cls, sbj, session):
+        sbj = "C" + sbj
+        session = session.upper()
         filename_list1 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", cls.ts_prefix + "*" + session + ".mat"))
         assert(len(filename_list1) == 1)
         filename_list2 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", cls.val_prefix + "*" + session + ".mat"))
@@ -37,38 +39,38 @@ class ValidationTableUpdater:
 
     def __init__(self):
         self.data_info_dict = {
-            424: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "D")),
-            425: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "E")),
-            426: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "F")),
-            427: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C010", "G")),
-            428: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "D")),
-            429: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "E")),
-            430: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "F")),
-            431: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C011", "G")),
-            432: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "D")),
-            433: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "E")),
-            434: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "F")),
-            435: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C012", "G")),
-            436: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "D")),
-            437: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "E")),
-            438: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "F")),
-            439: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C013", "G")),
-            444: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "D")),
-            445: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "E")),
-            446: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "F")),
-            447: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C015", "G")),
-            448: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "D")),
-            449: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "E")),
-            450: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "F")),
-            451: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C016", "G")),
-            456: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "D")),
-            457: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "E")),
-            458: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "F")),
-            459: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C018", "G")),
-            460: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "D")),
-            461: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "E")),
-            462: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "F")),
-            463: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "G")),
+            424: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "d")),
+            425: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "e")),
+            426: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "f")),
+            427: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "g")),
+            428: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("011", "d")),
+            429: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("011", "e")),
+            430: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("011", "f")),
+            431: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("011", "g")),
+            432: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("012", "d")),
+            433: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("012", "e")),
+            434: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("012", "f")),
+            435: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("012", "g")),
+            436: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("013", "d")),
+            437: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("013", "e")),
+            438: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("013", "f")),
+            439: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("013", "g")),
+            444: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("015", "d")),
+            445: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("015", "e")),
+            446: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("015", "f")),
+            447: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("015", "g")),
+            448: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("016", "d")),
+            449: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("016", "e")),
+            450: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("016", "f")),
+            451: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("016", "g")),
+            456: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("018", "d")),
+            457: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("018", "e")),
+            458: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("018", "f")),
+            459: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("018", "g")),
+            460: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "d")),
+            461: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "e")),
+            462: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "f")),
+            463: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "g")),
         }
         self.df_trial = None
         self.df_agg = pd.DataFrame("", index=sorted(self.data_info_dict.keys()),columns=["sbj", "session"])
