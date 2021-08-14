@@ -7,6 +7,7 @@ from collections import namedtuple
 import pickle
 import ga
 import numpy as np
+import pandas as pd
 
 
 # MAT file structure
@@ -69,59 +70,101 @@ class ValidationTableUpdater:
             462: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "F")),
             463: self.dataInfoNT(*ValidationTableUpdater.getMatFileName("C019", "G")),
         }
+        self.df_trial = None
+        self.df_agg = pd.DataFrame("", index=sorted(self.data_info_dict.keys()),columns=["sbj", "session"])
+
+        # Insert subject info columns
+        for trial_id in self.data_info_dict.keys():
+            self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
+            self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
     def test(self, trial_id):
-        mat_filename_in = self.data_info_dict[trial_id].path_val
+        data_info = self.data_info_dict[trial_id]
+        mat_filename_in = data_info.path_val
         mat = scipy.io.loadmat(mat_filename_in)
         mat_filename_out = mat_filename_in.replace("validation2", "validation3")
+        csv_filename_out = os.path.join(self.ws_path, "validation_csv", data_info.sbj + "_" + data_info.session + ".csv")
 
         # Find tables
-        ts = scipy.io.loadmat(self.data_info_dict[trial_id].path_ts)["L_t"]
-        table_scale_list = [
-            (mat["updatedValidation"][0,0]["Stride_Time_sec"][0,0]["validationTable"], 1.0),
-            (mat["updatedValidation"][0,0]["Stride_Length_cm"][0,0]["validationTable"], 100.0),
-            (mat["updatedValidation"][0,0]["Stride_Velocity_cm_sec"][0,0]["validationTable"], 100.0),
+        ts = scipy.io.loadmat(data_info.path_ts)["L_t"]
+        table_info_list = [
+            (mat["updatedValidation"][0,0]["Stride_Time_sec"][0,0]["validationTable"], "StrideT", " (sec.)"),
+            (mat["updatedValidation"][0,0]["Stride_Length_cm"][0,0]["validationTable"], "StrideL", " (cm.)"),
+            (mat["updatedValidation"][0,0]["Stride_Velocity_cm_sec"][0,0]["validationTable"], "StrideV", " (cm./sec.)"),
         ]
         # print(temp)
         pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             STEP_KINECT = pickle.load(pkl_file)
 
-            for i, (table, scale) in enumerate(table_scale_list):
+            for i, (table, field, unit) in enumerate(table_info_list):
                 ts_col = np.empty((table.shape[0], 1))
                 ts_col[:, 0] = ts[table[:,2].astype(int), 0]
 
                 robot_col = np.empty((table.shape[0], 2))
                 robot_col[:, :] = np.nan
-                self.updateRobotCol(robot_col, ts_col, STEP_KINECT, scale)
+                self.updateRobotCol(robot_col, ts_col, STEP_KINECT, field)
 
+                new_table = np.hstack((table_info_list[i][0], ts_col, robot_col))
+                self.updateCsv(new_table, field, unit)
                 if i == 0: 
-                    mat["updatedValidation"][0,0]["Stride_Time_sec"][0,0]["validationTable"] = \
-                        np.hstack((table_scale_list[0][0], ts_col, robot_col))
+                    mat["updatedValidation"][0,0]["Stride_Time_sec"][0,0]["validationTable"] = new_table
                 if i == 1: 
-                    mat["updatedValidation"][0,0]["Stride_Length_cm"][0,0]["validationTable"] = \
-                        np.hstack((table_scale_list[1][0], ts_col, robot_col))
+                    mat["updatedValidation"][0,0]["Stride_Length_cm"][0,0]["validationTable"] = new_table
                 if i == 2: 
-                    mat["updatedValidation"][0,0]["Stride_Velocity_cm_sec"][0,0]["validationTable"] = \
-                        np.hstack((table_scale_list[2][0], ts_col, robot_col))
+                    mat["updatedValidation"][0,0]["Stride_Velocity_cm_sec"][0,0]["validationTable"] = new_table
             scipy.io.savemat(mat_filename_out, mat)
-            pass
+            
+            # Process csv
+            for col in list(self.df_trial):
+                self.df_agg.at[trial_id, "MAE_" + col] = np.mean(np.abs(self.df_trial.loc[:, col]))
+                self.df_agg.at[trial_id, "ESD_" + col] = np.std(self.df_trial.loc[:, col])
+
+            self.df_trial.to_csv(csv_filename_out, index=False, float_format='%.4f')
+            print("Saved to: " + csv_filename_out)
+            self.df_trial = None
+            
+
+    def updateCsv(self, validation_table, field, unit):
+        table_selected = np.hstack((validation_table[:, 0:2], validation_table[:, 26:27]))
+        data_sources = ["_zeno", "_sportsole", "_robot"]
+        df1 = pd.DataFrame(table_selected, columns=[field + suffix for suffix in data_sources])
+        df2 = pd.DataFrame()
+        for a, b in [(1, 0), (2, 0), (2, 1)]:
+            df2.loc[:, field + data_sources[a] + data_sources[b] + unit] = \
+                df1.loc[:, field + data_sources[a]] - df1.loc[:, field + data_sources[b]]
+        if self.df_trial is None:
+            self.df_trial = df2
+        else:
+            self.df_trial = self.df_trial.join(df2)
+
 
     @staticmethod
-    def updateRobotCol(robot_col, ts_col, STEP_KINECT, scale):
+    def updateRobotCol(robot_col, ts_col, STEP_KINECT, field):
         for row in STEP_KINECT.stride_table_sorted:
             ts_sportsole = row.ts_FC + STEP_KINECT.t0_zeno - STEP_KINECT.t0_sportsole
             diff_col = np.abs(ts_col - ts_sportsole)
             if diff_col.min() < 0.3:
                 i = np.argmin(diff_col)
                 robot_col[i, 0] = diff_col[i]
-                robot_col[i, 1] = getattr(row, "StrideT") * scale
+                robot_col[i, 1] = getattr(row, field)
             pass
 
+    def update_and_save_csv(self):
+        # Calculate Mean
+        df_mean = self.df_agg.mean()
+        df_mean.name = "mean"
+        # Create aggregate table with mean
+        self.df_with_mean = self.df_agg.append(df_mean)
+        # Write to csv
+        csv_filename_out = os.path.join(self.ws_path, "Compare_robot_zeno_sportsole.csv")
+        self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
+        print("Aggregate table saved to: " + csv_filename_out)
 
 
 if __name__ == "__main__":
     vtu = ValidationTableUpdater()
     for trial_id in vtu.data_info_dict.keys():
-    # for trial_id in [424]:
+    # for trial_id in [424, 425]:
         vtu.test(trial_id)
+    vtu.update_and_save_csv()

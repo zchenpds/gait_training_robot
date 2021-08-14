@@ -89,9 +89,6 @@ class ValidationTableUpdater:
                 "Stride Length (cm.)", "Stride Width (cm.)", 
                 "Stride Time (sec.)", "Stride Velocity (cm./sec.)"])
 
-        for param_name in self.param_names:
-            df["Err" + param_name] = np.nan
-
         pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             STEP_KINECT = pickle.load(pkl_file)
@@ -120,7 +117,7 @@ class ValidationTableUpdater:
             # Update aggregate table
             for param_type, param_name in zip(self.param_types, self.param_names):
                 self.df.at[trial_id, "MAE_" + param_name] = np.mean(np.abs(df.loc[:, "Err" + param_type]))
-                self.df.at[trial_id, "ESD_"   + param_name] = np.std(df.loc[:, "Err" + param_type])
+                self.df.at[trial_id, "ESD_" + param_name] = np.std(df.loc[:, "Err" + param_type])
     
     def update_and_save_csv(self):
         # Calculate Mean
