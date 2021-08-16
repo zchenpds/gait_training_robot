@@ -112,6 +112,11 @@ def process(filename, launch_options, png_filename):
                         writer.writerow(rows[0]._fields)
                         writer.writerows(rows)
                         print('Saved to ' + csv_filename)
+
+            if args.export_pickle:
+                pickle_filename = os.path.join("/home/ral2020/Documents/sunny/robot", bag_name[:7] + ".pkl")
+                with open(pickle_filename, 'wb') as pickle_file:
+                    pickle.dump(STEP_KINECT, pickle_file)
                     
 
 
