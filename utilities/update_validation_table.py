@@ -23,19 +23,19 @@ import pandas as pd
 
 
 class ValidationTableUpdater:
-    dataInfoNT = namedtuple("dataInfoNT", ["path_ts", "path_val", "sbj", "session"])
+    dataInfoNT = namedtuple("dataInfoNT", ["path_ts", "path_val", "path_raw", "sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny/"
-    ts_prefix = "processed_"
-    val_prefix = "validation2"
     @classmethod
     def constructDataInfo(cls, sbj, session):
         sbj = "C" + sbj
         session = session.upper()
-        filename_list1 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", cls.ts_prefix + "*" + session + ".mat"))
+        filename_list1 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", "processed_" + "*" + session + ".mat"))
         assert(len(filename_list1) == 1)
-        filename_list2 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", cls.val_prefix + "*" + session + ".mat"))
+        filename_list2 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", "validation2" + "*" + session + ".mat"))
         assert(len(filename_list2) == 1)
-        return (filename_list1[0], filename_list2[0], sbj, session)
+        filename_list3 = glob.glob(os.path.join(cls.ws_path, sbj, "matlab_" + "*" + session + ".mat"))
+        assert(len(filename_list3) == 1)
+        return (filename_list1[0], filename_list2[0], filename_list3[0], sbj, session)
 
     def __init__(self):
         self.data_info_dict = {
@@ -89,6 +89,8 @@ class ValidationTableUpdater:
 
         # Find tables
         ts = scipy.io.loadmat(data_info.path_ts)["L_t"]
+        ext_sync = scipy.io.loadmat(data_info.path_raw)["PDShoeL"][0,0]["ExtSync"]
+        ts_zeno0 = ts[np.argmax(ext_sync > 0)]
         table_info_list = [
             (mat["updatedValidation"][0,0]["Stride_Time_sec"][0,0]["validationTable"], "StrideT", " (sec.)"),
             (mat["updatedValidation"][0,0]["Stride_Length_cm"][0,0]["validationTable"], "StrideL", " (cm.)"),
@@ -101,7 +103,7 @@ class ValidationTableUpdater:
 
             for i, (table, field, unit) in enumerate(table_info_list):
                 ts_col = np.empty((table.shape[0], 1))
-                ts_col[:, 0] = ts[table[:,2].astype(int), 0]
+                ts_col[:, 0] = ts[table[:,2].astype(int), 0] - ts_zeno0
 
                 robot_col = np.empty((table.shape[0], 2))
                 robot_col[:, :] = np.nan
@@ -144,7 +146,7 @@ class ValidationTableUpdater:
     @staticmethod
     def updateRobotCol(robot_col, ts_col, STEP_KINECT, field):
         for row in STEP_KINECT.stride_table_sorted:
-            ts_sportsole = row.ts_FC + STEP_KINECT.t0_zeno - STEP_KINECT.t0_sportsole
+            ts_sportsole = row.ts_FC
             diff_col = np.abs(ts_col - ts_sportsole)
             if diff_col.min() < 0.3:
                 i = np.argmin(diff_col)
