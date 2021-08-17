@@ -8,6 +8,7 @@ import pickle
 import ga
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 # MAT file structure
@@ -25,9 +26,16 @@ import pandas as pd
 class ValidationTableUpdater:
     dataInfoNT = namedtuple("dataInfoNT", ["path_ts", "path_val", "path_raw", "sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny/"
+    session_list = ["D", "E", "F", "G"]
+    sbj_list = []
+    param_list = ["StrideT", "StrideV", "StrideL"]
+    unit_list  = ["(sec.)", "(cm./sec.)", "(cm.)"]
+    etype_list = ["MAE", "ESD"]
     @classmethod
     def constructDataInfo(cls, sbj, session):
         sbj = "C" + sbj
+        if sbj not in cls.sbj_list:
+            cls.sbj_list.append(sbj)
         session = session.upper()
         filename_list1 = glob.glob(os.path.join(cls.ws_path, sbj, "_Processed", "processed_" + "*" + session + ".mat"))
         assert(len(filename_list1) == 1)
@@ -74,6 +82,12 @@ class ValidationTableUpdater:
         }
         self.df_trial = None
         self.df_agg = pd.DataFrame("", index=sorted(self.data_info_dict.keys()),columns=["sbj", "session"])
+        self.dfs_by_param = \
+        {etype:
+            {param: pd.DataFrame(np.nan, index=self.session_list, columns=["robot", "sportsole"]) 
+                for param in self.param_list}
+            for etype in self.etype_list
+        }
 
         # Insert subject info columns
         for trial_id in self.data_info_dict.keys():
@@ -119,10 +133,31 @@ class ValidationTableUpdater:
                     mat["updatedValidation"][0,0]["Stride_Velocity_cm_sec"][0,0]["validationTable"] = new_table
             scipy.io.savemat(mat_filename_out, mat)
             
-            # Process csv
+            # Process csv by trial_id
             for col in list(self.df_trial):
                 self.df_agg.at[trial_id, "MAE_" + col] = np.mean(np.abs(self.df_trial.loc[:, col]))
                 self.df_agg.at[trial_id, "ESD_" + col] = np.std(self.df_trial.loc[:, col])
+            
+            # Process csv by session
+            data_sources = ["robot", "sportsole"]
+            for etype in self.etype_list:
+                for param in self.param_list:
+                    df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
+                                    for session in self.session_list}
+                    for trial_id, data_info in self.data_info_dict.items():
+                        sbj = data_info.sbj
+                        session = data_info.session
+                        for data_source in data_sources:
+                            # Find col that contains field
+                            for col in list(self.df_agg):
+                                field = "_".join([etype, param, data_source, "zeno"])
+                                if field in col:
+                                    df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                    for session in df_sessions.keys():
+                        rs = df_sessions[session].mean()
+                        for data_source in data_sources:
+                            self.dfs_by_param[etype][param].at[session, data_source] = rs[data_source]
+
 
             self.df_trial.to_csv(csv_filename_out, index=False, float_format='%.4f')
             print("Saved to: " + csv_filename_out)
@@ -165,6 +200,21 @@ class ValidationTableUpdater:
         self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
         print("Aggregate table saved to: " + csv_filename_out)
 
+    def plotChart(self):
+        for etype in self.etype_list:
+            for param, unit in zip(self.param_list, self.unit_list):
+                csv_filename = os.path.join(self.ws_path, "by_param", etype + "_" + param + ".csv")
+                self.dfs_by_param[etype][param].to_csv(csv_filename)
+                print(param + " saved to: " + csv_filename)
+
+                # Plot
+                plt.figure()
+                self.dfs_by_param[etype][param].plot(kind="bar", rot=0, title=param)
+                plt.ylabel(" ".join([etype, unit]))
+                fig_filename = os.path.splitext(csv_filename)[0] + ".jpg"
+                plt.savefig(fig_filename)
+                print(param + " saved to: " + fig_filename)
+
 
 if __name__ == "__main__":
     vtu = ValidationTableUpdater()
@@ -172,3 +222,4 @@ if __name__ == "__main__":
     # for trial_id in [424, 425]:
         vtu.test(trial_id)
     vtu.update_and_save_csv()
+    vtu.plotChart()
