@@ -1,0 +1,23 @@
+<launch>
+  <arg name="bag_name" />
+  <arg name="localization"      default="false"/>
+  <arg name="database_path"     default="rtabmap.db"/>
+
+  <param name="use_sim_time" value="true"/>
+  <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
+        args="--clock $(find gait_training_robot)/bags/mapping/$(arg bag_name)" />
+
+  <!-- Robot state publisher -->
+  <param name="robot_description" textfile="$(find gait_training_robot)/urdf/gtr2.urdf" />
+  <node name="robot_state_publisher_gtr2" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <!-- rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap.rviz" output="screen"/>
+
+  <!-- Kinect1 + rtabmap_ros -->
+  <include file="$(find gait_training_robot)/launch/includes/kinect_rtabmap.launch">
+    <arg name="localization" value="$(arg localization)" />
+    <arg name="database_path" value="$(arg database_path)" />
+    <arg name="preview" value="false" />
+  </include>
+</launch>
