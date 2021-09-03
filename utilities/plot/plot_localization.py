@@ -68,6 +68,9 @@ def process(inbag, filename):
             except tf.Exception:
                 pass
     
+    if not pos_human_odom.t:
+        raise Exception("Cannot find tf from odom to joint_pelvis. Did you specify the processed bag file in folder ga?")
+    
     t0 = pos_robot_odom.t[0]
     pos_robot_odom = pos_robot_odom._replace(t=np.array(pos_robot_odom.t) - t0, xy=np.array(pos_robot_odom.xy))
     pos_human_odom = pos_human_odom._replace(t=np.array(pos_human_odom.t) - t0, xy=np.array(pos_human_odom.xy))
@@ -111,7 +114,7 @@ def process(inbag, filename):
             for i in range(1, len(v)):
                 if v[i] > 1.8: v[i] = v[i - 1]
             b1, a1 = butter(4, 0.06)
-            v = filtfilt(b1, a1, v, padlen=0)
+            if len(v) > 0: v = filtfilt(b1, a1, v, padlen=0)
             return CurveData(position_series.t[a:b], v, opts)
         elif mode == 5: # Horizontal line y = 1.2
             return CurveData([position_series.t[a], position_series.t[b]], [1.2, 1.2], opts)
