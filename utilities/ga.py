@@ -124,7 +124,7 @@ class StepData(SpatialParams):
         if not stamp_list_sportsole: return
 
         stamp_list = [msg.data.to_sec() for _, msg, _ in inbag.read_messages(topics='/sport_sole_publisher/t0_zeno')]
-        if not stamp_list: stamp_list = stamp_list_sportsole
+        if not stamp_list or stamp_list[-1] < 0.1: stamp_list = stamp_list_sportsole
         self.t0_zeno = next(ts for ts in stamp_list if ts > 1.0 )
         self.t0_sportsole = stamp_list_sportsole[0]
         
