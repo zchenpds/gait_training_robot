@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 from scipy.signal import argrelextrema, butter, filtfilt
 from collections import namedtuple
-
+import pickle
 
 import rospy
 import rosbag
@@ -20,7 +20,7 @@ PositionSeries = namedtuple("PositionSeries", ["t", "xy", "i_minima"])
 CurveData = namedtuple("CurveData", ["x", "y", "opt"])
 PlotData = namedtuple('PlotData', ["curve_list", "title", "xlabel", "ylabel"])
 
-def process(inbag, filename):
+def process(inbag, filename, bag_name):
     odom_list = [msg for _, msg, _ in inbag.read_messages(topics="/odom")]
     pos_robot_odom = PositionSeries(
         t=[msg.header.stamp.to_sec() for msg in odom_list],
@@ -78,13 +78,22 @@ def process(inbag, filename):
     pos_human_map = pos_human_map._replace(t=np.array(pos_human_map.t) - t0, xy=np.array(pos_human_map.xy))
     pos_human_robot = pos_human_robot._replace(t=np.array(pos_human_robot.t) - t0, xy=np.array(pos_human_robot.xy))
 
+    dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
+    idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
+    dist_rmse = np.sqrt(np.mean(dist_error[idx]**2)) * 100
+    dist_error_sd = np.std(dist_error[idx]) * 100
     if args.print_distance_rmse:
-        dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
-        idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
-        dist_rmse = np.sqrt(np.mean(dist_error[idx]**2)) * 100
-        dist_error_sd = np.std(dist_error[idx]) * 100
         print("{:.3} ({:.3})".format(dist_rmse, dist_error_sd))
+        if not args.export_pickle:
+            return
+
+    if args.export_pickle:
+        pickle_filename = os.path.join("/home/ral2020/Documents/sunny/localization", bag_name[:7] + ".pkl")
+        with open(pickle_filename, 'wb') as pickle_file:
+            pickle.dump([dist_error, dist_rmse, dist_error_sd], pickle_file)
+            print("Saved to " + pickle_filename)
         return
+
 
     # Separate time series into laps
     dist_to_origin = (pos_robot_odom.xy[:, 0]**2 + pos_robot_odom.xy[:, 1]**2)**0.5
@@ -195,6 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("filenames", nargs='*', help="Bag file path(s). Wildcard is supported.")
     parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument("-p", "--preview", action="store_true")
+    parser.add_argument("-i", "--export-pickle", action="store_true")
     parser.add_argument("-r", "--print-distance-rmse", action="store_true")
     args = parser.parse_args()
     if not args.filenames:
@@ -206,4 +216,4 @@ if __name__ == "__main__":
         with rosbag.Bag(filename, 'r') as inbag:
             png_filename = os.path.join(os.path.expanduser("~"), "Pictures", "sunnyside", "Localization", 
                 os.path.splitext(os.path.basename(filename))[0] + ".png")
-            process(inbag, png_filename)
+            process(inbag, png_filename, os.path.basename(filename))
