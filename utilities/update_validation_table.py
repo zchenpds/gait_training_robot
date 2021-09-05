@@ -81,6 +81,62 @@ class ValidationTableUpdater:
             461: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "e")),
             462: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "f")),
             463: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "g")),
+            500: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "F")),
+            501: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "G")),
+            502: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "D")),
+            503: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "E")),
+            504: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("022", "F")),
+            505: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("022", "G")),
+            506: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("022", "D")),
+            507: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("022", "E")),
+            508: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("021", "F")),
+            509: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("021", "G")),
+            510: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("021", "D")),
+            511: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("021", "E")),
+            512: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("023", "F")),
+            513: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("023", "G")),
+            514: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("023", "D")),
+            515: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("023", "E")),
+            516: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("024", "F")),
+            517: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("024", "G")),
+            # 518: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("024", "D")), # No zeno data available
+            519: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("024", "E")),
+            520: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("025", "F")),
+            521: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("025", "G")),
+            522: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("025", "D")),
+            523: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("025", "E")),
+            524: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("026", "F")),
+            525: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("026", "G")),
+            526: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("026", "D")),
+            527: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("026", "E")),
+            528: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("027", "F")),
+            529: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("027", "G")),
+            530: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("027", "D")),
+            531: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("027", "E")),
+            532: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("028", "F")),
+            533: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("028", "G")),
+            534: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("028", "D")),
+            535: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("028", "E")),
+            536: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("029", "F")),
+            537: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("029", "G")),
+            538: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("029", "D")),
+            539: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("029", "E")),
+            540: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("030", "D")),
+            541: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("030", "E")),
+            542: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("030", "F")),
+            543: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("030", "G")),
+            544: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("031", "D")),
+            545: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("031", "E")),
+            546: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("031", "F")),
+            547: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("031", "G")),
+            548: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("032", "D")),
+            549: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("032", "E")),
+            550: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("032", "F")),
+            551: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("032", "G")),
+            552: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("033", "F")),
+            553: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("033", "G")),
+            554: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("033", "D")),
+            555: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("033", "E")),
         }
         self.df_trial = None
         self.df_agg = pd.DataFrame("", index=sorted(self.data_info_dict.keys()),columns=["sbj", "session"])
@@ -99,7 +155,7 @@ class ValidationTableUpdater:
             self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
             self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
-    def test(self, trial_id):
+    def process_trial(self, trial_id):
         data_info = self.data_info_dict[trial_id]
         mat_filename_in = data_info.path_val
         mat = scipy.io.loadmat(mat_filename_in)
@@ -230,6 +286,6 @@ if __name__ == "__main__":
     vtu = ValidationTableUpdater()
     for trial_id in vtu.data_info_dict.keys():
     # for trial_id in [424, 425]:
-        vtu.test(trial_id)
+        vtu.process_trial(trial_id)
     vtu.update_and_save_csv()
     vtu.plotChart()

@@ -161,9 +161,10 @@ class StepData(SpatialParams):
                 # Calculate stride length
                 strideL = np.linalg.norm(self.data[lr][i] - self.data[lr][i - 1])
                 if strideL > 2.0: continue
+                strideT = self.ts_ff[lr][i] - self.ts_ff[lr][i - 1]
+                if strideT > 2.0 or strideT < 0.4: continue
                 self.stride_lengths[lr].append(strideL)
                 # Calculate stride velocity
-                strideT = self.ts_ff[lr][i] - self.ts_ff[lr][i - 1]
                 strideV = strideL / strideT
                 if strideT < 2.0: # Exclude strides that last too long
                     self.stride_velocities[lr].append(strideV)
