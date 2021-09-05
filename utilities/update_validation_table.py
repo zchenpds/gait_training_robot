@@ -31,6 +31,8 @@ class ValidationTableUpdater:
     param_list = ["StrideT", "StrideV", "StrideL"]
     unit_list  = ["(sec.)", "(cm./sec.)", "(cm.)"]
     etype_list = ["MAE", "ESD"]
+    meanstd_list = ["mean", "std"]
+
     @classmethod
     def constructDataInfo(cls, sbj, session):
         sbj = "C" + sbj
@@ -84,7 +86,10 @@ class ValidationTableUpdater:
         self.df_agg = pd.DataFrame("", index=sorted(self.data_info_dict.keys()),columns=["sbj", "session"])
         self.dfs_by_param = \
         {etype:
-            {param: pd.DataFrame(np.nan, index=self.session_list, columns=["robot", "sportsole"]) 
+            {param: 
+                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=["robot", "sportsole"]) 
+                    for meanstd in self.meanstd_list
+                }
                 for param in self.param_list}
             for etype in self.etype_list
         }
@@ -154,9 +159,11 @@ class ValidationTableUpdater:
                                 if field in col:
                                     df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
                     for session in df_sessions.keys():
-                        rs = df_sessions[session].mean()
+                        MEAN = df_sessions[session].mean()
+                        STD  = df_sessions[session].std()
                         for data_source in data_sources:
-                            self.dfs_by_param[etype][param].at[session, data_source] = rs[data_source]
+                            self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
+                            self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
 
 
             self.df_trial.to_csv(csv_filename_out, index=False, float_format='%.4f')
@@ -203,15 +210,18 @@ class ValidationTableUpdater:
     def plotChart(self):
         for etype in self.etype_list:
             for param, unit in zip(self.param_list, self.unit_list):
-                csv_filename = os.path.join(self.ws_path, "by_param", etype + "_" + param + ".csv")
-                self.dfs_by_param[etype][param].to_csv(csv_filename)
-                print(param + " saved to: " + csv_filename)
+                for meanstd in self.meanstd_list:
+                    csv_filename = os.path.join(self.ws_path, 
+                        "by_param", param + "_" + etype + "_" + meanstd + ".csv")
+                    self.dfs_by_param[etype][param][meanstd].to_csv(csv_filename)
+                    print(param + " saved to: " + csv_filename)
 
                 # Plot
                 plt.figure()
-                self.dfs_by_param[etype][param].plot(kind="bar", rot=0, title=param)
+                self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
+                    rot=0, title=param, yerr = self.dfs_by_param[etype][param]["std"])
                 plt.ylabel(" ".join([etype, unit]))
-                fig_filename = os.path.splitext(csv_filename)[0] + ".jpg"
+                fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
                 print(param + " saved to: " + fig_filename)
 
