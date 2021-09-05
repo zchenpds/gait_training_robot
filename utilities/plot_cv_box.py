@@ -12,6 +12,10 @@ class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny"
     session_list = ["D", "E", "F", "G"]
+    vibration_conditions = ["V_OFF", "V_ON"] # rows (index)
+    vibration_dict = {"D": "V_OFF", "E": "V_OFF", "F": "V_ON", "G": "V_ON"}
+    cognitive_conditions = ["C_OFF", "C_ON"] # columns
+    cognitive_dict = {"D": "C_OFF", "E": "C_ON", "F": "C_OFF", "G": "C_ON"}
     sbj_list = []
     stride_params = ["StrideT", "StrideV", "StrideL"]
     stride_units  = ["(sec.)", "(cm./sec.)", "(cm.)"]
@@ -123,7 +127,7 @@ class BoxPlotter:
         self.dfs_by_param = \
         {etype:
             {param:
-                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=["robot"]) 
+                {meanstd: pd.DataFrame(np.nan, index=self.vibration_conditions, columns=self.cognitive_conditions) 
                     for meanstd in self.meanstd_list
                 }
                 for param in self.param_list}
@@ -170,6 +174,7 @@ class BoxPlotter:
 
             # Process csv by session
             data_sources = ["robot"]
+            data_source = data_sources[0]
             for etype in self.etype_list:
                 for param in self.param_list:
                     df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
@@ -181,14 +186,14 @@ class BoxPlotter:
                             for trial_id, data_info in self.data_info_dict.items():
                                 sbj = data_info.sbj
                                 session = data_info.session
-                                for data_source in data_sources:
-                                    df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                                df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
                     for session in df_sessions.keys():
+                        vib_cond = self.vibration_dict[session]
+                        cog_cond = self.cognitive_dict[session]
                         MEAN = df_sessions[session].mean()
                         STD  = df_sessions[session].std()
-                        for data_source in data_sources:
-                            self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
-                            self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
+                        self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = MEAN[data_source]
+                        self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = STD[data_source]
 
 
 
@@ -205,7 +210,7 @@ class BoxPlotter:
 
     def plotChart(self):
         for etype in self.etype_list:
-            for param, unit in zip(self.param_list, self.unit_list):
+            for param in self.param_list:
                 for meanstd in self.meanstd_list:
                     csv_filename = os.path.join(self.ws_path, 
                         "by_param", param + "_" + etype + "_" + meanstd + ".csv")
