@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
 import ga
+import scipy.stats
 
 class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
@@ -201,8 +202,10 @@ class BoxPlotter:
                     self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = df_sessions.loc[:, session].mean()
                     self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
                 
-                # df_sessions
-
+                # One-way ANOVA
+                print("{:s}: p-value(D,E)={:.4f}, p-value(F,G)={:.4f}".format(param, 
+                    scipy.stats.f_oneway(df_sessions.loc[:, "D"], df_sessions.loc[:, "E"]).pvalue,
+                    scipy.stats.f_oneway(df_sessions.loc[:, "F"], df_sessions.loc[:, "G"]).pvalue))
 
         for etype in self.etype_list:
             for param in self.param_list:
