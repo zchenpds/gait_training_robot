@@ -13,8 +13,8 @@ class BoxPlotter:
     session_list = ["D", "E", "F", "G"]
     sbj_list = []
     param_list = ["Dist"]
-    unit_list  = ["(cm.)"]
-    etype_list = ["MAE", "ESD"]
+    unit_list  = ["(cm.)", "(cm.)", "(%)", "(%)"]
+    etype_list = ["MAE", "ESD", "MAE Percentage", "ESD Percentage"]
     meanstd_list = ["mean", "std", "se"]
 
     @classmethod
@@ -134,8 +134,11 @@ class BoxPlotter:
             [_, dist_rmse, dist_error_sd] = pickle.load(pkl_file)
             
             # Populate dataframe df_agg by trial_id
-            self.df_agg.at[trial_id, "MAE_" + self.param_list[0]] = dist_rmse
-            self.df_agg.at[trial_id, "ESD_" + self.param_list[0]] = dist_error_sd
+            self.df_agg.at[trial_id, "MAE_"  + self.param_list[0]] = dist_rmse
+            self.df_agg.at[trial_id, "ESD_"  + self.param_list[0]] = dist_error_sd
+            desired_dist = 1.5
+            self.df_agg.at[trial_id, "MAE Percentage_" + self.param_list[0]] = dist_rmse / desired_dist
+            self.df_agg.at[trial_id, "ESD Percentage_" + self.param_list[0]] = dist_error_sd / desired_dist
 
 
     def update_and_save_csv(self):
@@ -175,8 +178,8 @@ class BoxPlotter:
                         self.dfs_by_param[etype][param]["se"].at[session, data_source] = SE[data_source]
                             
 
-        for etype in self.etype_list:
-            for param, unit in zip(self.param_list, self.unit_list):
+        for etype, unit in zip(self.etype_list, self.unit_list):
+            for param in self.param_list:
                 for meanstd in self.meanstd_list:
                     csv_filename = os.path.join(self.ws_path, 
                         "by_param", param + "_" + etype + "_" + meanstd + ".csv")
