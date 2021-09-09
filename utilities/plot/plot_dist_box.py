@@ -15,7 +15,7 @@ class BoxPlotter:
     param_list = ["Dist"]
     unit_list  = ["(cm.)"]
     etype_list = ["MAE", "ESD"]
-    meanstd_list = ["mean", "std"]
+    meanstd_list = ["mean", "std", "se"]
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
@@ -168,9 +168,12 @@ class BoxPlotter:
                 for session in df_sessions.keys():
                     MEAN = df_sessions[session].mean()
                     STD  = df_sessions[session].std()
+                    SE   = STD / np.math.sqrt(len(df_sessions[session]))
                     for data_source in data_sources:
                         self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
                         self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
+                        self.dfs_by_param[etype][param]["se"].at[session, data_source] = SE[data_source]
+                            
 
         for etype in self.etype_list:
             for param, unit in zip(self.param_list, self.unit_list):
@@ -183,7 +186,7 @@ class BoxPlotter:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4, legend=False,
-                    rot=0, title="Human-Robot Distance " + etype, yerr = self.dfs_by_param[etype][param]["std"])
+                    rot=0, title="Human-Robot Distance " + etype, yerr = self.dfs_by_param[etype][param]["se"])
                 plt.ylabel(" ".join([etype, unit]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)

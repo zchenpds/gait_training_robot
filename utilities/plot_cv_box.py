@@ -23,7 +23,7 @@ class BoxPlotter:
     step_params = ["StepL", "StepW"]
     step_units  = ["(cm.)", "(cm.)"]
     etype_list = ["CV"]
-    meanstd_list = ["mean", "std"]
+    meanstd_list = ["mean", "std", "se"]
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
@@ -201,6 +201,8 @@ class BoxPlotter:
                     cog_cond = self.cognitive_dict[session]
                     self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = df_sessions.loc[:, session].mean()
                     self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
+                    self.dfs_by_param[etype][param]["se"].at[vib_cond, cog_cond] = \
+                        df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
                 
                 # One-way ANOVA
                 print("{:s}: p-value(D,E)={:.4f}, p-value(F,G)={:.4f}".format(param, 
@@ -219,7 +221,7 @@ class BoxPlotter:
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
                     rot=0, title=param + ' ' + etype + ' (Robot)', 
-                    yerr = self.dfs_by_param[etype][param]["std"])
+                    yerr = self.dfs_by_param[etype][param]["se"])
                 plt.ylabel(" ".join([etype, "(%)"]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
