@@ -13,6 +13,7 @@ class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny"
     session_list = ["D", "E", "F", "G"]
+    ratio_list = ["D/E", "F/G"]
     vibration_conditions = ["V_OFF", "V_ON"] # rows (index)
     vibration_dict = {"D": "V_OFF", "E": "V_OFF", "F": "V_ON", "G": "V_ON"}
     cognitive_conditions = ["C_OFF", "C_ON"] # columns
@@ -134,6 +135,13 @@ class BoxPlotter:
                 for param in self.param_list}
             for etype in self.etype_list
         }
+        self.dfs_ratio = \
+        {etype:
+            {meanstd: pd.DataFrame(np.nan, index=self.param_list, columns=self.ratio_list) 
+                for meanstd in self.meanstd_list
+            }
+            for etype in self.etype_list
+        }
         # Insert subject info columns
         for trial_id in self.data_info_dict.keys():
             self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
@@ -188,6 +196,7 @@ class BoxPlotter:
         for etype in self.etype_list:
             for param in self.param_list:
                 df_sessions = pd.DataFrame(np.nan, index=self.sbj_list, columns=self.session_list)
+                df_ratios   = pd.DataFrame(np.nan, index=self.sbj_list, columns=self.ratio_list)
                 field = "_".join([etype, param])
                 # Find col that contains field
                 for col in list(self.df_agg):
@@ -203,12 +212,23 @@ class BoxPlotter:
                     self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
                     self.dfs_by_param[etype][param]["se"].at[vib_cond, cog_cond] = \
                         df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
-                
-                # One-way ANOVA
-                print("{:s}: p-value(D,E)={:.4f}, p-value(F,G)={:.4f}".format(param, 
-                    scipy.stats.f_oneway(df_sessions.loc[:, "D"], df_sessions.loc[:, "E"]).pvalue,
-                    scipy.stats.f_oneway(df_sessions.loc[:, "F"], df_sessions.loc[:, "G"]).pvalue))
 
+                # Calculate ratio
+                df_ratios.loc[:, "D/E"] = df_sessions.loc[:, "D"] / df_sessions.loc[:, "E"]
+                df_ratios.loc[:, "F/G"] = df_sessions.loc[:, "F"] / df_sessions.loc[:, "G"]
+                for ratio_type in list(df_ratios):
+                    self.dfs_ratio[etype]["mean"].at[param, ratio_type] = df_ratios.loc[:, ratio_type].mean()
+                    self.dfs_ratio[etype]["std"].at[param, ratio_type]  = df_ratios.loc[:, ratio_type].std()
+                    self.dfs_ratio[etype]["se"].at[param, ratio_type] = \
+                        df_ratios.loc[:, ratio_type].std() / np.math.sqrt(len(df_ratios.loc[:, ratio_type]))
+                
+                # paired t-test
+                print("{:8s}: p-value(D,E)={:.4f}, p-value(F,G)={:.4f}, p-value(D/E, F/G)={:.4f}".format(param, 
+                    scipy.stats.ttest_ind(df_sessions.loc[:, "D"], df_sessions.loc[:, "E"])[1],
+                    scipy.stats.ttest_ind(df_sessions.loc[:, "F"], df_sessions.loc[:, "G"])[1],
+                    scipy.stats.ttest_ind(df_ratios.loc[:, "D/E"], df_ratios.loc[:, "F/G"])[1]))
+
+        # Save csv and jpg for self.dfs_by_param
         for etype in self.etype_list:
             for param in self.param_list:
                 for meanstd in self.meanstd_list:
@@ -226,6 +246,24 @@ class BoxPlotter:
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
                 print(param + " saved to: " + fig_filename)
+
+        # Save csv and jpg for self.dfs_ratio
+        for etype in self.etype_list:
+            for meanstd in self.meanstd_list:
+                csv_filename = os.path.join(self.ws_path, 
+                    "cv", "robot_" + etype + "_ratio_" + meanstd + ".csv")
+                self.dfs_ratio[etype][meanstd].to_csv(csv_filename)
+                print("Robot cv_ratio saved to: " + csv_filename)
+
+            # Plot
+            plt.figure()
+            self.dfs_ratio[etype]["mean"].plot(kind="bar", capsize=4,
+                rot=0, title=etype + ' (Robot)', 
+                yerr = self.dfs_ratio[etype]["se"])
+            plt.ylabel(" ".join([etype, "(%)"]))
+            fig_filename = os.path.join(self.ws_path, "cv", etype + " ratio" + ".jpg")
+            plt.savefig(fig_filename)
+            print("Robot cv_ratio saved to: " + fig_filename)
 
 if __name__ == "__main__":
     plotter = BoxPlotter()
