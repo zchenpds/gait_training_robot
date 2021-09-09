@@ -7,6 +7,7 @@ import glob
 from collections import namedtuple
 import pickle
 import ga
+import matplotlib.pyplot as plt
 
 
 # MAT file structure
@@ -25,6 +26,13 @@ class ValidationTableUpdater:
     dataInfoNT = namedtuple("dataInfoNT", ["path", "sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny/"
     str_prefix = "zeno"
+    session_list = ["D", "E", "F", "G"]
+    stride_params = ["StrideT", "StrideV", "StrideL"]
+    stride_units  = ["(sec.)", "(cm./sec.)", "(cm.)"]
+    step_params = ["StepL", "StepW"]
+    step_units  = ["(cm.)", "(cm.)"]
+    etype_list = ["MAE", "ESD"]
+    meanstd_list = ["mean", "std"]
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
@@ -32,9 +40,12 @@ class ValidationTableUpdater:
         search_pattern = os.path.join(cls.ws_path, cls.str_prefix, sbj, "*" + session + "_GaitParameters.csv")
         filename_list = glob.glob(search_pattern)
         assert(len(filename_list) == 1)
-        return (filename_list[0], sbj, session)
+        return (filename_list[0], sbj, session.upper())
 
     def __init__(self):
+        self.param_list = self.stride_params + self.step_params
+        self.unit_list = self.stride_units + self.step_units
+        self.unit_dict = {param: unit for param, unit in zip(self.param_list, self.unit_list)}
         self.data_info_dict = {
             424: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "d")),
             425: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "e")),
@@ -67,7 +78,7 @@ class ValidationTableUpdater:
             460: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "d")),
             461: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "e")),
             462: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "f")),
-            463: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "g")),
+            # 463: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("019", "g")),
             500: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "F")),
             501: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "G")),
             502: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("020", "D")),
@@ -128,15 +139,24 @@ class ValidationTableUpdater:
         self.param_types = ["StrideT", "StrideL", "StrideV",     "StepL",  "StepW"]
         self.param_units = [" (sec.)", " (cm.)",  " (cm./sec.)", " (cm.)", " (cm.)"]
         self.param_names = [a + b for a, b in zip(self.param_types, self.param_units)]
-        self.df = pd.DataFrame(np.nan, index=sorted(self.data_info_dict.keys()),
-            columns=[prefix + param_name for prefix in ["MAE_", "ESD_"] for param_name in self.param_names])
+
+        # Initialize DataFrame
+        self.df_agg = pd.DataFrame("", index=sorted(self.data_info_dict.keys()),
+            columns=["sbj", "session"] + [prefix + param_name for prefix in ["MAE_", "ESD_"] for param_name in self.param_names])
+        self.dfs_by_param = \
+        {etype:
+            {param:
+                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=["robot"]) 
+                    for meanstd in self.meanstd_list
+                }
+                for param in self.param_list}
+            for etype in self.etype_list
+        }
 
         # Insert subject info columns
-        self.df.insert(0, "sbj",     "")
-        self.df.insert(1, "session", "")
         for trial_id in self.data_info_dict.keys():
-            self.df.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
-            self.df.at[trial_id, "session"] = self.data_info_dict[trial_id].session
+            self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
+            self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
     def process_trial(self, trial_id):
         csv_filename_in = self.data_info_dict[trial_id].path
@@ -173,21 +193,61 @@ class ValidationTableUpdater:
 
             # Update aggregate table
             for param_type, param_name in zip(self.param_types, self.param_names):
-                self.df.at[trial_id, "MAE_" + param_name] = np.mean(np.abs(df.loc[:, "Err" + param_type]))
-                self.df.at[trial_id, "ESD_" + param_name] = np.std(df.loc[:, "Err" + param_type])
+                self.df_agg.at[trial_id, "MAE_" + param_name] = np.mean(np.abs(df.loc[:, "Err" + param_type]))
+                self.df_agg.at[trial_id, "ESD_" + param_name] = np.std(df.loc[:, "Err" + param_type])
     
+
     def update_and_save_csv(self):
         # Calculate Mean
-        df_mean = self.df.mean()
-        df_mean.name = "mean"
+        series_mean = self.df_agg.mean()
+        series_mean.name = "mean"
         # Create aggregate table with mean
-        self.df_with_mean = self.df.append(df_mean)
+        df_with_mean = self.df_agg.append(series_mean)
         # Write to csv
         csv_filename_out = os.path.join(self.ws_path, "Compare_robot_zeno.csv")
-        self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
+        df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
         print("Aggregate table saved to: " + csv_filename_out)
 
 
+    def plotChart(self):
+        # Populate dataframe df_sessions by session
+        data_sources = ["robot"]
+        for etype in self.etype_list:
+            for param in self.param_list:
+                df_sessions = {session: pd.DataFrame(np.nan, index=[], columns=data_sources)
+                                for session in self.session_list}
+                field = "_".join([etype, param])
+                # Find col that contains field
+                for col in list(self.df_agg):
+                    if field in col:
+                        for trial_id, data_info in self.data_info_dict.items():
+                            sbj = data_info.sbj
+                            session = data_info.session
+                            for data_source in data_sources:
+                                df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                for session in df_sessions.keys():
+                    MEAN = df_sessions[session].mean()
+                    STD  = df_sessions[session].std()
+                    for data_source in data_sources:
+                        self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
+                        self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
+
+        for etype in self.etype_list:
+            for param, unit in zip(self.param_list, self.unit_list):
+                for meanstd in self.meanstd_list:
+                    csv_filename = os.path.join(self.ws_path, 
+                        "by_param", "robot_" + param + "_" + etype + "_" + meanstd + ".csv")
+                    self.dfs_by_param[etype][param][meanstd].to_csv(csv_filename)
+                    print(param + " saved to: " + csv_filename)
+
+                # Plot
+                plt.figure()
+                self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4, legend=False,
+                    rot=0, title=param + " " + etype, yerr = self.dfs_by_param[etype][param]["std"])
+                plt.ylabel(" ".join([etype, unit]))
+                fig_filename = os.path.join(self.ws_path, "by_param", "robot_" + param + "_" + etype + ".jpg")
+                plt.savefig(fig_filename)
+                print(param + " saved to: " + fig_filename)
 
 
 if __name__ == "__main__":
@@ -196,3 +256,4 @@ if __name__ == "__main__":
     # for trial_id in [424]:
         vtu.process_trial(trial_id)
     vtu.update_and_save_csv()
+    vtu.plotChart()

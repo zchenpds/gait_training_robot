@@ -129,7 +129,6 @@ class BoxPlotter:
             self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
     def process_trial(self, trial_id):
-        data_info = self.data_info_dict[trial_id]
         pkl_filename = os.path.join(self.ws_path, "localization", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             [_, dist_rmse, dist_error_sd] = pickle.load(pkl_file)
@@ -137,29 +136,6 @@ class BoxPlotter:
             # Populate dataframe df_agg by trial_id
             self.df_agg.at[trial_id, "MAE_" + self.param_list[0]] = dist_rmse
             self.df_agg.at[trial_id, "ESD_" + self.param_list[0]] = dist_error_sd
-
-            # Populate dataframe df_sessions by session
-            data_sources = ["robot"]
-            for etype in self.etype_list:
-                for param in self.param_list:
-                    df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
-                                    for session in self.session_list}
-                    field = "_".join([etype, param])
-                    # Find col that contains field
-                    for col in list(self.df_agg):
-                        if field in col:
-                            for trial_id, data_info in self.data_info_dict.items():
-                                sbj = data_info.sbj
-                                session = data_info.session
-                                for data_source in data_sources:
-                                    df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
-                    for session in df_sessions.keys():
-                        MEAN = df_sessions[session].mean()
-                        STD  = df_sessions[session].std()
-                        for data_source in data_sources:
-                            self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
-                            self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
-
 
 
     def update_and_save_csv(self):
@@ -174,6 +150,28 @@ class BoxPlotter:
         print("Aggregate table saved to: " + csv_filename_out)
 
     def plotChart(self):
+        # Populate dataframe df_sessions by session
+        data_sources = ["robot"]
+        for etype in self.etype_list:
+            for param in self.param_list:
+                df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
+                                for session in self.session_list}
+                field = "_".join([etype, param])
+                # Find col that contains field
+                for col in list(self.df_agg):
+                    if field in col:
+                        for trial_id, data_info in self.data_info_dict.items():
+                            sbj = data_info.sbj
+                            session = data_info.session
+                            for data_source in data_sources:
+                                df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                for session in df_sessions.keys():
+                    MEAN = df_sessions[session].mean()
+                    STD  = df_sessions[session].std()
+                    for data_source in data_sources:
+                        self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
+                        self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
+
         for etype in self.etype_list:
             for param, unit in zip(self.param_list, self.unit_list):
                 for meanstd in self.meanstd_list:
@@ -185,7 +183,7 @@ class BoxPlotter:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4, legend=False,
-                    rot=0, title="Human-Robot Distance", yerr = self.dfs_by_param[etype][param]["std"])
+                    rot=0, title="Human-Robot Distance " + etype, yerr = self.dfs_by_param[etype][param]["std"])
                 plt.ylabel(" ".join([etype, unit]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)

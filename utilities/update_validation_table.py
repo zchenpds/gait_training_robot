@@ -198,29 +198,6 @@ class ValidationTableUpdater:
             for col in list(self.df_trial):
                 self.df_agg.at[trial_id, "MAE_" + col] = np.mean(np.abs(self.df_trial.loc[:, col]))
                 self.df_agg.at[trial_id, "ESD_" + col] = np.std(self.df_trial.loc[:, col])
-            
-            # Process csv by session
-            data_sources = ["robot", "sportsole"]
-            for etype in self.etype_list:
-                for param in self.param_list:
-                    df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
-                                    for session in self.session_list}
-                    for trial_id, data_info in self.data_info_dict.items():
-                        sbj = data_info.sbj
-                        session = data_info.session
-                        for data_source in data_sources:
-                            # Find col that contains field
-                            for col in list(self.df_agg):
-                                field = "_".join([etype, param, data_source, "zeno"])
-                                if field in col:
-                                    df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
-                    for session in df_sessions.keys():
-                        MEAN = df_sessions[session].mean()
-                        STD  = df_sessions[session].std()
-                        for data_source in data_sources:
-                            self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
-                            self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
-
 
             self.df_trial.to_csv(csv_filename_out, index=False, float_format='%.4f')
             print("Saved to: " + csv_filename_out)
@@ -264,6 +241,28 @@ class ValidationTableUpdater:
         print("Aggregate table saved to: " + csv_filename_out)
 
     def plotChart(self):
+        # Process csv by session
+        data_sources = ["robot", "sportsole"]
+        for etype in self.etype_list:
+            for param in self.param_list:
+                df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
+                                for session in self.session_list}
+                for trial_id, data_info in self.data_info_dict.items():
+                    sbj = data_info.sbj
+                    session = data_info.session
+                    for data_source in data_sources:
+                        # Find col that contains field
+                        for col in list(self.df_agg):
+                            field = "_".join([etype, param, data_source, "zeno"])
+                            if field in col:
+                                df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                for session in df_sessions.keys():
+                    MEAN = df_sessions[session].mean()
+                    STD  = df_sessions[session].std()
+                    for data_source in data_sources:
+                        self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
+                        self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
+
         for etype in self.etype_list:
             for param, unit in zip(self.param_list, self.unit_list):
                 for meanstd in self.meanstd_list:
@@ -275,7 +274,8 @@ class ValidationTableUpdater:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
-                    rot=0, title=param, yerr = self.dfs_by_param[etype][param]["std"])
+                    rot=0, title=param + ' ' + etype,
+                    yerr = self.dfs_by_param[etype][param]["std"])
                 plt.ylabel(" ".join([etype, unit]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)

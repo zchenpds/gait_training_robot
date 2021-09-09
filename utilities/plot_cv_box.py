@@ -139,7 +139,6 @@ class BoxPlotter:
             self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
     def process_trial(self, trial_id):
-        data_info = self.data_info_dict[trial_id]
         pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             STEP_KINECT = pickle.load(pkl_file)
@@ -170,31 +169,6 @@ class BoxPlotter:
             csv_filename_out = get_csv_filename("step")
             df_step.to_csv(csv_filename_out, index=False, float_format='%.4f')
             print("Saved to: " + csv_filename_out)
-            
-
-            # Process csv by session
-            data_sources = ["robot"]
-            data_source = data_sources[0]
-            for etype in self.etype_list:
-                for param in self.param_list:
-                    df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
-                                    for session in self.session_list}
-                    field = "_".join([etype, param])
-                    # Find col that contains field
-                    for col in list(self.df_agg):
-                        if field in col:
-                            for trial_id, data_info in self.data_info_dict.items():
-                                sbj = data_info.sbj
-                                session = data_info.session
-                                df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
-                    for session in df_sessions.keys():
-                        vib_cond = self.vibration_dict[session]
-                        cog_cond = self.cognitive_dict[session]
-                        MEAN = df_sessions[session].mean()
-                        STD  = df_sessions[session].std()
-                        self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = MEAN[data_source]
-                        self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = STD[data_source]
-
 
 
     def update_and_save_csv(self):
@@ -209,6 +183,29 @@ class BoxPlotter:
         print("Aggregate table saved to: " + csv_filename_out)
 
     def plotChart(self):
+        # Process csv by session
+        data_sources = ["robot"]
+        data_source = data_sources[0]
+        for etype in self.etype_list:
+            for param in self.param_list:
+                df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
+                                for session in self.session_list}
+                field = "_".join([etype, param])
+                # Find col that contains field
+                for col in list(self.df_agg):
+                    if field in col:
+                        for trial_id, data_info in self.data_info_dict.items():
+                            sbj = data_info.sbj
+                            session = data_info.session
+                            df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                for session in df_sessions.keys():
+                    vib_cond = self.vibration_dict[session]
+                    cog_cond = self.cognitive_dict[session]
+                    MEAN = df_sessions[session].mean()
+                    STD  = df_sessions[session].std()
+                    self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = MEAN[data_source]
+                    self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = STD[data_source]
+
         for etype in self.etype_list:
             for param in self.param_list:
                 for meanstd in self.meanstd_list:
@@ -220,7 +217,8 @@ class BoxPlotter:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
-                    rot=0, title=param, yerr = self.dfs_by_param[etype][param]["std"])
+                    rot=0, title=param + ' ' + etype + ' (Robot)', 
+                    yerr = self.dfs_by_param[etype][param]["std"])
                 plt.ylabel(" ".join([etype, "(%)"]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
