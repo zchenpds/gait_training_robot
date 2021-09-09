@@ -184,12 +184,9 @@ class BoxPlotter:
 
     def plotChart(self):
         # Process csv by session
-        data_sources = ["robot"]
-        data_source = data_sources[0]
         for etype in self.etype_list:
             for param in self.param_list:
-                df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
-                                for session in self.session_list}
+                df_sessions = pd.DataFrame(np.nan, index=self.sbj_list, columns=self.session_list)
                 field = "_".join([etype, param])
                 # Find col that contains field
                 for col in list(self.df_agg):
@@ -197,14 +194,15 @@ class BoxPlotter:
                         for trial_id, data_info in self.data_info_dict.items():
                             sbj = data_info.sbj
                             session = data_info.session
-                            df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
-                for session in df_sessions.keys():
+                            df_sessions.at[sbj, session] = self.df_agg.at[trial_id, col]
+                for session in list(df_sessions):
                     vib_cond = self.vibration_dict[session]
                     cog_cond = self.cognitive_dict[session]
-                    MEAN = df_sessions[session].mean()
-                    STD  = df_sessions[session].std()
-                    self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = MEAN[data_source]
-                    self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = STD[data_source]
+                    self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = df_sessions.loc[:, session].mean()
+                    self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
+                
+                # df_sessions
+
 
         for etype in self.etype_list:
             for param in self.param_list:
