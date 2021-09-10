@@ -14,10 +14,10 @@ class BoxPlotter:
     ws_path = "/home/ral2020/Documents/sunny"
     session_list = ["D", "E", "F", "G"]
     ratio_list = ["D/E", "F/G"]
-    vibration_conditions = ["V_OFF", "V_ON"] # rows (index)
-    vibration_dict = {"D": "V_OFF", "E": "V_OFF", "F": "V_ON", "G": "V_ON"}
-    cognitive_conditions = ["C_OFF", "C_ON"] # columns
-    cognitive_dict = {"D": "C_OFF", "E": "C_ON", "F": "C_OFF", "G": "C_ON"}
+    vibration_conditions = ["VOFF", "VON"] # rows (index)
+    vibration_dict = {"D": "VOFF", "E": "VOFF", "F": "VON", "G": "VON"}
+    cognitive_conditions = ["COFF", "CON"] # columns
+    cognitive_dict = {"D": "COFF", "E": "CON", "F": "COFF", "G": "CON"}
     sbj_list = []
     stride_params = ["StrideT", "StrideV", "StrideL"]
     stride_units  = ["(sec.)", "(cm./sec.)", "(cm.)"]
@@ -33,6 +33,7 @@ class BoxPlotter:
 
     def __init__(self):
         self.param_list = self.stride_params + self.step_params
+        self.spss_param_list = []
         self.unit_list = self.stride_units + self.step_units
         self.unit_dict = {param: unit for param, unit in zip(self.param_list, self.unit_list)}
         self.data_info_dict = {
@@ -147,6 +148,15 @@ class BoxPlotter:
             self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
             self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
+        # Initialize the DataFrame for spss anaylsis
+        self.dfs_spss = \
+        {param:
+            pd.DataFrame("", index=np.unique(self.df_agg.loc[:, "sbj"]),
+                columns=["Gait_Parameter", "SbjID"] + self.session_list)
+            for param in self.param_list
+        }
+        
+
     def process_trial(self, trial_id):
         pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
@@ -205,6 +215,8 @@ class BoxPlotter:
                             sbj = data_info.sbj
                             session = data_info.session
                             df_sessions.at[sbj, session] = self.df_agg.at[trial_id, col]
+                            self.dfs_spss[param].at[sbj, session] = "{:.4f}".format(self.df_agg.at[trial_id, col])
+                            self.dfs_spss[param].at[sbj, "SbjID"] = sbj.title()
                 for session in list(df_sessions):
                     vib_cond = self.vibration_dict[session]
                     cog_cond = self.cognitive_dict[session]
@@ -227,6 +239,26 @@ class BoxPlotter:
                     scipy.stats.ttest_ind(df_sessions.loc[:, "D"], df_sessions.loc[:, "E"])[1],
                     scipy.stats.ttest_ind(df_sessions.loc[:, "F"], df_sessions.loc[:, "G"])[1],
                     scipy.stats.ttest_ind(df_ratios.loc[:, "D/E"], df_ratios.loc[:, "F/G"])[1]))
+
+        df_spss = pd.DataFrame()
+        for param, param_spss in [
+                ("StepL", "Step_Length_CV"), 
+                ("StrideL", "Stride_Length_CV"),
+                ("StepW", "Stride_Width_CV"),
+                ("StrideT", "Stride_Time_CV"),
+                ("StrideV", "Stride_Velocity_CV")
+            ]:
+            self.dfs_spss[param].loc[:, "Gait_Parameter"] = param_spss
+            df_spss = df_spss.append(self.dfs_spss[param], ignore_index=True)
+        cols = df_spss.columns.tolist()
+        cols = cols[0:3] + [cols[4], cols[3], cols[5]]
+        df_spss = df_spss[cols]
+        column_name_map = {session: self.cognitive_dict[session] + "_" + self.vibration_dict[session]
+                            for session in self.session_list}
+        df_spss.rename(columns=column_name_map, inplace=True)
+        spss_filename = os.path.join(self.ws_path, "robot_spss.csv")
+        df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
+        print("SPSS table saved to: " + spss_filename)
 
         # Save csv and jpg for self.dfs_by_param
         for etype in self.etype_list:
