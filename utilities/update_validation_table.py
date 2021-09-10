@@ -9,7 +9,7 @@ import ga
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import argparse
 
 # MAT file structure
 # updatedValidation.Stride_Time_sec,
@@ -32,6 +32,8 @@ class ValidationTableUpdater:
     unit_list  = ["(sec.)", "(cm./sec.)", "(cm.)"]
     etype_list = ["MAE", "ESD"]
     meanstd_list = ["mean", "std", "se"]
+    is_combined = False
+    data_source_robot = "robot"
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
@@ -47,7 +49,10 @@ class ValidationTableUpdater:
         assert(len(filename_list3) == 1)
         return (filename_list1[0], filename_list2[0], filename_list3[0], sbj, session)
 
-    def __init__(self):
+    def __init__(self, is_combined):
+        if is_combined:
+            self.is_combined = True
+            self.data_source_robot = "combined"
         self.data_info_dict = {
             424: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "d")),
             425: self.dataInfoNT(*ValidationTableUpdater.constructDataInfo("010", "e")),
@@ -143,7 +148,7 @@ class ValidationTableUpdater:
         self.dfs_by_param = \
         {etype:
             {param: 
-                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=["robot", "sportsole"]) 
+                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=[self.data_source_robot, "sportsole"]) 
                     for meanstd in self.meanstd_list
                 }
                 for param in self.param_list}
@@ -180,6 +185,12 @@ class ValidationTableUpdater:
                 ts_col = np.empty((table.shape[0], 1))
                 ts_col[:, 0] = ts[table[:,2].astype(int), 0] - ts_zeno0
 
+                if i == 0 and self.is_combined: # stride time from sportsole
+                    STEP_KINECT = self.updatePickleStrideV(ts_col, STEP_KINECT, table_info_list[i][0])
+                    pkl_filename_out = os.path.join(self.ws_path, "robotv", "data" + str(trial_id).rjust(3, '0') + ".pkl")
+                    with open(pkl_filename_out, "wb") as pkl_filename:
+                        pickle.dump(STEP_KINECT, pkl_filename)
+
                 robot_col = np.empty((table.shape[0], 2))
                 robot_col[:, :] = np.nan
                 self.updateRobotCol(robot_col, ts_col, STEP_KINECT, field)
@@ -206,7 +217,7 @@ class ValidationTableUpdater:
 
     def updateCsv(self, validation_table, field, unit):
         table_selected = np.hstack((validation_table[:, 0:2], validation_table[:, 26:27]))
-        data_sources = ["_zeno", "_sportsole", "_robot"]
+        data_sources = ["_zeno", "_sportsole", "_" + self.data_source_robot]
         df1 = pd.DataFrame(table_selected, columns=[field + suffix for suffix in data_sources])
         df2 = pd.DataFrame()
         for a, b in [(1, 0), (2, 0), (2, 1)]:
@@ -217,6 +228,19 @@ class ValidationTableUpdater:
         else:
             self.df_trial = self.df_trial.join(df2)
 
+    @staticmethod
+    def updatePickleStrideV(ts_col, STEP_KINECT, stride_time_table):
+        for j in range(0, len(STEP_KINECT.stride_table_sorted)):
+            row = STEP_KINECT.stride_table_sorted[j]
+            ts_sportsole = row.ts_FC
+            diff_col = np.abs(ts_col - ts_sportsole)
+            if diff_col.min() < 0.3:
+                i = np.argmin(diff_col)
+                new_stride_v = row.StrideL / stride_time_table[i, 1]
+                STEP_KINECT.stride_table_sorted[j] = \
+                    STEP_KINECT.stride_table_sorted[j]._replace(StrideV=new_stride_v)
+                pass
+        return STEP_KINECT
 
     @staticmethod
     def updateRobotCol(robot_col, ts_col, STEP_KINECT, field):
@@ -242,7 +266,7 @@ class ValidationTableUpdater:
 
     def plotChart(self):
         # Process csv by session
-        data_sources = ["robot", "sportsole"]
+        data_sources = [self.data_source_robot, "sportsole"]
         for etype in self.etype_list:
             for param in self.param_list:
                 df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
@@ -285,7 +309,11 @@ class ValidationTableUpdater:
 
 
 if __name__ == "__main__":
-    vtu = ValidationTableUpdater()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--combined", action='store_true')
+    args = parser.parse_args()
+
+    vtu = ValidationTableUpdater(args.combined)        
     for trial_id in vtu.data_info_dict.keys():
     # for trial_id in [424, 425]:
         vtu.process_trial(trial_id)

@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pickle
 import ga
 import scipy.stats
+import argparse
 
 class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
@@ -25,13 +26,18 @@ class BoxPlotter:
     step_units  = ["(cm.)", "(cm.)"]
     etype_list = ["CV"]
     meanstd_list = ["mean", "std", "se"]
+    pkl_folder = "robot"
+    data_source_robot = "robot"
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
         sbj = "SBJ" + sbj
         return (sbj, session.upper())
 
-    def __init__(self):
+    def __init__(self, is_combined):
+        if is_combined:
+            self.pkl_folder = "robotv"
+            self.data_source_robot = "combined"
         self.param_list = self.stride_params + self.step_params
         self.spss_param_list = []
         self.unit_list = self.stride_units + self.step_units
@@ -158,7 +164,7 @@ class BoxPlotter:
         
 
     def process_trial(self, trial_id):
-        pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
+        pkl_filename = os.path.join(self.ws_path, self.pkl_folder, "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             STEP_KINECT = pickle.load(pkl_file)
 
@@ -272,7 +278,7 @@ class BoxPlotter:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
-                    rot=0, title=param + ' ' + etype + ' (Robot)', 
+                    rot=0, title=param + ' ' + etype + ' ({:s})'.format(self.data_source_robot), 
                     yerr = self.dfs_by_param[etype][param]["se"])
                 plt.ylabel(" ".join([etype, "(%)"]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
@@ -290,7 +296,7 @@ class BoxPlotter:
             # Plot
             plt.figure()
             self.dfs_ratio[etype]["mean"].plot(kind="bar", capsize=4,
-                rot=0, title=etype + ' (Robot)', 
+                rot=0, title=etype + ' ({:s})'.format(self.data_source_robot), 
                 yerr = self.dfs_ratio[etype]["se"])
             plt.ylabel(" ".join([etype, "(%)"]))
             fig_filename = os.path.join(self.ws_path, "cv", etype + " ratio" + ".jpg")
@@ -298,7 +304,11 @@ class BoxPlotter:
             print("Robot cv_ratio saved to: " + fig_filename)
 
 if __name__ == "__main__":
-    plotter = BoxPlotter()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--combined", action='store_true')
+    args = parser.parse_args()
+
+    plotter = BoxPlotter(args.combined)
     for trial_id in sorted(plotter.data_info_dict.keys()):
     # for trial_id in [424, 425]:
         plotter.process_trial(trial_id)

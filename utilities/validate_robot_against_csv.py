@@ -8,6 +8,7 @@ from collections import namedtuple
 import pickle
 import ga
 import matplotlib.pyplot as plt
+import argparse
 
 
 # MAT file structure
@@ -33,6 +34,9 @@ class ValidationTableUpdater:
     step_units  = ["(cm.)", "(cm.)"]
     etype_list = ["MAE", "ESD"]
     meanstd_list = ["mean", "std", "se"]
+    pkl_folder = "robot"
+    data_source_robot = "robot"
+
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
@@ -42,7 +46,10 @@ class ValidationTableUpdater:
         assert(len(filename_list) == 1)
         return (filename_list[0], sbj, session.upper())
 
-    def __init__(self):
+    def __init__(self, is_combined):
+        if is_combined:
+            self.pkl_folder = "robotv"
+            self.data_source_robot = "combined"
         self.param_list = self.stride_params + self.step_params
         self.unit_list = self.stride_units + self.step_units
         self.unit_dict = {param: unit for param, unit in zip(self.param_list, self.unit_list)}
@@ -146,7 +153,7 @@ class ValidationTableUpdater:
         self.dfs_by_param = \
         {etype:
             {param:
-                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=["robot"]) 
+                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=[self.data_source_robot]) 
                     for meanstd in self.meanstd_list
                 }
                 for param in self.param_list}
@@ -166,7 +173,7 @@ class ValidationTableUpdater:
                 "Stride Length (cm.)", "Stride Width (cm.)", 
                 "Stride Time (sec.)", "Stride Velocity (cm./sec.)"])
 
-        pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
+        pkl_filename = os.path.join(self.ws_path, self.pkl_folder, "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             STEP_KINECT = pickle.load(pkl_file)
             ts_zeno = df["First Contact (sec.)"]
@@ -211,7 +218,7 @@ class ValidationTableUpdater:
 
     def plotChart(self):
         # Populate dataframe df_sessions by session
-        data_sources = ["robot"]
+        data_sources = [self.data_source_robot]
         for etype in self.etype_list:
             for param in self.param_list:
                 df_sessions = {session: pd.DataFrame(np.nan, index=[], columns=data_sources)
@@ -245,7 +252,8 @@ class ValidationTableUpdater:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4, legend=False,
-                    rot=0, title=param + " " + etype, yerr = self.dfs_by_param[etype][param]["se"])
+                    rot=0, title=param + " " + etype + " ({:s})".format(self.data_source_robot),
+                    yerr = self.dfs_by_param[etype][param]["se"])
                 plt.ylabel(" ".join([etype, unit]))
                 fig_filename = os.path.join(self.ws_path, "by_param", "robot_" + param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
@@ -253,7 +261,11 @@ class ValidationTableUpdater:
 
 
 if __name__ == "__main__":
-    vtu = ValidationTableUpdater()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--combined", action='store_true')
+    args = parser.parse_args()
+
+    vtu = ValidationTableUpdater(args.combined)
     for trial_id in sorted(vtu.data_info_dict.keys()):
     # for trial_id in [424]:
         vtu.process_trial(trial_id)
