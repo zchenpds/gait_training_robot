@@ -169,11 +169,15 @@ class BoxPlotter:
             STEP_KINECT = pickle.load(pkl_file)
 
             def get_csv_filename(type):
-                return os.path.join(self.ws_path, "by_trial", type + str(trial_id).rjust(3, '0') + ".csv")
+                sbj_session_name = self.data_info_dict[trial_id].sbj + self.data_info_dict[trial_id].session
+                return os.path.join(self.ws_path, "by_trial", type + "_" + sbj_session_name + ".csv")
 
             # Calculate the Coefficient of Variation as the ratio of the standard deviation to 
             # the mean times 100. Save the raw data by trial as well to csv files
             df_stride = pd.DataFrame(np.nan, index=range(0, len(STEP_KINECT.stride_table_sorted)), columns=[])
+            for i, row in enumerate(STEP_KINECT.stride_table_sorted):
+                df_stride.at[i, 'ts_FC'] = getattr(row, 'ts_FC')
+                df_stride.at[i, 'LR'] = getattr(row, 'LR')
             for field in self.stride_params:
                 for i, row in enumerate(STEP_KINECT.stride_table_sorted):
                     df_stride.at[i, field] = getattr(row, field)
@@ -185,6 +189,9 @@ class BoxPlotter:
             print("Saved to: " + csv_filename_out)
 
             df_step = pd.DataFrame(np.nan, index=range(0, len(STEP_KINECT.step_table_sorted)), columns=[])
+            for i, row in enumerate(STEP_KINECT.step_table_sorted):
+                df_step.at[i, 'ts_FC'] = getattr(row, 'ts_FC')
+                df_step.at[i, 'LR'] = getattr(row, 'LR')
             for field in self.step_params:
                 for i, row in enumerate(STEP_KINECT.step_table_sorted):
                     df_step.at[i, field] = getattr(row, field)
