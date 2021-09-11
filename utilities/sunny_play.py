@@ -20,11 +20,107 @@ from bag_ops import trim_time
 
 import pickle
 
+from collections import namedtuple
+dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
+def constructDataInfo(sbj, session):
+    sbj = "SBJ" + sbj
+    return (sbj, session.upper())
+data_info_dict = {
+    424: dataInfoNT(*constructDataInfo("010", "d")),
+    425: dataInfoNT(*constructDataInfo("010", "e")),
+    426: dataInfoNT(*constructDataInfo("010", "f")),
+    427: dataInfoNT(*constructDataInfo("010", "g")),
+    428: dataInfoNT(*constructDataInfo("011", "d")),
+    429: dataInfoNT(*constructDataInfo("011", "e")),
+    430: dataInfoNT(*constructDataInfo("011", "f")),
+    431: dataInfoNT(*constructDataInfo("011", "g")),
+    432: dataInfoNT(*constructDataInfo("012", "d")),
+    433: dataInfoNT(*constructDataInfo("012", "e")),
+    434: dataInfoNT(*constructDataInfo("012", "f")),
+    435: dataInfoNT(*constructDataInfo("012", "g")),
+    436: dataInfoNT(*constructDataInfo("013", "d")),
+    437: dataInfoNT(*constructDataInfo("013", "e")),
+    438: dataInfoNT(*constructDataInfo("013", "f")),
+    439: dataInfoNT(*constructDataInfo("013", "g")),
+    444: dataInfoNT(*constructDataInfo("015", "d")),
+    445: dataInfoNT(*constructDataInfo("015", "e")),
+    446: dataInfoNT(*constructDataInfo("015", "f")),
+    447: dataInfoNT(*constructDataInfo("015", "g")),
+    448: dataInfoNT(*constructDataInfo("016", "d")),
+    449: dataInfoNT(*constructDataInfo("016", "e")),
+    450: dataInfoNT(*constructDataInfo("016", "f")),
+    451: dataInfoNT(*constructDataInfo("016", "g")),
+    456: dataInfoNT(*constructDataInfo("018", "d")),
+    457: dataInfoNT(*constructDataInfo("018", "e")),
+    458: dataInfoNT(*constructDataInfo("018", "f")),
+    459: dataInfoNT(*constructDataInfo("018", "g")),
+    460: dataInfoNT(*constructDataInfo("019", "d")),
+    461: dataInfoNT(*constructDataInfo("019", "e")),
+    462: dataInfoNT(*constructDataInfo("019", "f")),
+    463: dataInfoNT(*constructDataInfo("019", "g")),
+    500: dataInfoNT(*constructDataInfo("020", "F")),
+    501: dataInfoNT(*constructDataInfo("020", "G")),
+    502: dataInfoNT(*constructDataInfo("020", "D")),
+    503: dataInfoNT(*constructDataInfo("020", "E")),
+    504: dataInfoNT(*constructDataInfo("022", "F")),
+    505: dataInfoNT(*constructDataInfo("022", "G")),
+    506: dataInfoNT(*constructDataInfo("022", "D")),
+    507: dataInfoNT(*constructDataInfo("022", "E")),
+    508: dataInfoNT(*constructDataInfo("021", "F")),
+    509: dataInfoNT(*constructDataInfo("021", "G")),
+    510: dataInfoNT(*constructDataInfo("021", "D")),
+    511: dataInfoNT(*constructDataInfo("021", "E")),
+    512: dataInfoNT(*constructDataInfo("023", "F")),
+    513: dataInfoNT(*constructDataInfo("023", "G")),
+    514: dataInfoNT(*constructDataInfo("023", "D")),
+    515: dataInfoNT(*constructDataInfo("023", "E")),
+    516: dataInfoNT(*constructDataInfo("024", "F")),
+    517: dataInfoNT(*constructDataInfo("024", "G")),
+    518: dataInfoNT(*constructDataInfo("024", "D")), # No zeno data available
+    519: dataInfoNT(*constructDataInfo("024", "E")),
+    520: dataInfoNT(*constructDataInfo("025", "F")),
+    521: dataInfoNT(*constructDataInfo("025", "G")),
+    522: dataInfoNT(*constructDataInfo("025", "D")),
+    523: dataInfoNT(*constructDataInfo("025", "E")),
+    524: dataInfoNT(*constructDataInfo("026", "F")),
+    525: dataInfoNT(*constructDataInfo("026", "G")),
+    526: dataInfoNT(*constructDataInfo("026", "D")),
+    527: dataInfoNT(*constructDataInfo("026", "E")),
+    528: dataInfoNT(*constructDataInfo("027", "F")),
+    529: dataInfoNT(*constructDataInfo("027", "G")),
+    530: dataInfoNT(*constructDataInfo("027", "D")),
+    531: dataInfoNT(*constructDataInfo("027", "E")),
+    532: dataInfoNT(*constructDataInfo("028", "F")),
+    533: dataInfoNT(*constructDataInfo("028", "G")),
+    534: dataInfoNT(*constructDataInfo("028", "D")),
+    535: dataInfoNT(*constructDataInfo("028", "E")),
+    536: dataInfoNT(*constructDataInfo("029", "F")),
+    537: dataInfoNT(*constructDataInfo("029", "G")),
+    538: dataInfoNT(*constructDataInfo("029", "D")),
+    539: dataInfoNT(*constructDataInfo("029", "E")),
+    540: dataInfoNT(*constructDataInfo("030", "D")),
+    541: dataInfoNT(*constructDataInfo("030", "E")),
+    542: dataInfoNT(*constructDataInfo("030", "F")),
+    543: dataInfoNT(*constructDataInfo("030", "G")),
+    544: dataInfoNT(*constructDataInfo("031", "D")),
+    545: dataInfoNT(*constructDataInfo("031", "E")),
+    546: dataInfoNT(*constructDataInfo("031", "F")),
+    547: dataInfoNT(*constructDataInfo("031", "G")),
+    548: dataInfoNT(*constructDataInfo("032", "D")),
+    549: dataInfoNT(*constructDataInfo("032", "E")),
+    550: dataInfoNT(*constructDataInfo("032", "F")),
+    551: dataInfoNT(*constructDataInfo("032", "G")),
+    552: dataInfoNT(*constructDataInfo("033", "F")),
+    553: dataInfoNT(*constructDataInfo("033", "G")),
+    554: dataInfoNT(*constructDataInfo("033", "D")),
+    555: dataInfoNT(*constructDataInfo("033", "E")),
+}
 
-def process(filename, launch_options, png_filename):
+def process(filename, launch_options, png_filename, trial_id):
     in_bag_path = os.path.join(os.getcwd(), filename)
     bag_name = os.path.basename(filename)
     # print(in_bag_path)
+    sbj_session_name = data_info_dict[trial_id].sbj + data_info_dict[trial_id].session
 
 
     launch_options.append("bag_path1:=" + in_bag_path)
@@ -60,12 +156,15 @@ def process(filename, launch_options, png_filename):
 
             t_min = KINECT['t'][0]
             t_max = KINECT['t'][-1]
-            if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
-                t_min = bag_info[bag_name]['time_range'][0]
-                t_max = bag_info[bag_name]['time_range'][1]
-                trim_time(KINECT, [(t_min, t_max)])
 
-            t_min = max(t_max - 90, t_min)
+            # Data minipulation
+            if 1:
+                if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
+                    t_min = bag_info[bag_name]['time_range'][0]
+                    t_max = bag_info[bag_name]['time_range'][1]
+                    trim_time(KINECT, [(t_min, t_max)])
+
+                t_min = max(t_max - 90, t_min)
             
             stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
             STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
@@ -95,6 +194,29 @@ def process(filename, launch_options, png_filename):
                 # plt.show()
                 return
 
+            if args.show_time_range:
+                png_filename_time_range = png_filename.replace("SportSoleGaps", "TimeRange")
+                msgs_mos_vec = [msg for _, msg, _ in inbag.read_messages("/gait_analyzer/estimate/mos_vec")]
+                ts  = np.array([msg.header.stamp.to_sec() for msg in msgs_mos_vec])
+                mos = np.array([msg.vector.x for msg in msgs_mos_vec])
+                ts -= STEP_KINECT.t0_zeno
+                plt.figure(figsize=(50, 1.6))
+                plt.plot(ts, mos)
+                y_range = [-1.2, 0.2]
+                plt.fill_between(
+                    [t_min - STEP_KINECT.t0_zeno, t_max - STEP_KINECT.t0_zeno], 
+                    y_range[0], y_range[1], color="green", alpha=0.5)
+                plt.ylim(y_range)
+                plt.xlim([ts[0], ts[0] + 300])
+                plt.xlabel('Zeno Time [s]')
+                plt.ylabel('MoS [m]')
+                plt.title(sbj_session_name)
+                plt.savefig(png_filename_time_range)
+                print("Saved to " + png_filename_time_range)
+                # plt.show()
+                return
+
+
             if args.export_mat:
                 mat_file = os.path.join('/home/ral2020/projects/gta_data2/sunny/simple', bag_name[:7] + '.mat')
                 assert(os.path.exists(os.path.dirname(mat_file)))
@@ -114,7 +236,7 @@ def process(filename, launch_options, png_filename):
                         print('Saved to ' + csv_filename)
 
             if args.export_pickle:
-                pickle_filename = os.path.join("/home/ral2020/Documents/sunny/robot", bag_name[:7] + ".pkl")
+                pickle_filename = os.path.join("/home/ral2020/Documents/sunny/robot_full", bag_name[:7] + ".pkl")
                 with open(pickle_filename, 'wb') as pickle_file:
                     pickle.dump(STEP_KINECT, pickle_file)
                     
@@ -134,6 +256,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--skip-bag-gen',              action='store_true')
     parser.add_argument('-e', '--enable-debug-log',          action='store_true')
     parser.add_argument('-f', '--show-frequency',            action='store_true')
+    parser.add_argument('-t', '--show-time-range',           action='store_true')
     args = parser.parse_args()
 
     rp = rospkg.RosPack()
@@ -166,10 +289,12 @@ if __name__ == '__main__':
     bag_names = ['data' + s + '.bag' for s in [str(i).rjust(3, '0') for i in range(424, 425)]]
 
     for filename in args.filenames:
+        trial_name = os.path.splitext(os.path.basename(filename))[0]
+        trial_id = int(trial_name[4:])
         png_filename = os.path.join(os.path.expanduser("~"), "Pictures", "sunnyside", "SportSoleGaps", 
-            os.path.splitext(os.path.basename(filename))[0] + ".png")
+            trial_name + ".png")
         try:
-            process(filename, launch_options, png_filename)
+            process(filename, launch_options, png_filename, trial_id)
         except Exception as e:
             print(e)
             print("Failed to process " + filename)
