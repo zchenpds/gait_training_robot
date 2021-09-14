@@ -186,7 +186,7 @@ class ValidationTableUpdater:
                 ts_col[:, 0] = ts[table[:,2].astype(int), 0] - ts_zeno0
 
                 if i == 0 and self.is_combined: # stride time from sportsole
-                    STEP_KINECT = self.updatePickleStrideV(ts_col, STEP_KINECT, table_info_list[i][0])
+                    STEP_KINECT = self.updatePickleStrideVStrideT(ts_col, STEP_KINECT, table_info_list[i][0])
                     pkl_filename_out = os.path.join(self.ws_path, "robotv", "data" + str(trial_id).rjust(3, '0') + ".pkl")
                     with open(pkl_filename_out, "wb") as pkl_filename:
                         pickle.dump(STEP_KINECT, pkl_filename)
@@ -229,7 +229,7 @@ class ValidationTableUpdater:
             self.df_trial = self.df_trial.join(df2)
 
     @staticmethod
-    def updatePickleStrideV(ts_col, STEP_KINECT, stride_time_table):
+    def updatePickleStrideVStrideT(ts_col, STEP_KINECT, stride_time_table):
         for j in range(0, len(STEP_KINECT.stride_table_sorted)):
             row = STEP_KINECT.stride_table_sorted[j]
             ts_sportsole = row.ts_FC
@@ -238,7 +238,7 @@ class ValidationTableUpdater:
                 i = np.argmin(diff_col)
                 new_stride_v = row.StrideL / stride_time_table[i, 1]
                 STEP_KINECT.stride_table_sorted[j] = \
-                    STEP_KINECT.stride_table_sorted[j]._replace(StrideV=new_stride_v)
+                    STEP_KINECT.stride_table_sorted[j]._replace(StrideV=new_stride_v, StrideT=stride_time_table[i, 1])
                 pass
         return STEP_KINECT
 
