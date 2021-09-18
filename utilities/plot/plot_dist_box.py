@@ -11,10 +11,14 @@ class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny"
     session_list = ["D", "E", "F", "G"]
+    vibration_conditions = ["VOFF", "VON"] # rows (index)
+    vibration_dict = {"D": "VOFF", "E": "VOFF", "F": "VON", "G": "VON"}
+    cognitive_conditions = ["COFF", "CON"] # columns
+    cognitive_dict = {"D": "COFF", "E": "CON", "F": "COFF", "G": "CON"}
     sbj_list = []
     param_list = ["Dist"]
     unit_list  = ["(cm.)", "(cm.)", "(%)", "(%)"]
-    etype_list = ["MAE", "ESD", "MAE Percentage", "ESD Percentage"]
+    etype_list = ["MAE", "ESD", "MAE_Percentage", "ESD_Percentage"]
     meanstd_list = ["mean", "std", "se"]
 
     @classmethod
@@ -117,7 +121,7 @@ class BoxPlotter:
         self.dfs_by_param = \
         {etype:
             {param:
-                {meanstd: pd.DataFrame(np.nan, index=self.session_list, columns=["robot"]) 
+                {meanstd: pd.DataFrame(np.nan, index=self.vibration_conditions, columns=self.cognitive_conditions) 
                     for meanstd in self.meanstd_list
                 }
                 for param in self.param_list}
@@ -137,8 +141,8 @@ class BoxPlotter:
             self.df_agg.at[trial_id, "MAE_"  + self.param_list[0]] = dist_rmse
             self.df_agg.at[trial_id, "ESD_"  + self.param_list[0]] = dist_error_sd
             desired_dist = 1.5
-            self.df_agg.at[trial_id, "MAE Percentage_" + self.param_list[0]] = dist_rmse / desired_dist
-            self.df_agg.at[trial_id, "ESD Percentage_" + self.param_list[0]] = dist_error_sd / desired_dist
+            self.df_agg.at[trial_id, "MAE_Percentage_" + self.param_list[0]] = dist_rmse / desired_dist
+            self.df_agg.at[trial_id, "ESD_Percentage_" + self.param_list[0]] = dist_error_sd / desired_dist
 
 
     def update_and_save_csv(self):
@@ -154,11 +158,9 @@ class BoxPlotter:
 
     def plotChart(self):
         # Populate dataframe df_sessions by session
-        data_sources = ["robot"]
         for etype in self.etype_list:
             for param in self.param_list:
-                df_sessions = {session: pd.DataFrame(np.nan, index=self.sbj_list, columns=data_sources)
-                                for session in self.session_list}
+                df_sessions = pd.DataFrame(np.nan, index=self.sbj_list, columns=self.session_list)
                 field = "_".join([etype, param])
                 # Find col that contains field
                 for col in list(self.df_agg):
@@ -166,16 +168,14 @@ class BoxPlotter:
                         for trial_id, data_info in self.data_info_dict.items():
                             sbj = data_info.sbj
                             session = data_info.session
-                            for data_source in data_sources:
-                                df_sessions[session].at[sbj, data_source] = self.df_agg.at[trial_id, col]
+                            df_sessions.at[sbj, session] = self.df_agg.at[trial_id, col]
                 for session in df_sessions.keys():
-                    MEAN = df_sessions[session].mean()
-                    STD  = df_sessions[session].std()
-                    SE   = STD / np.math.sqrt(len(df_sessions[session]))
-                    for data_source in data_sources:
-                        self.dfs_by_param[etype][param]["mean"].at[session, data_source] = MEAN[data_source]
-                        self.dfs_by_param[etype][param]["std"].at[session, data_source]  = STD[data_source]
-                        self.dfs_by_param[etype][param]["se"].at[session, data_source] = SE[data_source]
+                    vib_cond = self.vibration_dict[session]
+                    cog_cond = self.cognitive_dict[session]
+                    self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = df_sessions.loc[:, session].mean()
+                    self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
+                    self.dfs_by_param[etype][param]["se"].at[vib_cond, cog_cond] = \
+                        df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
                             
 
         for etype, unit in zip(self.etype_list, self.unit_list):
@@ -189,7 +189,8 @@ class BoxPlotter:
                 # Plot
                 plt.figure()
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4, legend=False,
-                    rot=0, title="Human-Robot Distance " + etype, yerr = self.dfs_by_param[etype][param]["se"])
+                    rot=0, title=("Human-Robot Distance " + etype).replace("_", " "),
+                    yerr = self.dfs_by_param[etype][param]["se"])
                 plt.ylabel(" ".join([etype, unit]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
