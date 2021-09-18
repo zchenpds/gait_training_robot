@@ -21,9 +21,12 @@ def trim_time(A, t_ranges):
     """
     Trim the time series data contained in dictionary A.
     @t_ranges: a list of 2-tuples (t_min, t_max)
+    @return: percentage discarded
     """
+    res = sum([(min(A['t'][-1], t_max) - max(A['t'][0], t_min)) / (A['t'][-1] - A['t'][0]) for t_min, t_max in t_ranges])
     idx = np.any(tuple(np.logical_and(A['t'] >= t_min, A['t'] <= t_max) for t_min, t_max in t_ranges), axis=0)
     A.update({k: v[idx] if type(v).__module__ == np.__name__ else v for k, v in A.items()})
+    return res
 
 
 class Aligner:

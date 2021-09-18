@@ -157,14 +157,18 @@ def process(filename, launch_options, png_filename, trial_id):
             t_min = KINECT['t'][0]
             t_max = KINECT['t'][-1]
 
+            percentage_discarded = 0.0
+
             # Data minipulation
             if 1:
                 if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
                     t_min = bag_info[bag_name]['time_range'][0]
                     t_max = bag_info[bag_name]['time_range'][1]
-                    trim_time(KINECT, [(t_min, t_max)])
+                    percentage_discarded = 1.0 - trim_time(KINECT, [(t_min, t_max)])
 
                 t_min = max(t_max - 90, t_min)
+            
+            print("{:s} percentage discarded: {:.2f}%".format(bag_name, percentage_discarded * 100))
             
             stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
             STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
