@@ -185,8 +185,9 @@ class BoxPlotter:
                 etype_field = "_".join([self.etype_list[0], field])
                 self.df_agg.at[trial_id, etype_field] = np.std(field_values) / np.mean(field_values) * 100
             csv_filename_out = get_csv_filename("stride")
-            df_stride.to_csv(csv_filename_out, index=False, float_format='%.4f')
-            print("Saved to: " + csv_filename_out)
+            if not args.skip_csv:
+                df_stride.to_csv(csv_filename_out, index=False, float_format='%.4f')
+                print("Saved to: " + csv_filename_out)
 
             df_step = pd.DataFrame(np.nan, index=range(0, len(STEP_KINECT.step_table_sorted)), columns=[])
             for i, row in enumerate(STEP_KINECT.step_table_sorted):
@@ -199,8 +200,9 @@ class BoxPlotter:
                 etype_field = "_".join([self.etype_list[0], field])
                 self.df_agg.at[trial_id, etype_field] = np.std(field_values) / np.mean(field_values) * 100
             csv_filename_out = get_csv_filename("step")
-            df_step.to_csv(csv_filename_out, index=False, float_format='%.4f')
-            print("Saved to: " + csv_filename_out)
+            if not args.skip_csv:
+                df_step.to_csv(csv_filename_out, index=False, float_format='%.4f')
+                print("Saved to: " + csv_filename_out)
 
 
     def update_and_save_csv(self):
@@ -211,8 +213,9 @@ class BoxPlotter:
         self.df_with_mean = self.df_agg.append(df_mean)
         # Write to csv
         csv_filename_out = os.path.join(self.ws_path, "robot_cv.csv")
-        self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
-        print("Aggregate table saved to: " + csv_filename_out)
+        if not args.skip_csv:
+            self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
+            print("Aggregate table saved to: " + csv_filename_out)
 
     def plotChart(self):
         # Process csv by session
@@ -270,8 +273,9 @@ class BoxPlotter:
                             for session in self.session_list}
         df_spss.rename(columns=column_name_map, inplace=True)
         spss_filename = os.path.join(self.ws_path, "robot_spss.csv")
-        df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
-        print("SPSS table saved to: " + spss_filename)
+        if not args.skip_csv:
+            df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
+            print("SPSS table saved to: " + spss_filename)
 
         # Save csv and jpg for self.dfs_by_param
         for etype in self.etype_list:
@@ -279,8 +283,9 @@ class BoxPlotter:
                 for meanstd in self.meanstd_list:
                     csv_filename = os.path.join(self.ws_path, 
                         "by_param", param + "_" + etype + "_" + meanstd + ".csv")
-                    self.dfs_by_param[etype][param][meanstd].to_csv(csv_filename)
-                    print(param + " saved to: " + csv_filename)
+                    if not args.skip_csv:
+                        self.dfs_by_param[etype][param][meanstd].to_csv(csv_filename)
+                        print(param + " saved to: " + csv_filename)
 
                 # Plot
                 plt.figure()
@@ -297,8 +302,9 @@ class BoxPlotter:
             for meanstd in self.meanstd_list:
                 csv_filename = os.path.join(self.ws_path, 
                     "cv", "robot_" + etype + "_ratio_" + meanstd + ".csv")
-                self.dfs_ratio[etype][meanstd].to_csv(csv_filename)
-                print("Robot cv_ratio saved to: " + csv_filename)
+                if not args.skip_csv:
+                    self.dfs_ratio[etype][meanstd].to_csv(csv_filename)
+                    print("Robot cv_ratio saved to: " + csv_filename)
 
             # Plot
             plt.figure()
@@ -312,6 +318,7 @@ class BoxPlotter:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--skip-csv", action='store_true')
     parser.add_argument("-c", "--combined", action='store_true')
     args = parser.parse_args()
 
