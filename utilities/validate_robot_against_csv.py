@@ -255,9 +255,10 @@ class ValidationTableUpdater:
                     rot=0, title=param + " " + etype + " ({:s})".format(self.data_source_robot),
                     yerr = self.dfs_by_param[etype][param]["se"])
                 plt.ylabel(" ".join([etype, unit]))
-                fig_filename = os.path.join(self.ws_path, "by_param", "robot_" + param + "_" + etype + ".jpg")
-                plt.savefig(fig_filename)
-                print(param + " saved to: " + fig_filename)
+                for fig_ext in [".jpg", ".eps"]:
+                    fig_filename = os.path.join(self.ws_path, "by_param", "robot_" + param + "_" + etype + fig_ext)
+                    plt.savefig(fig_filename)
+                    print(param + " saved to: " + fig_filename)
 
 
 if __name__ == "__main__":

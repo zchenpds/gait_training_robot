@@ -312,9 +312,10 @@ class BoxPlotter:
                 rot=0, title=etype + ' ({:s})'.format(self.data_source_robot), 
                 yerr = self.dfs_ratio[etype]["se"])
             plt.ylabel(" ".join([etype, "(%)"]))
-            fig_filename = os.path.join(self.ws_path, "cv", etype + " ratio" + ".jpg")
-            plt.savefig(fig_filename)
-            print("Robot cv_ratio saved to: " + fig_filename)
+            for fig_ext in [".jpg", ".eps"]:
+                fig_filename = os.path.join(self.ws_path, "cv", etype + " ratio" + fig_ext)
+                plt.savefig(fig_filename)
+                print("Robot cv_ratio saved to: " + fig_filename)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
