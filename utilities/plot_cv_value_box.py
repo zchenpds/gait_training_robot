@@ -14,7 +14,7 @@ class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny"
     session_list = ["D", "E", "F", "G"]
-    ratio_list = ["D/E", "F/G"]
+    ratio_list = []
     vibration_conditions = ["VOFF", "VON"] # rows (index)
     vibration_dict = {"D": "VOFF", "E": "VOFF", "F": "VON", "G": "VON"}
     cognitive_conditions = ["COFF", "CON"] # columns
@@ -24,7 +24,7 @@ class BoxPlotter:
     stride_units  = ["(sec.)", "(cm./sec.)", "(cm.)"]
     step_params = ["StepL", "StepW"]
     step_units  = ["(cm.)", "(cm.)"]
-    etype_list = ["CV"]
+    etype_list = ["CV", "Value"]
     meanstd_list = ["mean", "std", "se"]
     pkl_folder = "robot"
     data_source_robot = "robot"
@@ -41,6 +41,7 @@ class BoxPlotter:
         self.param_list = self.stride_params + self.step_params
         self.spss_param_list = []
         self.unit_list = self.stride_units + self.step_units
+        self.ratio_xticks = [p + '\n(CON/COFF)' for p in self.param_list]
         self.unit_dict = {param: unit for param, unit in zip(self.param_list, self.unit_list)}
         self.data_info_dict = {
             424: self.dataInfoNT(*BoxPlotter.constructDataInfo("010", "d")),
@@ -156,10 +157,13 @@ class BoxPlotter:
 
         # Initialize the DataFrame for spss anaylsis
         self.dfs_spss = \
-        {param:
-            pd.DataFrame("", index=np.unique(self.df_agg.loc[:, "sbj"]),
-                columns=["Gait_Parameter", "SbjID"] + self.session_list)
-            for param in self.param_list
+        {etype:
+            {param:
+                pd.DataFrame("", index=np.unique(self.df_agg.loc[:, "sbj"]),
+                    columns=["Gait_Parameter", "SbjID"] + self.session_list)
+                for param in self.param_list
+            }
+            for etype in self.etype_list
         }
         
 
@@ -182,8 +186,10 @@ class BoxPlotter:
                 for i, row in enumerate(STEP_KINECT.stride_table_sorted):
                     df_stride.at[i, field] = getattr(row, field)
                 field_values = df_stride.loc[:, field]
-                etype_field = "_".join([self.etype_list[0], field])
+                etype_field = "_".join([self.etype_list[0], field]) # CV
                 self.df_agg.at[trial_id, etype_field] = np.std(field_values) / np.mean(field_values) * 100
+                etype_field = "_".join([self.etype_list[1], field]) # value
+                self.df_agg.at[trial_id, etype_field] = np.mean(field_values)
             csv_filename_out = get_csv_filename("stride")
             if not args.skip_csv:
                 df_stride.to_csv(csv_filename_out, index=False, float_format='%.4f')
@@ -199,6 +205,8 @@ class BoxPlotter:
                 field_values = df_step.loc[:, field]
                 etype_field = "_".join([self.etype_list[0], field])
                 self.df_agg.at[trial_id, etype_field] = np.std(field_values) / np.mean(field_values) * 100
+                etype_field = "_".join([self.etype_list[1], field]) # value
+                self.df_agg.at[trial_id, etype_field] = np.mean(field_values)
             csv_filename_out = get_csv_filename("step")
             if not args.skip_csv:
                 df_step.to_csv(csv_filename_out, index=False, float_format='%.4f')
@@ -231,8 +239,8 @@ class BoxPlotter:
                             sbj = data_info.sbj
                             session = data_info.session
                             df_sessions.at[sbj, session] = self.df_agg.at[trial_id, col]
-                            self.dfs_spss[param].at[sbj, session] = "{:.4f}".format(self.df_agg.at[trial_id, col])
-                            self.dfs_spss[param].at[sbj, "SbjID"] = sbj.title()
+                            self.dfs_spss[etype][param].at[sbj, session] = "{:.4f}".format(self.df_agg.at[trial_id, col])
+                            self.dfs_spss[etype][param].at[sbj, "SbjID"] = sbj.title()
                 for session in list(df_sessions):
                     vib_cond = self.vibration_dict[session]
                     cog_cond = self.cognitive_dict[session]
@@ -242,8 +250,8 @@ class BoxPlotter:
                         df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
 
                 # Calculate ratio
-                df_ratios.loc[:, "D/E"] = df_sessions.loc[:, "D"] / df_sessions.loc[:, "E"]
-                df_ratios.loc[:, "F/G"] = df_sessions.loc[:, "F"] / df_sessions.loc[:, "G"]
+                df_ratios.loc[:, "E/D"] = df_sessions.loc[:, "E"] / df_sessions.loc[:, "D"]
+                df_ratios.loc[:, "G/F"] = df_sessions.loc[:, "G"] / df_sessions.loc[:, "F"]
                 for ratio_type in list(df_ratios):
                     self.dfs_ratio[etype]["mean"].at[param, ratio_type] = df_ratios.loc[:, ratio_type].mean()
                     self.dfs_ratio[etype]["std"].at[param, ratio_type]  = df_ratios.loc[:, ratio_type].std()
@@ -251,31 +259,36 @@ class BoxPlotter:
                         df_ratios.loc[:, ratio_type].std() / np.math.sqrt(len(df_ratios.loc[:, ratio_type]))
                 
                 # paired t-test
-                print("{:8s}: p-value(D,E)={:.4f}, p-value(F,G)={:.4f}, p-value(D/E, F/G)={:.4f}".format(param, 
+                print("{:8s} {:7s}, p-2samp(D;E)={:.4f}, p-2samp(F;G)={:.4f}, p-2samp(D/E, F/G)={:.4f}, "\
+                    "p-1samp(D/E)={:.4f}, p-1samp(F/G)={:.4f}".format(param, etype,
                     scipy.stats.ttest_ind(df_sessions.loc[:, "D"], df_sessions.loc[:, "E"])[1],
                     scipy.stats.ttest_ind(df_sessions.loc[:, "F"], df_sessions.loc[:, "G"])[1],
-                    scipy.stats.ttest_ind(df_ratios.loc[:, "D/E"], df_ratios.loc[:, "F/G"])[1]))
+                    scipy.stats.ttest_ind(df_ratios.loc[:, "E/D"], df_ratios.loc[:, "G/F"])[1],
+                    scipy.stats.ttest_1samp(df_ratios.loc[:, "E/D"], 1.0)[1],
+                    scipy.stats.ttest_1samp(df_ratios.loc[:, "G/F"], 1.0)[1]))
 
-        df_spss = pd.DataFrame()
-        for param, param_spss in [
-                ("StepL", "Step_Length_CV"), 
-                ("StrideL", "Stride_Length_CV"),
-                ("StepW", "Stride_Width_CV"),
-                ("StrideT", "Stride_Time_CV"),
-                ("StrideV", "Stride_Velocity_CV")
-            ]:
-            self.dfs_spss[param].loc[:, "Gait_Parameter"] = param_spss
-            df_spss = df_spss.append(self.dfs_spss[param], ignore_index=True)
-        cols = df_spss.columns.tolist()
-        cols = cols[0:3] + [cols[4], cols[3], cols[5]]
-        df_spss = df_spss[cols]
-        column_name_map = {session: self.cognitive_dict[session] + "_" + self.vibration_dict[session]
-                            for session in self.session_list}
-        df_spss.rename(columns=column_name_map, inplace=True)
-        spss_filename = os.path.join(self.ws_path, "robot_spss.csv")
-        if not args.skip_csv:
-            df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
-            print("SPSS table saved to: " + spss_filename)
+
+        for etype in self.etype_list:
+            df_spss = pd.DataFrame()
+            for param, param_spss in [
+                    ("StepL", "_".join(["Step_Length", etype])), 
+                    ("StrideL", "_".join(["Stride_Length", etype])),
+                    ("StepW", "_".join(["Stride_Width", etype])),
+                    ("StrideT", "_".join(["Stride_Time", etype])),
+                    ("StrideV", "_".join(["Stride_Velocity", etype]))
+                ]:
+                self.dfs_spss[etype][param].loc[:, "Gait_Parameter"] = param_spss
+                df_spss = df_spss.append(self.dfs_spss[etype][param], ignore_index=True)
+            cols = df_spss.columns.tolist()
+            cols = cols[0:3] + [cols[4], cols[3], cols[5]]
+            df_spss = df_spss[cols]
+            column_name_map = {session: self.cognitive_dict[session] + "_" + self.vibration_dict[session]
+                                for session in self.session_list}
+            df_spss.rename(columns=column_name_map, inplace=True)
+            spss_filename = os.path.join(self.ws_path, "robot_spss_" + etype + ".csv")
+            if not args.skip_csv:
+                df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
+                print("SPSS table saved to: " + spss_filename)
 
         # Save csv and jpg for self.dfs_by_param
         for etype in self.etype_list:
@@ -292,7 +305,10 @@ class BoxPlotter:
                 self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
                     rot=0, title=param + ' ' + etype + ' ({:s})'.format(self.data_source_robot), 
                     yerr = self.dfs_by_param[etype][param]["se"])
-                plt.ylabel(" ".join([etype, "(%)"]))
+                if etype == "CV":
+                    plt.ylabel(" ".join([etype, "(%)"]))
+                else:
+                    plt.ylabel(" ".join([param, self.unit_dict[param]]))
                 fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
                 plt.savefig(fig_filename)
                 print(param + " saved to: " + fig_filename)
@@ -308,10 +324,12 @@ class BoxPlotter:
 
             # Plot
             plt.figure()
-            self.dfs_ratio[etype]["mean"].plot(kind="bar", capsize=4,
-                rot=0, title=etype + ' ({:s})'.format(self.data_source_robot), 
+            ax = self.dfs_ratio[etype]["mean"].plot(kind="bar", capsize=4,
+                rot=0, title=etype + ' Ratio', 
                 yerr = self.dfs_ratio[etype]["se"])
-            plt.ylabel(" ".join([etype, "(%)"]))
+            plt.xticks(range(len(self.ratio_xticks)), self.ratio_xticks)
+            ax.legend(['VOFF', 'VON'])
+            plt.ylabel("Ratio")
             for fig_ext in [".jpg", ".eps"]:
                 fig_filename = os.path.join(self.ws_path, "cv", etype + " ratio" + fig_ext)
                 plt.savefig(fig_filename)
