@@ -220,7 +220,7 @@ class BoxPlotter:
         # Create aggregate table with mean
         self.df_with_mean = self.df_agg.append(df_mean)
         # Write to csv
-        csv_filename_out = os.path.join(self.ws_path, "robot_cv.csv")
+        csv_filename_out = os.path.join(self.ws_path, "robot_cv_value.csv")
         if not args.skip_csv:
             self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
             print("Aggregate table saved to: " + csv_filename_out)
