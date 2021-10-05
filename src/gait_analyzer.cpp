@@ -69,6 +69,7 @@ GaitAnalyzer::GaitAnalyzer(const ros::NodeHandle& n, const ros::NodeHandle& p):
     },
   ml_vec_(0, 0, 0),
   ap_vec_(0, 0, 0),
+  ap_vec_prev_(0, 0, 0),
   z_ground_(0.0),
   nh_(n),
   private_nh_(p),
@@ -556,7 +557,11 @@ void GaitAnalyzer::processSportSole(const sport_sole::SportSole& msg)
     T dt = (stamp_sport_sole_curr - stamp_predict_prev_).toSec();
     // Predict only if dt is large enough
     if (dt > 1e-3) {
-      comkf_.predict(dt);
+      T dyaw = 0.0;
+      if (ap_vec_prev_.length() > 0.9)
+        dyaw = atan(ap_vec_prev_.cross(ap_vec_).z() / ap_vec_.length() * ap_vec_prev_.length());
+      ap_vec_prev_ = ap_vec_;
+      comkf_.predict(dt, dyaw);
       stamp_predict_prev_ = stamp_sport_sole_curr;
     }
     const auto & x = comkf_.update(zcop);

@@ -76,6 +76,8 @@ private:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   tf2::Transform tf_global_to_kimu_;
+  tf2::Transform tf_global_to_optitrack_;
+  bool tf_global_to_optitrack_initialized_{false};
 
   // State
   ekf_t ekf_;

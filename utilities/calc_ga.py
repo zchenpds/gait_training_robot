@@ -152,9 +152,8 @@ def run_both(bag_names, bag_path):
 
     launch_options.append('comkf_measurement_scheme:=' + str(args.comkf_measurement_scheme))
 
-    if args.enable_rviz_ga: launch_options.append('enable_rviz:=true rviz_config_file:=slam_rtabmap_ekf_ga.rviz')
-    elif args.enable_rviz_3d: launch_options.append('enable_rviz:=true rviz_config_file:=slam_rtabmap_ekf.rviz')
-    else: launch_options.append('enable_rviz:=false')
+    if args.enable_rviz_ga: launch_options.append('enable_rviz_ga:=true rviz_config_file:=slam_rtabmap_ekf_ga.rviz')
+    if args.enable_rviz_3d: launch_options.append('enable_rviz_3d:=true rviz_config_file:=slam_rtabmap_ekf.rviz')
 
     str_options_joined = ' '.join(launch_options)
     logging.info('[' + str(datetime.datetime.now()) + ']: ' + args.message)

@@ -173,15 +173,15 @@ def process(filename, launch_options, png_filename, trial_id):
             stance_intervals = ga.get_stance_intervals(inbag, '/gait_analyzer/gait_state', t_min, t_max)
             STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
 
-            for mode in ["mean_sd", "cv"]: #["mean_sd", "cv"]: ["cv", ]:
-                str_output = ''.join((
-                    ga.print_stats("strideL", STEP_KINECT.get_stride_lengths(), "cm", mode=mode),
-                    ga.print_stats("stepL", STEP_KINECT.get_step_lengths(), "cm", mode=mode),
-                    ga.print_stats("stepW", STEP_KINECT.get_step_widths(), "cm", mode=mode),
-                    ga.print_stats("strideV", STEP_KINECT.get_stride_velocities(), "cm/s", mode=mode),
-                    ga.print_stats("strideT", STEP_KINECT.get_stride_times(), "ms", mode=mode),
-                ))
-                print((bag_name + ":").ljust(10) + str_output)
+            # for mode in ["mean_sd", "cv"]: #["mean_sd", "cv"]: ["cv", ]:
+            #     str_output = ''.join((
+            #         ga.print_stats("strideL", STEP_KINECT.get_stride_lengths(), "cm", mode=mode),
+            #         ga.print_stats("stepL", STEP_KINECT.get_step_lengths(), "cm", mode=mode),
+            #         ga.print_stats("stepW", STEP_KINECT.get_step_widths(), "cm", mode=mode),
+            #         ga.print_stats("strideV", STEP_KINECT.get_stride_velocities(), "cm/s", mode=mode),
+            #         ga.print_stats("strideT", STEP_KINECT.get_stride_times(), "ms", mode=mode),
+            #     ))
+            #     print((bag_name + ":").ljust(10) + str_output)
 
             # Check sport_sole packets
             if args.show_frequency:

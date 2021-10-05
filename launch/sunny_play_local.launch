@@ -46,4 +46,8 @@
 
 	<!-- Rviz -->
 	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen"  if="$(arg enable_rviz)" />
+
+	<!-- Record gait analytics -->
+	<node name="record_ga" pkg="rosbag" type="record" if="$(arg record_all)"
+		args="record -a -o $(find gait_training_robot)/bags/sunny/ga/$(arg bag_name)"/>
 </launch>

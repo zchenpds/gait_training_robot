@@ -284,6 +284,7 @@ private:
   ros::Time stamp_sport_sole_prev_;
   ros::Time stamp_predict_prev_;
   ros::Time stamp_com_prev_;
+  ros::Time stamp_comv_prev_;
   ros::Time stamp_base_;
 
   // Subject selection

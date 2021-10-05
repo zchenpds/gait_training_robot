@@ -28,8 +28,10 @@ import bag_ops
 import argparse
 
 parser = argparse.ArgumentParser(description="Converts an optitrack csv file to bag file.")
-parser.add_argument('trial_id', type=int, choices=range(213, 230))
+parser.add_argument('trial_id', type=int)
+parser.add_argument('-o', '--add_offset', type=float, default=0.0, help='Add additional offset in case the cross correlation does not work well')
 parser.add_argument('-v', '--show_vx_t',             action='store_true')
+parser.add_argument('-r', '--show_corr',             action='store_true')
 parser.add_argument('-t', '--show_th_t',             action='store_true')
 parser.add_argument('-b', '--use_base_link_as_root', action='store_true')
 parser.add_argument('-d', '--delete_odom_bag',       action='store_true', help='if flagged, the odom bag would be deleted and generated again.')
@@ -251,8 +253,12 @@ def find_time_offset(inbag, marker, vi, ts_marker):
     / np.sqrt(signal.correlate(vx_odom_resampled, vx_odom_resampled, mode='same')[int(n_points/2)] * 
               signal.correlate(vx_marker,         vx_marker,         mode='same')[int(n_points/2)])
   offset_arr = np.linspace(-0.5 * n_points * period_optitrack, 0.5 * n_points * period_optitrack, n_points)
-  offset = offset_arr[np.argmax(corr)] - offset0
+  offset = offset_arr[np.argmax(corr)] - offset0 + args.add_offset
 
+  if args.show_corr:
+    plt.plot(offset_arr, corr)
+    plt.title('Correlation')
+    plt.show()
   if args.show_vx_t:
     plt.plot(ts_odom_resampled - ts_odom_resampled[0], vx_odom_resampled, label='fused_odom')
     plt.plot(ts_odom_resampled + offset - ts_odom_resampled[0], vx_marker_orig[0:n_points], label='optitrack')

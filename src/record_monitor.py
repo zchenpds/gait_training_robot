@@ -9,7 +9,7 @@ from rostopic import ROSTopicHz
 import rostopic
 import os
 
-min_rate_body_tracking = 25.0
+min_rate_body_tracking = 20.0
 min_rate_sport_sole = 200.0
 
 wait_duration_secs = 14.0

@@ -17,6 +17,13 @@
         $ rosrun gait_training_robot goal_generator _max_num_laps:=1 _preview:=false _stop_upon_completion:=false _suffix:=_sunny_cw
         ```
 
+## Troubleshooting
+
+* Test connection
+```bash
+rosrun sport_sole test_connection.bash
+```
+
 ## Data Collection
 1. On the robot computer (192.168.1.100):
     1. Start roscore
@@ -100,12 +107,28 @@ $ rostopic echo -b data_2021-05-07-22-45-18.bag -p /body_tracking_data/markers[0
 roscd gait_training_robot/bags
 rosrun gait_training_robot sunny_play.py data4[2-6]*.bag -r
 ```
-* Skip recording (-s), calculate gait parameters and save them in pickle files (-i)
+* Skip recording (-s), calculate gait parameters, save them in pickle files (-i), in mat file (-p), and in csv file (-c).
 ```bash
 roscd gait_training_robot/bags
 rosrun gait_training_robot sunny_play.py data4[2-6]*.bag -si
 ```
-* Generate csv files
+
+* Update Qingya's validation table in the mat files. Compare with results calculated from sportsole data alone. Option `-c` calculates stride velocity using the stride length from robot and stride time from the SportSole. 
+```bash
+rosrun gait_training_robot update_validation_table.py
+```
+
+* Generate csv files and box plots. Option `-c` calculates stride velocity using the stride length from robot and stride time from the SportSole. (Dependent on the output of `update_validation_table.py`.) 
 ```bash
 rosrun gait_training_robot validate_robot_against_csv.py
+```
+
+* Generate box plot of coefficient of variation. Option `-c` calculates stride velocity using the stride length from robot and stride time from the SportSole. (Dependent on the output of `update_validation_table.py`.)
+```bash
+rosrun gait_training_robot plot_cv_value_box.py
+```
+
+* Generate box plot of human-robot distance
+```bash
+rosrun gait_training_robot plot_dist_box.py
 ```

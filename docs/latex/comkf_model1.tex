@@ -1,0 +1,34 @@
+
+% BEGIN ALTERNATIVE
+Augmenting the state with the CoM measurement offset $\Delta\bm{r}$, we have $\bm{x} = [\bm{r}^\mathrm{T} ,\; \Delta\bm{r}^\mathrm{T},\; \bm{r}_{\mathrm{cop}}^\mathrm{T} ,\; \bm{b_u}^\mathrm{T} ]^\mathrm{T}$. The discrete-time system equation can be written as
+\[
+\bm{x}_{k+1} = \bm{Fx}_{k} + \bm{w}_{k},
+\]
+where the matraces
+\[
+\begin{split}
+    \bm{F} =
+    \begin{bmatrix}
+        \bm{I}_2 & \bm{I}_2\Delta t & \bm{0} & \bm{0} \\
+        \bm{I}_2\omega_0^2\Delta t & \bm{I}_2 & -\bm{I}_2 \omega_0^2 \Delta t & \bm{0} \\
+        \bm{0} & \bm{0} & \bm{I}_2 & \bm{0} \\
+        \bm{0} & \bm{0} & \bm{0} & \bm{I}_2 \\
+    \end{bmatrix},
+\end{split}
+\]
+%   End of system equation
+% $\Delta t = t_{k+1} - t_{k}$, and $\bm{w} \sim \mathcal{N}(\bm{0}, \bm{Q})$ is the process noise with the covariance matrix     \[\bm{Q} = \mathrm{diag}(\sigma_{\bm{r}}^2\bm{I}_2,\; \sigma_{\Delta\bm{r}}^2\bm{I}_2,\; \sigma_{\Delta\bm{r}}^2\bm{I}_2 )\] with $\sigma_a = 0.11$.\footnote{\label{fn:explain_covariance_value}The values for $\sigma_a$, $\sigma_r$ and $\sigma_v$ are determined by computing the RMSE of the measurement of $\bm{r}_{\mathrm{cop}}$, $\bm{z}_r$ and $\bm{z}_v$ by our system with respect to the ground truth data from Vicon, using the data from only the pilot subject.} The calculation of the CoP position $\bm{r}_{\mathrm{cop}}$ is described in \ref{ssec:cop}.
+
+The measurement model (\ref{eq:LIPM_measurement}) can be rewritten as
+\[
+    \bm{z}_{k} = \bm{H x}_{k} + \bm{\nu}_{k}
+\]
+with
+\[
+    \bm{H} = 
+    \begin{bmatrix}
+        \bm{I}_2 & \bm{0}  & \bm{0} & \bm{0}  \\
+        \bm{0} & \bm{0}  & \bm{I}_2 & \bm{I}_2
+    \end{bmatrix}.
+\]
+% END ALTERNATIVE

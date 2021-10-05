@@ -4,7 +4,7 @@ dest_path=~/projects/gta_data/OptiTrack/20210213/
 
 mkdir -p ${dest_path}
 
-for i in {226..229}
+for i in {250..267}
 do
    cp /media/ral2020/SP\ PHD\ U3/Session\ 2020-12-21\ processed/SCH_Trial_${i}.csv ${dest_path}
 done

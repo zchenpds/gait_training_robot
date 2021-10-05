@@ -1,10 +1,11 @@
 <launch>
     <arg name="play_back_rate" default="1.0" />
+    <arg name="bag_path1" default="$(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag" />
+    <arg name="bag_path2" default="" />
     <param name="use_sim_time" value="true"/>
     <node name="rosbag_play_node" pkg="rosbag" type="play" required="true"
-          args="--clock $(find gait_training_robot)/bags/optitrack/$(arg bag_name).bag 
-                -r $(arg play_back_rate)
-		  		$(find gait_training_robot)/optitrack/bags/$(arg bag_name).bag" >
+          args="--clock -r $(arg play_back_rate)
+                $(arg bag_path1) $(arg bag_path2)" output="screen" >
 		<remap from="/tf" to="/tf_old"/>
 	</node>
 
@@ -15,6 +16,7 @@
              {old: caster_swivel, new: caster_swivel_old},
              {old: caster_swivel, new: caster_swivel_old},
              {old: caster_wheel,  new: caster_wheel_old },
+             {old: fused_odom,  new: fused_odom_old },
             ]
         </rosparam>
     </node>

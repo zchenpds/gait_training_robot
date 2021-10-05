@@ -35,15 +35,16 @@ namespace comkf
      * @param u The control input vector.
      * @param dt The step length. Will be ignored if negative.
      */
-    const S& predict(T dt)
+    const S& predict(T dt, T dyaw)
     {
       assert(dt > T(0.0));
       sys.setSamplingPeriod(dt);
-      const C u_dummy;
-      sys.updateJacobians( x, u_dummy );
+      C u;
+      u.dyaw() = dyaw;
+      sys.updateJacobians( x, u );
 
       // predict state
-      x = sys.f(x, u_dummy);
+      x = sys.f(x, u);
 
       // predict covariance
       P  = ( sys.F * P * sys.F.transpose() ) + sys.getCovariance() * dt;

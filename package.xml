@@ -69,6 +69,7 @@
   <depend>pcl_ros</depend>
   <depend>pcl_conversions</depend>
   <depend>tf_remapper_cpp</depend>
+  <depend>map_server</depend>
   <build_depend>libpcl-all-dev</build_depend>
   <exec_depend>libpcl-all</exec_depend>
 

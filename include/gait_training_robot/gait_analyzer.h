@@ -214,6 +214,7 @@ private:
   sport_sole::SportSole::_pressures_type pressures_;
   tf2::Vector3 ml_vec_;
   tf2::Vector3 ap_vec_;
+  tf2::Vector3 ap_vec_prev_;
 
   // The z coordinate of the ground
   double z_ground_;

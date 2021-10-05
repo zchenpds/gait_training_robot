@@ -7,6 +7,6 @@
   <include file="$(find gait_training_robot)/launch/test5_comkf.launch" pass_all_args="true">
     <arg name="waypoints_file_suffix" value="_ccw"/>
   </include>
-	<node name="record_monitor" pkg="gait_training_robot" type="record_monitor.py" output="screen"/>
+	<!-- <node name="record_monitor" pkg="gait_training_robot" type="record_monitor.py" output="screen"/> -->
 
 </launch>

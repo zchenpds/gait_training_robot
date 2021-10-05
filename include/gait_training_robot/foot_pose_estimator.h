@@ -54,6 +54,7 @@ typedef double FloatType;
   LIST_ENTRY(sport_sole_time_offset, "The reference frame for pose messages.", double , 0.0)                                     \
   LIST_ENTRY(enable_debug_log, "If set to true, verbose log will be saved at '~/.ros/gait_training_robot/fpe.log'.", bool, false)\
   LIST_ENTRY(enable_huber_update, "If set to true, robustness to outliers'll increase at the cost of reliability.", bool, true)  \
+  LIST_ENTRY(sport_sole_gap_threshold, "Foot orientation is reset if the gap between two sport sole data packets is greater than this threshold.", FloatType, 0.1)  \
 
 
 struct FootPoseEstimatorParams
@@ -135,6 +136,7 @@ private:
   ros::Time ts_init_;
   ros::Time ts_next_desired_publish_;
   ros::Time ts_last_quaternion_update_;
+  bool large_sport_sole_gap_detected_{false};
 
   // tf broadcaster
   tf2_ros::TransformBroadcaster tf_broadcaster_;

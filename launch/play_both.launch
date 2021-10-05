@@ -1,13 +1,13 @@
 <launch>
 	<arg name="bag_name"                  default="data226"/>
-	<arg name="enable_rviz"               default="true"/>
+	<arg name="enable_rviz_ga"            default="false"/>
+	<arg name="enable_rviz_3d"            default="false"/>
 	<arg name="enable_gait_analyzer"      default="true"/>
 	<arg name="record_gait_analytics"     default="false"/>
 	<arg name="record_all"  		      default="false"/>
-	<arg name="foot_pose_topic_prefix"    default="raw"/>							<!-- raw, fused -->
+	<arg name="foot_pose_topic_prefix"    default="fused"/>							<!-- raw, fused -->
 	<arg name="global_frame_fpe"          default="fused_odom"/>                 <!-- fused_odom, odom -->
 	<arg name="global_frame"              default="optitrack"/>                 <!-- fused_odom, optitrack -->
-	<arg name="rviz_config_file"          default="slam_rtabmap_ekf.rviz"/>     <!-- slam_rtabmap_ekf.rviz pelvis_rect.rviz -->
 	<arg name="sport_sole_time_offset"    default="0.0"/>
     <arg name="play_back_rate" 		      default="1.0" />
     <arg name="comkf_measurement_scheme"  default="2" />
@@ -37,7 +37,7 @@
 
 	<!-- Gait analyzer -->
 	<group if="$(arg enable_gait_analyzer)">
-		<node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer" output="screen" >
+		<node name="gait_analyzer" pkg="gait_training_robot" type="gait_analyzer_optitrack" output="screen" >
 			<param name="data_source"                   value="k4a" />
 			<param name="foot_pose_topic"               value="/foot_pose_estimator/$(arg foot_pose_topic_prefix)_pose_" />
 			<param name="global_frame"                  value="$(arg global_frame)" />
@@ -65,10 +65,13 @@
 	</group>
 
 	<!-- rosbag play -->
-	<include file="$(find gait_training_robot)/launch/includes/playback.launch" pass_all_args="true" />
+	<include file="$(find gait_training_robot)/launch/includes/playback.launch" pass_all_args="true" >
+		<arg name="bag_path2" value="$(find gait_training_robot)/optitrack/bags/$(arg bag_name).bag" />
+	</include>
 
 	<!-- Rviz -->
-	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen" if="$(arg enable_rviz)" />
+	<node name="rviz1" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf_ga.rviz" output="screen" if="$(arg enable_rviz_ga)" />
+	<node name="rviz2" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/slam_rtabmap_ekf.rviz" output="screen" if="$(arg enable_rviz_3d)" />
 
 	<!-- Record all -->
 	<node name="record_all" pkg="rosbag" type="record" if="$(arg record_all)"

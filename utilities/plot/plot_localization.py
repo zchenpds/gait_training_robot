@@ -14,7 +14,7 @@ import rosbag
 from tf import Transformer
 import tf
 
-DESIRED_DIST = 1.5
+DESIRED_DIST = 1.4
 
 PositionSeries = namedtuple("PositionSeries", ["t", "xy", "i_minima"])
 CurveData = namedtuple("CurveData", ["x", "y", "opt"])
@@ -152,14 +152,14 @@ def process(inbag, filename, bag_name):
                     get_lap_curve_data(pos_human_odom, k, 1, {"marker":'o', "markersize": marker_size[1], "color": human_color}),
                 ], 
                 'Odom (Lap {:d})'.format(k), 'x [m]', 'y [m]'),
-            PlotData(
-                [
-                    get_lap_curve_data(pos_robot_map, k, 0, {"label": "Robot", "lw": 1.0, "ls": "-", "color": robot_color}),
-                    get_lap_curve_data(pos_human_map, k, 0, {"label": "Human", "lw": 1.0, "ls": "--", "color": human_color}),
-                    get_lap_curve_data(pos_robot_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": robot_color}),
-                    get_lap_curve_data(pos_human_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": human_color}),
-                ],
-                'SLAM (Lap {:d})'.format(k), 'x [m]', 'y [m]'),
+            # PlotData(
+            #     [
+            #         get_lap_curve_data(pos_robot_map, k, 0, {"label": "Robot", "lw": 1.0, "ls": "-", "color": robot_color}),
+            #         get_lap_curve_data(pos_human_map, k, 0, {"label": "Human", "lw": 1.0, "ls": "--", "color": human_color}),
+            #         get_lap_curve_data(pos_robot_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": robot_color}),
+            #         get_lap_curve_data(pos_human_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": human_color}),
+            #     ],
+            #     'SLAM (Lap {:d})'.format(k), 'x [m]', 'y [m]'),
             PlotData(
                 [
                     get_lap_curve_data(pos_human_robot, k, 2, {"label": "Actual", "color": 'm'}),
@@ -215,5 +215,5 @@ if __name__ == "__main__":
         print(filename)
         with rosbag.Bag(filename, 'r') as inbag:
             png_filename = os.path.join(os.path.expanduser("~"), "Pictures", "sunnyside", "Localization", 
-                os.path.splitext(os.path.basename(filename))[0] + ".png")
+                os.path.splitext(os.path.basename(filename))[0] + ".eps")
             process(inbag, png_filename, os.path.basename(filename))

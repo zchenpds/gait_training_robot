@@ -61,7 +61,7 @@
   <group unless="$(arg play_bag)">
 
     <!-- sport_sole_publisher -->
-    <node pkg="sport_sole" type="sport_sole_publisher" name="sport_sole_publisher" output="screen" if="$(arg launch_sport_sole)" />
+    <node pkg="sport_sole" type="sport_sole_publisher_vibration" name="sport_sole_publisher" output="screen" if="$(arg launch_sport_sole)" args=" sbj001_0_1.0 $HOME/log -s"/>
     <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sport_sole)/rviz/accel_orient.rviz" if="$(arg watch_sport_sole)"/> -->
 
     <!-- If (static_test==true) -->

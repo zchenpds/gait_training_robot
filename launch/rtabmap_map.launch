@@ -1,9 +1,11 @@
 <launch>
   <arg name="enable_goal_generator" default="false"/>
+  <arg name="disable_rviz" default="false"/>
+  
   <include file="$(find gait_training_robot)/launch/test1_rtabmap_headless.launch" >
     <arg name="localization" value="false" />
     <arg name="enable_distance_controller" value="false" />
     <arg name="enable_goal_generator" value="$(arg enable_goal_generator)" />
   </include>
-  <include file="$(find gait_training_robot)/launch/test1_rviz_rtabmap.launch" />
+  <include file="$(find gait_training_robot)/launch/test1_rviz_rtabmap.launch" unless="$(arg disable_rviz)" />
 </launch>

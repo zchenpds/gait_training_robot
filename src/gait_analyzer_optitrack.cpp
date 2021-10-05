@@ -431,7 +431,7 @@ void GaitAnalyzer::timeSynchronizerCB(const PoseType::ConstPtr& msg_foot_l, cons
       T dt = (stamp_skeleton_curr - stamp_predict_prev_).toSec();
       if (ga_params_.data_source == "optitrack" && dt > 1e-3) 
       {
-        comkf_.predict(dt);
+        comkf_.predict(dt, 0.0);
         stamp_predict_prev_ = stamp_skeleton_curr;
       }
       const auto & x = comkf_.update(zp);
@@ -512,7 +512,7 @@ void GaitAnalyzer::processSportSole(const sport_sole::SportSole& msg)
     T dt = (stamp_sport_sole_curr - stamp_predict_prev_).toSec();
     // Predict only if dt is large enough
     if (dt > 1e-3) {
-      comkf_.predict(dt);
+      comkf_.predict(dt, 0.0);
       stamp_predict_prev_ = stamp_sport_sole_curr;
     }
     // const auto & x = ga_params_.data_source == "k4a" ? comkf_.forceUpdate(zcop) : comkf_.update(zcop);
@@ -590,12 +590,15 @@ void GaitAnalyzer::updateCoMMeasurementFromSkeletons(const ros::Time & stamp, co
   // com_curr.setZ(z_ground_);
 
   // Calculate CoMv by discrete difference.
-  auto delta_t = (stamp - stamp_com_prev_).toSec();
   // Skip the calculation if this is the first com ever sampled.
-  if (!stamp_com_prev_.isZero()) {
+  if (!stamp_comv_prev_.isZero()) {
+    auto delta_t = (stamp - stamp_comv_prev_).toSec();
     com_vel = (com_curr - com_prev) / delta_t;
+    // ROS_INFO("dx = %6.3lf; dy = %6.3lf; dt = %6.3lf; comvx = %6.3lf; comvy = %6.3lf", 
+    //     (com_curr - com_prev).x(), (com_curr - com_prev).y(), delta_t, com_vel.x(), com_vel.y());
     com_vel.setX(com_vel.getX() - ga_params_.belt_speed);
   }
+  stamp_comv_prev_ = stamp;
 }
 
 void GaitAnalyzer::updateCoMMeasurement(const ros::Time & stamp, com_t & com_curr, comv_t & com_vel, 

@@ -266,6 +266,7 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
       for (auto msg_ptr : msg_ptrs)
       {
         if (msg_ptr->header.stamp <= ts_sport_sole_last_) continue;
+        if ((msg_ptr->header.stamp - ts_sport_sole_last_).toSec() > params_.sport_sole_gap_threshold) large_sport_sole_gap_detected_ = true;
 
         ++cnt_predict_local;
         sportSoleUpdate(msg_ptr);
@@ -589,9 +590,13 @@ void FootPoseEstimator::kinectUpdate(geometry_msgs::TransformStampedConstPtr msg
     double MU = 6.0;
     auto zy_correction = MU * (zv - ekf.x.v()).cross(ekf.x.v());
 #endif
-    refUnitY[lr] = (refUnitY[lr] - refUnitY[lr].cross({zy_correction.x(), zy_correction.y(), zy_correction.z()})).normalize();
+    // refUnitY[lr] = (refUnitY[lr] - refUnitY[lr].cross({zy_correction.x(), zy_correction.y(), zy_correction.z()})).normalize();
+    refUnitY[lr] -= refUnitY[lr].cross({zy_correction.x(), zy_correction.y(), zy_correction.z()});
+    refUnitY[lr].setZ(0.0);
+    refUnitY[lr].normalize();
 
     // Quaternion update (relative)
+    tf2::Quaternion quat_estimate(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
     if (ekf.x.v().hypotNorm() > 0.3)
     {
       double MU2 = 2.0;
@@ -601,7 +606,6 @@ void FootPoseEstimator::kinectUpdate(geometry_msgs::TransformStampedConstPtr msg
       auto dir_corr = zy_correction.normalized();
       tf2::Quaternion delta_quat({dir_corr.x(), dir_corr.y(), dir_corr.z()}, zy_correction.norm() * MU2);
 #endif
-      tf2::Quaternion quat_estimate(ekf.x.q1(), ekf.x.q2(), ekf.x.q3(), ekf.x.q0());
       quat_estimate = quat_estimate * delta_quat;
       ekf_t::ZQ zq;
       zq << quat_estimate.w(), quat_estimate.x(), quat_estimate.y(), quat_estimate.z();
@@ -613,6 +617,17 @@ void FootPoseEstimator::kinectUpdate(geometry_msgs::TransformStampedConstPtr msg
     tf2::Quaternion quat;
     tf2::fromMsg(msg_kinect_ptr->transform.rotation, quat);
     tf2::Vector3 zy_ros = tf2::quatRotate(quat.inverse(), refUnitY[lr]);
+
+    // Large gap quaternion update
+    if (large_sport_sole_gap_detected_)
+    {
+      large_sport_sole_gap_detected_ = false;
+      ekf_t::ZQ zq;
+      zq << quat.w(), quat.x(), quat.y(), quat.z();
+      ekf.update(zq);
+      ts_last_quaternion_update_ = msg_kinect_ptr->header.stamp;
+      printDebugMessage("Large gap quaternion update", msg_kinect_ptr->header.stamp, lr);
+    }
     
     // Yaw update
     if ((msg_kinect_ptr->header.stamp - ts_last_quaternion_update_).toSec() > 2.0)
@@ -704,7 +719,7 @@ void FootPoseEstimator::publishFusedPoses(const ros::Time& stamp)
 void FootPoseEstimator::printDebugMessage(const char* message, const ros::Time& stamp, left_right_t lr) const
 {
   if (!params_.enable_debug_log) return;
-  if (std::strcmp("Updating", message)) return;
+  if (std::strcmp("Quaternion update", message)) return;
   const ekf_t& ekf = ekf_[lr];
   ofs_log[lr].precision(15);
   ofs_log[lr] << stamp.toSec() << " " << message << " ";

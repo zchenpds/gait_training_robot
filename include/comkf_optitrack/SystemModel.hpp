@@ -84,22 +84,14 @@ public:
  * @param T Numeric scalar type
  */
 template<typename T>
-class Control : public Kalman::Vector<T, 2>
+class Control : public Kalman::Vector<T, 1>
 {
 public:
-    KALMAN_VECTOR(Control, T, 2)
+    KALMAN_VECTOR(Control, T, 1)
     
-    //! X-CoP
-    static constexpr size_t COPX = 0;
-    //! Y-CoP
-    static constexpr size_t COPY = 1;
-
-    Kalman::Vector<T, 2> cop() const { return this->template segment<2>(COPX); }    
-    T copx()       const { return (*this)[ COPX ]; }
-    T copy()       const { return (*this)[ COPY ]; }
-    
-    T& copx()       { return (*this)[ COPX ]; }
-    T& copy()       { return (*this)[ COPY ]; }
+    static constexpr size_t DYAW = 0;
+    T dyaw()       const { return (*this)[ DYAW ]; }
+    T& dyaw()       { return (*this)[ DYAW ]; }
 };
 
 /**
@@ -148,11 +140,15 @@ public:
         //! Acceleration in map frame
         Kalman::Vector<T, 2> acc = omega0sq_ * (x.p() - x.cop());
 
+        // 2-D rotation matrix
+        Kalman::SquareMatrix<T, 2> R;
+        R << cos(u.dyaw()), -sin(u.dyaw()), sin(u.dyaw()), cos(u.dyaw());
+
         //! Predicted state vector after transition
         S x_;
         x_.template segment<2>(S::PX)   = x.p() + x.v() * dt_;// + 0.5 * acc * dt * dt;
         x_.template segment<2>(S::VX)   = x.v() + acc * dt_;
-        x_.template segment<2>(S::BX)   = x.b();
+        x_.template segment<2>(S::BX)   = R * x.b();
         x_.template segment<2>(S::COPX) = x.cop();
         
         // Return transitioned state vector

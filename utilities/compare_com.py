@@ -52,6 +52,7 @@ def process_inbag(inbag, args):
 
 
     pd_list = [fsd, raw, ref, cop]
+    plot_style_list = [{"ls": "-", "color": "r"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}, {"ls": "-", "color": "green"}]
 
     # Find the min and max of all the time series
     t_min = max([pd["t"][0] for pd in pd_list])
@@ -75,15 +76,15 @@ def process_inbag(inbag, args):
     for pd in [comv_fsd, comv_raw]:
         pd = tf.rotate(pd, tf.theta)
 
-    plot_com(pd_list, footprint, args)
-    plot_comv(comv_list, t_min, args)
+    plot_com(pd_list, plot_style_list, footprint, args)
+    plot_comv(comv_list, plot_style_list[:3], t_min, args)
 
-def plot_com(pd_list, footprint, args):
+def plot_com(pd_list, plot_style_list, footprint, args):
     # Plot CoM and CoP
     plt.figure()
-    for pd in pd_list:
+    for pd, plot_style in zip(pd_list, plot_style_list):
         plt.plot(pd["xyz"][:, 0], pd["xyz"][:, 1], 
-            label=pd["legend"], linewidth=args.linewidth)
+            label=pd["legend"], linewidth=args.linewidth, **plot_style)
     
     # Plot footprints
     for lr in [0, 1]:
@@ -112,17 +113,17 @@ def plot_com(pd_list, footprint, args):
 
     plt.show()
 
-def plot_comv(comv_list, t_min, args):
+def plot_comv(comv_list, plot_style_list, t_min, args):
     # Plot CoMv
     xy_list = [0, 1]
     xy_str = ["x", "y"]
     _, axs = plt.subplots(len(xy_list), 1)
     for xy in xy_list:
         ax = axs[xy]
-        for pd in comv_list:
+        for pd, plot_style in zip(comv_list, plot_style_list):
             ax.plot(pd["t"][:] - t_min + args.time_range[0], 
                 pd["xyz"][:, xy], 
-                label=pd["legend"], linewidth=args.linewidth)
+                label=pd["legend"], linewidth=args.linewidth, **plot_style)
 
         ax.legend()
         ax.set_xlabel("t [s]")
@@ -147,8 +148,6 @@ if __name__ == "__main__":
     parser.add_argument('trial_id', type=int)
     parser.add_argument('-tr', '--time-range', type=float, nargs=2, default=[0.0, 100.0])
     parser.add_argument('-lw', '--linewidth', type=float, default=0.5)
-    parser.add_argument('-l', '--left-only', action='store_true')
-    parser.add_argument('-r', '--right-only', action='store_true')
     parser.add_argument('-s', '--save', action='store_true')
     args = parser.parse_args()
 
