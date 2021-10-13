@@ -100,7 +100,10 @@ optional arguments:
   -s, --skip_bag_gen
   -p, --export_mat
 ```
-
+```
+rosrun gait_training_robot compare_foot_pose.py 226 -tr 50 56 -lw 1.0 -s
+rosrun gait_training_robot compare_com.py 226 -tr 33 50 -lw 1.0 -s
+```
 ## [compare_foot_pose.py](utilities/compare_foot_pose.py)
 Example:
 ```

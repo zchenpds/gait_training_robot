@@ -21,6 +21,9 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
+from matplotlib import rc
+#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size': 12})
 
 import rospkg
 import rosbag
@@ -35,16 +38,16 @@ def process_inbag(inbag, args):
     # CoM
     fsd = me.extractPointStamped("/gait_analyzer/estimate/com", "Fused CoM")
     raw = me.extractPointStamped("/gait_analyzer/measurement/com", "Raw CoM")
-    ref = me.extractPointStamped("/gait_analyzer_optitrack/measurement/com", "Ref. CoM")
+    ref = me.extractPointStamped("/gait_analyzer_optitrack/measurement/com", "Reference CoM")
 
     # CoMv
     comv_fsd = me.extractVector3Stamped("/gait_analyzer/estimate/comv", "Fused CoMv")
     comv_raw = me.extractVector3Stamped("/gait_analyzer/measurement/comv", "Raw CoMv")
-    comv_ref = me.extractVector3Stamped("/gait_analyzer_optitrack/estimate/comv", "Ref. CoMv")
+    comv_ref = me.extractVector3Stamped("/gait_analyzer_optitrack/estimate/comv", "Reference CoMv")
     comv_list = [comv_fsd, comv_raw, comv_ref]
     
     # CoP
-    cop = me.extractPointStamped("/gait_analyzer/cop", "CoP")
+    cop = me.extractPointStamped("/gait_analyzer/cop", "Estimated CoP")
 
     # Footprint
     footprint = [me.extractFootprint("/gait_analyzer/footprint_l", "Left Footprint"),
@@ -52,7 +55,7 @@ def process_inbag(inbag, args):
 
 
     pd_list = [fsd, raw, ref, cop]
-    plot_style_list = [{"ls": "-", "color": "r"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}, {"ls": "-", "color": "green"}]
+    plot_style_list = [{"ls": "-", "color": "blue"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}, {"ls": "-", "color": "green"}]
 
     # Find the min and max of all the time series
     t_min = max([pd["t"][0] for pd in pd_list])
@@ -105,10 +108,11 @@ def plot_com(pd_list, plot_style_list, footprint, args):
 
     # Save
     if args.save:
-        eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
-            "CoM data" + str(args.trial_id).rjust(3, '0') + 
-            " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
-            datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        # eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
+        #     "CoM data" + str(args.trial_id).rjust(3, '0') + 
+        #     " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
+        #     datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        eps_path = os.path.join(os.path.expanduser("~"), "TMRB2021/results/com_trajectory.eps")
         plt.savefig(eps_path, format='eps')
 
     plt.show()
@@ -132,10 +136,11 @@ def plot_comv(comv_list, plot_style_list, t_min, args):
 
     # Save
     if args.save:
-        eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
-            "CoMv data" + str(args.trial_id).rjust(3, '0') + 
-            " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
-            datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        # eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
+        #     "CoMv data" + str(args.trial_id).rjust(3, '0') + 
+        #     " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
+        #     datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        eps_path = os.path.join(os.path.expanduser("~"), "TMRB2021/results/comv_time_course.eps")
         plt.savefig(eps_path, format='eps')
 
     plt.show()

@@ -22,6 +22,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.optimize import fmin
+from matplotlib import rc
+#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size': 11})
 
 import rospkg
 import rosbag
@@ -39,11 +42,11 @@ def process_inbag(inbag, args):
     raw = [me.extractPoseWithCovarianceStamped("/foot_pose_estimator/raw_pose_l", "Raw"),
            me.extractPoseWithCovarianceStamped("/foot_pose_estimator/raw_pose_r", "Raw")]
 
-    ref = [me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_l", "Ref."),
-           me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_r", "Ref.")]
+    ref = [me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_l", "Refererence"),
+           me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_r", "Refererence")]
 
     pd_list = [fsd, raw, ref]
-    plot_style_list = [{"ls": "-", "color": "r"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}]
+    plot_style_list = [{"ls": "-", "color": "blue"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}]
 
     # Find the min and max of all the poses
     t_min = max([pd[lr]["t"][0] for lr in [0, 1] for pd in pd_list])
@@ -70,7 +73,7 @@ def process_inbag(inbag, args):
 
     # Plot
     xy_list = [0, 1]
-    _, axs = plt.subplots(len(xy_list), len(lr_list), sharex=True)
+    _, axs = plt.subplots(len(xy_list), len(lr_list), sharex=True, figsize=(6, 6))
     lr_str = ["Left Foot Position", "Right Foot Position"]
     for lr in lr_list:
         xy_str = ["x", "y"]
@@ -88,10 +91,11 @@ def process_inbag(inbag, args):
 
     # Save
     if args.save:
-        eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
-            "Foot pose data" + str(args.trial_id).rjust(3, '0') +
-            " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
-            datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        # eps_path = os.path.join(os.path.expanduser("~"), "Pictures",
+        #     "Foot pose data" + str(args.trial_id).rjust(3, '0') +
+        #     " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
+        #     datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
+        eps_path = os.path.join(os.path.expanduser("~"), "TMRB2021/results/foot_position_time_course.eps")
         plt.savefig(eps_path, format='eps')
 
     plt.show()
