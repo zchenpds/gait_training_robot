@@ -6,42 +6,27 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
-import scipy.stats
-import argparse
 
 class BoxPlotter:
     dataInfoNT = namedtuple("dataInfoNT", ["sbj", "session"])
     ws_path = "/home/ral2020/Documents/sunny"
     session_list = ["D", "E", "F", "G"]
-    ratio_list = []
     vibration_conditions = ["VOFF", "VON"] # rows (index)
     vibration_dict = {"D": "VOFF", "E": "VOFF", "F": "VON", "G": "VON"}
     cognitive_conditions = ["COFF", "CON"] # columns
     cognitive_dict = {"D": "COFF", "E": "CON", "F": "COFF", "G": "CON"}
     sbj_list = []
-    stride_params = ["StrideT", "StrideV", "StrideL"]
-    stride_units  = ["(sec.)", "(cm./sec.)", "(cm.)"]
-    step_params = ["StepL", "StepW"]
-    step_units  = ["(cm.)", "(cm.)"]
-    etype_list = ["CV", "Value"]
+    param_list = ["Vel"]
+    unit_list  = ["(cm/s)", "(cm/s)"]
+    etype_list = ["MAE", "ESD"]
     meanstd_list = ["mean", "std", "se"]
-    pkl_folder = "robot"
-    data_source_robot = "robot"
 
     @classmethod
     def constructDataInfo(cls, sbj, session):
         sbj = "SBJ" + sbj
         return (sbj, session.upper())
 
-    def __init__(self, is_combined):
-        if is_combined:
-            self.pkl_folder = "robotv"
-            self.data_source_robot = "combined"
-        self.param_list = self.stride_params + self.step_params
-        self.spss_param_list = []
-        self.unit_list = self.stride_units + self.step_units
-        self.ratio_xticks = [p + '\n(CON/COFF)' for p in self.param_list]
-        self.unit_dict = {param: unit for param, unit in zip(self.param_list, self.unit_list)}
+    def __init__(self):
         self.data_info_dict = {
             424: self.dataInfoNT(*BoxPlotter.constructDataInfo("010", "d")),
             425: self.dataInfoNT(*BoxPlotter.constructDataInfo("010", "e")),
@@ -142,13 +127,6 @@ class BoxPlotter:
                 for param in self.param_list}
             for etype in self.etype_list
         }
-        self.dfs_ratio = \
-        {etype:
-            {meanstd: pd.DataFrame(np.nan, index=self.param_list, columns=self.ratio_list) 
-                for meanstd in self.meanstd_list
-            }
-            for etype in self.etype_list
-        }
         # Insert subject info columns
         for trial_id in self.data_info_dict.keys():
             self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
@@ -158,58 +136,25 @@ class BoxPlotter:
         self.dfs_spss = \
         {etype:
             {param:
-                pd.DataFrame("", index=np.unique(self.df_agg.loc[:, "sbj"]),
-                    columns=["Gait_Parameter", "SbjID"] + self.session_list)
+                pd.concat([
+                    pd.DataFrame("", index=np.unique(self.df_agg.loc[:, "sbj"]),
+                        columns=["SbjID"]),
+                    pd.DataFrame(np.nan, index=np.unique(self.df_agg.loc[:, "sbj"]),
+                        columns=self.session_list),
+                ], axis=1)                
                 for param in self.param_list
             }
             for etype in self.etype_list
         }
         
-
     def process_trial(self, trial_id):
-        pkl_filename = os.path.join(self.ws_path, self.pkl_folder, "data" + str(trial_id).rjust(3, '0') + ".pkl")
+        pkl_filename = os.path.join(self.ws_path, "localization", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
-            STEP_KINECT = pickle.load(pkl_file)
-
-            def get_csv_filename(type):
-                sbj_session_name = self.data_info_dict[trial_id].sbj + self.data_info_dict[trial_id].session
-                return os.path.join(self.ws_path, "by_trial", type + "_" + sbj_session_name + ".csv")
-
-            # Calculate the Coefficient of Variation as the ratio of the standard deviation to 
-            # the mean times 100. Save the raw data by trial as well to csv files
-            df_stride = pd.DataFrame(np.nan, index=range(0, len(STEP_KINECT.stride_table_sorted)), columns=[])
-            for i, row in enumerate(STEP_KINECT.stride_table_sorted):
-                df_stride.at[i, 'ts_FC'] = getattr(row, 'ts_FC')
-                df_stride.at[i, 'LR'] = getattr(row, 'LR')
-            for field in self.stride_params:
-                for i, row in enumerate(STEP_KINECT.stride_table_sorted):
-                    df_stride.at[i, field] = getattr(row, field)
-                field_values = df_stride.loc[:, field]
-                etype_field = "_".join([self.etype_list[0], field]) # CV
-                self.df_agg.at[trial_id, etype_field] = np.std(field_values) / np.mean(field_values) * 100
-                etype_field = "_".join([self.etype_list[1], field]) # value
-                self.df_agg.at[trial_id, etype_field] = np.mean(field_values)
-            csv_filename_out = get_csv_filename("stride")
-            if not args.skip_csv:
-                df_stride.to_csv(csv_filename_out, index=False, float_format='%.4f')
-                print("Saved to: " + csv_filename_out)
-
-            df_step = pd.DataFrame(np.nan, index=range(0, len(STEP_KINECT.step_table_sorted)), columns=[])
-            for i, row in enumerate(STEP_KINECT.step_table_sorted):
-                df_step.at[i, 'ts_FC'] = getattr(row, 'ts_FC')
-                df_step.at[i, 'LR'] = getattr(row, 'LR')
-            for field in self.step_params:
-                for i, row in enumerate(STEP_KINECT.step_table_sorted):
-                    df_step.at[i, field] = getattr(row, field)
-                field_values = df_step.loc[:, field]
-                etype_field = "_".join([self.etype_list[0], field])
-                self.df_agg.at[trial_id, etype_field] = np.std(field_values) / np.mean(field_values) * 100
-                etype_field = "_".join([self.etype_list[1], field]) # value
-                self.df_agg.at[trial_id, etype_field] = np.mean(field_values)
-            csv_filename_out = get_csv_filename("step")
-            if not args.skip_csv:
-                df_step.to_csv(csv_filename_out, index=False, float_format='%.4f')
-                print("Saved to: " + csv_filename_out)
+            [_, _, _, vel_mae, vel_esd] = pickle.load(pkl_file)
+            
+            # Populate dataframe df_agg by trial_id
+            self.df_agg.at[trial_id, "MAE_"  + self.param_list[0]] = vel_mae
+            self.df_agg.at[trial_id, "ESD_"  + self.param_list[0]] = vel_esd
 
 
     def update_and_save_csv(self):
@@ -219,17 +164,15 @@ class BoxPlotter:
         # Create aggregate table with mean
         self.df_with_mean = self.df_agg.append(df_mean)
         # Write to csv
-        csv_filename_out = os.path.join(self.ws_path, "robot_cv_value.csv")
-        if not args.skip_csv:
-            self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
-            print("Aggregate table saved to: " + csv_filename_out)
+        csv_filename_out = os.path.join(self.ws_path, "Velocity_error.csv")
+        self.df_with_mean.to_csv(csv_filename_out, index=True, float_format='%.4f')
+        print("Aggregate table saved to: " + csv_filename_out)
 
     def plotChart(self):
-        # Process csv by session
+        # Populate dataframe df_sessions by session
         for etype in self.etype_list:
             for param in self.param_list:
                 df_sessions = pd.DataFrame(np.nan, index=self.sbj_list, columns=self.session_list)
-                df_ratios   = pd.DataFrame(np.nan, index=self.sbj_list, columns=self.ratio_list)
                 field = "_".join([etype, param])
                 # Find col that contains field
                 for col in list(self.df_agg):
@@ -240,107 +183,49 @@ class BoxPlotter:
                             df_sessions.at[sbj, session] = self.df_agg.at[trial_id, col]
                             self.dfs_spss[etype][param].at[sbj, session] = "{:.4f}".format(self.df_agg.at[trial_id, col])
                             self.dfs_spss[etype][param].at[sbj, "SbjID"] = sbj.title()
-                for session in list(df_sessions):
+                for session in df_sessions.keys():
                     vib_cond = self.vibration_dict[session]
                     cog_cond = self.cognitive_dict[session]
                     self.dfs_by_param[etype][param]["mean"].at[vib_cond, cog_cond] = df_sessions.loc[:, session].mean()
                     self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
                     self.dfs_by_param[etype][param]["se"].at[vib_cond, cog_cond] = \
                         df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
-
-                # Calculate ratio
-                df_ratios.loc[:, "E/D"] = df_sessions.loc[:, "E"] / df_sessions.loc[:, "D"]
-                df_ratios.loc[:, "G/F"] = df_sessions.loc[:, "G"] / df_sessions.loc[:, "F"]
-                for ratio_type in list(df_ratios):
-                    self.dfs_ratio[etype]["mean"].at[param, ratio_type] = df_ratios.loc[:, ratio_type].mean()
-                    self.dfs_ratio[etype]["std"].at[param, ratio_type]  = df_ratios.loc[:, ratio_type].std()
-                    self.dfs_ratio[etype]["se"].at[param, ratio_type] = \
-                        df_ratios.loc[:, ratio_type].std() / np.math.sqrt(len(df_ratios.loc[:, ratio_type]))
-                
-                # paired t-test
-                print("{:8s} {:7s}, p-2samp(D;E)={:.4f}, p-2samp(F;G)={:.4f}, p-2samp(D/E, F/G)={:.4f}, "\
-                    "p-1samp(D/E)={:.4f}, p-1samp(F/G)={:.4f}".format(param, etype,
-                    scipy.stats.ttest_ind(df_sessions.loc[:, "D"], df_sessions.loc[:, "E"])[1],
-                    scipy.stats.ttest_ind(df_sessions.loc[:, "F"], df_sessions.loc[:, "G"])[1],
-                    scipy.stats.ttest_ind(df_ratios.loc[:, "E/D"], df_ratios.loc[:, "G/F"])[1],
-                    scipy.stats.ttest_1samp(df_ratios.loc[:, "E/D"], 1.0)[1],
-                    scipy.stats.ttest_1samp(df_ratios.loc[:, "G/F"], 1.0)[1]))
-
-
+                            
+        df_spss = self.dfs_spss[etype][param].loc[:, "SbjID"]
+        prefix = "Velocity_"
         for etype in self.etype_list:
-            df_spss = pd.DataFrame()
-            for param, param_spss in [
-                    ("StepL", "_".join(["Step_Length", etype])), 
-                    ("StrideL", "_".join(["Stride_Length", etype])),
-                    ("StepW", "_".join(["Stride_Width", etype])),
-                    ("StrideT", "_".join(["Stride_Time", etype])),
-                    ("StrideV", "_".join(["Stride_Velocity", etype]))
-                ]:
-                self.dfs_spss[etype][param].loc[:, "Gait_Parameter"] = param_spss
-                df_spss = df_spss.append(self.dfs_spss[etype][param], ignore_index=True)
-            cols = df_spss.columns.tolist()
-            cols = cols[0:3] + [cols[4], cols[3], cols[5]]
-            df_spss = df_spss[cols]
-            column_name_map = {session: self.cognitive_dict[session] + "_" + self.vibration_dict[session]
+            for param in self.dfs_spss[etype].keys():
+                df_temp = self.dfs_spss[etype][param].loc[:, "D":].copy() / 100.0
+                df_temp[prefix + etype] = df_temp.mean(axis=1)
+                df_spss = pd.concat([df_spss, df_temp], 1)
+            column_name_map = {session: "Velocity_" + session + "_" + etype
                                 for session in self.session_list}
             df_spss.rename(columns=column_name_map, inplace=True)
-            spss_filename = os.path.join(self.ws_path, "robot_spss_" + etype + ".csv")
-            if not args.skip_csv:
-                df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
-                print("SPSS table saved to: " + spss_filename)
+        spss_filename = os.path.join(self.ws_path, "Velocity_error.csv")
+        df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
+        print("SPSS table saved to: " + spss_filename)
 
-        # Save csv and jpg for self.dfs_by_param
-        for etype in self.etype_list:
+        for etype, unit in zip(self.etype_list, self.unit_list):
             for param in self.param_list:
                 for meanstd in self.meanstd_list:
                     csv_filename = os.path.join(self.ws_path, 
                         "by_param", param + "_" + etype + "_" + meanstd + ".csv")
-                    if not args.skip_csv:
-                        self.dfs_by_param[etype][param][meanstd].to_csv(csv_filename)
-                        print(param + " saved to: " + csv_filename)
+                    self.dfs_by_param[etype][param][meanstd].to_csv(csv_filename)
+                    print(param + " saved to: " + csv_filename)
 
                 # Plot
                 plt.figure()
-                self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4,
-                    rot=0, title=param + ' ' + etype + ' ({:s})'.format(self.data_source_robot), 
+                self.dfs_by_param[etype][param]["mean"].plot(kind="bar", capsize=4, legend=True,
+                    rot=0, title=("Velocity " + etype).replace("_", " "),
                     yerr = self.dfs_by_param[etype][param]["se"])
-                if etype == "CV":
-                    plt.ylabel(" ".join([etype, "(%)"]))
-                else:
-                    plt.ylabel(" ".join([param, self.unit_dict[param]]))
-                fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + ".jpg")
-                plt.savefig(fig_filename)
-                print(param + " saved to: " + fig_filename)
-
-        # Save csv and jpg for self.dfs_ratio
-        for etype in self.etype_list:
-            for meanstd in self.meanstd_list:
-                csv_filename = os.path.join(self.ws_path, 
-                    "cv", "robot_" + etype + "_ratio_" + meanstd + ".csv")
-                if not args.skip_csv:
-                    self.dfs_ratio[etype][meanstd].to_csv(csv_filename)
-                    print("Robot cv_ratio saved to: " + csv_filename)
-
-            # Plot
-            plt.figure()
-            ax = self.dfs_ratio[etype]["mean"].plot(kind="bar", capsize=4,
-                rot=0, title=etype + ' Ratio', 
-                yerr = self.dfs_ratio[etype]["se"])
-            plt.xticks(range(len(self.ratio_xticks)), self.ratio_xticks)
-            ax.legend(['VOFF', 'VON'])
-            plt.ylabel("Ratio")
-            for fig_ext in [".jpg", ".eps"]:
-                fig_filename = os.path.join(self.ws_path, "cv", etype + " ratio" + fig_ext)
-                plt.savefig(fig_filename)
-                print("Robot cv_ratio saved to: " + fig_filename)
+                plt.ylabel(" ".join([etype, unit]))
+                for fig_ext in [".jpg", ".eps"]:
+                    fig_filename = os.path.join(self.ws_path, "by_param", param + "_" + etype + fig_ext)
+                    plt.savefig(fig_filename)
+                    print(param + " saved to: " + fig_filename)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--skip-csv", action='store_true')
-    parser.add_argument("-c", "--combined", action='store_true')
-    args = parser.parse_args()
-
-    plotter = BoxPlotter(args.combined)
+    plotter = BoxPlotter()
     for trial_id in sorted(plotter.data_info_dict.keys()):
     # for trial_id in [424, 425]:
         plotter.process_trial(trial_id)

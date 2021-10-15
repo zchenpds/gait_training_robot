@@ -78,22 +78,6 @@ def process(inbag, filename, bag_name):
     pos_human_map = pos_human_map._replace(t=np.array(pos_human_map.t) - t0, xy=np.array(pos_human_map.xy))
     pos_human_robot = pos_human_robot._replace(t=np.array(pos_human_robot.t) - t0, xy=np.array(pos_human_robot.xy))
 
-    dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
-    idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
-    dist_rmse = np.sqrt(np.mean(dist_error[idx]**2)) * 100
-    dist_error_sd = np.std(dist_error[idx]) * 100
-    if args.print_distance_rmse:
-        print("{:.3} ({:.3})".format(dist_rmse, dist_error_sd))
-        if not args.export_pickle:
-            return
-
-    if args.export_pickle:
-        pickle_filename = os.path.join("/home/ral2020/Documents/sunny/localization", bag_name[:7] + ".pkl")
-        with open(pickle_filename, 'wb') as pickle_file:
-            pickle.dump([dist_error, dist_rmse, dist_error_sd], pickle_file)
-            print("Saved to " + pickle_filename)
-        return
-
 
     # Separate time series into laps
     dist_to_origin = (pos_robot_odom.xy[:, 0]**2 + pos_robot_odom.xy[:, 1]**2)**0.5
@@ -137,6 +121,32 @@ def process(inbag, filename, bag_name):
         np.diff(pos_human_odom.xy, axis=0, prepend=[[0.0, 0.0]]) /
             np.tile(np.expand_dims(np.diff(pos_human_odom.t, axis=0, prepend=1.0), axis=1), (1, 2)), 
         pos_human_odom.i_minima)
+
+    # difference of norm
+    def norm(vec):
+        return np.sqrt(vec[:, 0] ** 2 + vec[:, 1] ** 2)
+    v_robot_human = np.interp(vel_human_odom.t, vel_robot_odom.t, norm(vel_robot_odom.xy)) - norm(vel_human_odom.xy)
+    vel_human_robot = PositionSeries(pos_human_robot.t, v_robot_human, pos_human_robot.i_minima)
+
+
+    dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
+    idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
+    dist_mae = np.mean(np.abs(dist_error[idx])) * 100
+    dist_esd = np.std(dist_error[idx]) * 100
+    if args.print_distance_rmse:
+        print("{:.3} ({:.3})".format(dist_mae, dist_esd))
+        if not args.export_pickle:
+            return
+    
+    vel_mae = np.mean(np.abs(v_robot_human[idx])) * 100
+    vel_esd = np.std(v_robot_human[idx]) * 100
+
+    if args.export_pickle:
+        pickle_filename = os.path.join("/home/ral2020/Documents/sunny/localization", bag_name[:7] + ".pkl")
+        with open(pickle_filename, 'wb') as pickle_file:
+            pickle.dump([dist_error, dist_mae, dist_esd, vel_mae, vel_esd], pickle_file)
+            print("Saved to " + pickle_filename)
+        return
 
     plot_list = []
     robot_color = 'b'

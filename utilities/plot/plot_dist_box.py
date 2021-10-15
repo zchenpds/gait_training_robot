@@ -135,15 +135,14 @@ class BoxPlotter:
     def process_trial(self, trial_id):
         pkl_filename = os.path.join(self.ws_path, "localization", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
-            [_, dist_rmse, dist_error_sd] = pickle.load(pkl_file)
+            [_, dist_mae, dist_esd, _, _] = pickle.load(pkl_file)
             
             # Populate dataframe df_agg by trial_id
-            self.df_agg.at[trial_id, "MAE_"  + self.param_list[0]] = dist_rmse
-            self.df_agg.at[trial_id, "ESD_"  + self.param_list[0]] = dist_error_sd
+            self.df_agg.at[trial_id, "MAE_"  + self.param_list[0]] = dist_mae
+            self.df_agg.at[trial_id, "ESD_"  + self.param_list[0]] = dist_esd
             desired_dist = 1.5
-            self.df_agg.at[trial_id, "MAE_Percentage_" + self.param_list[0]] = dist_rmse / desired_dist
-            self.df_agg.at[trial_id, "ESD_Percentage_" + self.param_list[0]] = dist_error_sd / desired_dist
-
+            self.df_agg.at[trial_id, "MAE_Percentage_" + self.param_list[0]] = dist_mae / desired_dist
+            self.df_agg.at[trial_id, "ESD_Percentage_" + self.param_list[0]] = dist_esd / desired_dist
 
     def update_and_save_csv(self):
         # Calculate Mean

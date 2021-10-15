@@ -78,10 +78,10 @@ def process(inbag, filename, bag_name):
 
     dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
     idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
-    dist_rmse = np.sqrt(np.mean(dist_error[idx]**2)) * 100
-    dist_error_sd = np.std(dist_error[idx]) * 100
+    dist_mae = np.sqrt(np.mean(dist_error[idx]**2)) * 100
+    dist_esd = np.std(dist_error[idx]) * 100
     if args.print_distance_rmse:
-        print("{:.3} ({:.3})".format(dist_rmse, dist_error_sd))
+        print("{:.3} ({:.3})".format(dist_mae, dist_esd))
         if not args.export_pickle:
             return
 
@@ -134,7 +134,8 @@ def process(inbag, filename, bag_name):
     vel_human_odom = PositionSeries(pos_human_odom.t, v_human, pos_human_odom.i_minima)
 
     # difference of norm
-    def norm(vec): return np.sqrt(vec[:, 0] ** 2 + vec[:, 1] ** 2)
+    def norm(vec):
+        return np.sqrt(vec[:, 0] ** 2 + vec[:, 1] ** 2)
     v_robot_human = np.interp(vel_human_odom.t, vel_robot_odom.t, norm(vel_robot_odom.xy)) - norm(vel_human_odom.xy)
     vel_human_robot = PositionSeries(pos_human_robot.t, v_robot_human, pos_human_robot.i_minima)
 
