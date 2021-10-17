@@ -50,21 +50,22 @@ def extractFromBag(inbag):
             msg.markers = []
         return msg
 
-    skeleton_msg_list = [filterMarkers(msg, sbj_id) for msg in skeleton_msg_list if msg.markers]
+    skeleton_msg_list = [filterMarkers(msg, sbj_id) for msg in skeleton_msg_list]
+    skeleton_msg_list = [msg for msg in skeleton_msg_list if msg.markers]
     skeleton_dict = {
         "t":       [msg.markers[0 ].header.stamp.to_sec() for msg in skeleton_msg_list],
-        "pelvisA": [msg.markers[0 ].color.a for msg in skeleton_msg_list],
-        "pelvisX": [msg.markers[0 ].pose.position.x for msg in skeleton_msg_list],
-        "pelvisY": [msg.markers[0 ].pose.position.y for msg in skeleton_msg_list],
-        "pelvisZ": [msg.markers[0 ].pose.position.z for msg in skeleton_msg_list],
-        "ankleLA": [msg.markers[20].color.a for msg in skeleton_msg_list],
-        "ankleLX": [msg.markers[20].pose.position.x for msg in skeleton_msg_list],
-        "ankleLY": [msg.markers[20].pose.position.y for msg in skeleton_msg_list],
-        "ankleLZ": [msg.markers[20].pose.position.z for msg in skeleton_msg_list],
-        "ankleRA": [msg.markers[24].color.a for msg in skeleton_msg_list],
-        "ankleRX": [msg.markers[24].pose.position.x for msg in skeleton_msg_list],
-        "ankleRY": [msg.markers[24].pose.position.y for msg in skeleton_msg_list],
-        "ankleRZ": [msg.markers[24].pose.position.z for msg in skeleton_msg_list],
+        "pelvisA": [msg.markers[0 ].color.a               for msg in skeleton_msg_list],
+        "pelvisX": [msg.markers[0 ].pose.position.x       for msg in skeleton_msg_list],
+        "pelvisY": [msg.markers[0 ].pose.position.y       for msg in skeleton_msg_list],
+        "pelvisZ": [msg.markers[0 ].pose.position.z       for msg in skeleton_msg_list],
+        "ankleLA": [msg.markers[20].color.a               for msg in skeleton_msg_list],
+        "ankleLX": [msg.markers[20].pose.position.x       for msg in skeleton_msg_list],
+        "ankleLY": [msg.markers[20].pose.position.y       for msg in skeleton_msg_list],
+        "ankleLZ": [msg.markers[20].pose.position.z       for msg in skeleton_msg_list],
+        "ankleRA": [msg.markers[24].color.a               for msg in skeleton_msg_list],
+        "ankleRX": [msg.markers[24].pose.position.x       for msg in skeleton_msg_list],
+        "ankleRY": [msg.markers[24].pose.position.y       for msg in skeleton_msg_list],
+        "ankleRZ": [msg.markers[24].pose.position.z       for msg in skeleton_msg_list],
     }
 
     return pd.DataFrame(skeleton_dict)
