@@ -50,6 +50,8 @@ class ValidationTableUpdater:
         return (filename_list1[0], filename_list2[0], filename_list3[0], sbj, session)
 
     def __init__(self, is_combined):
+        self.stride_cnt_total = 0
+        self.stride_cnt_common = 0
         if is_combined:
             self.is_combined = True
             self.data_source_robot = "combined"
@@ -180,6 +182,7 @@ class ValidationTableUpdater:
         pkl_filename = os.path.join(self.ws_path, "robot", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             STEP_KINECT = pickle.load(pkl_file)
+            self.stride_cnt_total += len(STEP_KINECT.stride_table_sorted)
 
             for i, (table, field, unit) in enumerate(table_info_list):
                 ts_col = np.empty((table.shape[0], 1))
@@ -204,6 +207,7 @@ class ValidationTableUpdater:
                 if i == 2: 
                     mat["updatedValidation"][0,0]["Stride_Velocity_cm_sec"][0,0]["validationTable"] = new_table
             scipy.io.savemat(mat_filename_out, mat)
+            self.stride_cnt_common += np.count_nonzero(~np.isnan(self.df_trial.loc[:, "StrideL_" + self.data_source_robot + "_zeno (cm.)"]))
             
             # Process csv by trial_id
             for col in list(self.df_trial):
@@ -320,3 +324,5 @@ if __name__ == "__main__":
         vtu.process_trial(trial_id)
     vtu.update_and_save_csv()
     vtu.plotChart()
+    print("Total number of strides: " + str(vtu.stride_cnt_total))
+    print("Total number of common strides between robot and zeno: " + str(vtu.stride_cnt_common))
