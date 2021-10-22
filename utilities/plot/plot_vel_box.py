@@ -190,7 +190,7 @@ class BoxPlotter:
                     self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
                     self.dfs_by_param[etype][param]["se"].at[vib_cond, cog_cond] = \
                         df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
-                            
+
         df_spss = self.dfs_spss[etype][param].loc[:, "SbjID"]
         prefix = "Velocity_"
         for etype in self.etype_list:
@@ -198,10 +198,10 @@ class BoxPlotter:
                 df_temp = self.dfs_spss[etype][param].loc[:, "D":].copy() / 100.0
                 df_temp[prefix + etype] = df_temp.mean(axis=1)
                 df_spss = pd.concat([df_spss, df_temp], 1)
-            column_name_map = {session: "Velocity_" + session + "_" + etype
+            column_name_map = {session: prefix + session + "_" + etype
                                 for session in self.session_list}
             df_spss.rename(columns=column_name_map, inplace=True)
-        spss_filename = os.path.join(self.ws_path, "Velocity_error.csv")
+        spss_filename = os.path.join(self.ws_path, "Velocity_error_spss.csv")
         df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
         print("SPSS table saved to: " + spss_filename)
 

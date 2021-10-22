@@ -132,6 +132,22 @@ class BoxPlotter:
             self.df_agg.at[trial_id, "sbj"]     = self.data_info_dict[trial_id].sbj
             self.df_agg.at[trial_id, "session"] = self.data_info_dict[trial_id].session
 
+        # Initialize the DataFrame for spss anaylsis
+        self.dfs_spss = \
+        {etype:
+            {param:
+                pd.concat([
+                    pd.DataFrame("", index=np.unique(self.df_agg.loc[:, "sbj"]),
+                        columns=["SbjID"]),
+                    pd.DataFrame(np.nan, index=np.unique(self.df_agg.loc[:, "sbj"]),
+                        columns=self.session_list),
+                ], axis=1)                
+                for param in self.param_list
+            }
+            for etype in self.etype_list
+        }
+
+
     def process_trial(self, trial_id):
         pkl_filename = os.path.join(self.ws_path, "localization", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
@@ -168,6 +184,8 @@ class BoxPlotter:
                             sbj = data_info.sbj
                             session = data_info.session
                             df_sessions.at[sbj, session] = self.df_agg.at[trial_id, col]
+                            self.dfs_spss[etype][param].at[sbj, session] = "{:.4f}".format(self.df_agg.at[trial_id, col])
+                            self.dfs_spss[etype][param].at[sbj, "SbjID"] = sbj.title()
                 for session in df_sessions.keys():
                     vib_cond = self.vibration_dict[session]
                     cog_cond = self.cognitive_dict[session]
@@ -175,7 +193,20 @@ class BoxPlotter:
                     self.dfs_by_param[etype][param]["std"].at[vib_cond, cog_cond]  = df_sessions.loc[:, session].std()
                     self.dfs_by_param[etype][param]["se"].at[vib_cond, cog_cond] = \
                         df_sessions.loc[:, session].std() / np.math.sqrt(len(df_sessions.loc[:, session]))
-                            
+
+        df_spss = self.dfs_spss[etype][param].loc[:, "SbjID"]
+        prefix = "Distance_"
+        for etype in self.etype_list:
+            for param in self.dfs_spss[etype].keys():
+                df_temp = self.dfs_spss[etype][param].loc[:, "D":].copy() / 100.0
+                df_temp[prefix + etype] = df_temp.mean(axis=1)
+                df_spss = pd.concat([df_spss, df_temp], 1)
+            column_name_map = {session: prefix + session + "_" + etype
+                                for session in self.session_list}
+            df_spss.rename(columns=column_name_map, inplace=True)
+        spss_filename = os.path.join(self.ws_path, "Distance_error_spss.csv")
+        df_spss.to_csv(spss_filename, index=False, float_format='%.3f')
+        print("SPSS table saved to: " + spss_filename)
 
         for etype, unit in zip(self.etype_list, self.unit_list):
             for param in self.param_list:
