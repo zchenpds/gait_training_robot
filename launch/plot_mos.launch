@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="rosbag" type="play" name="rosbag_play" 
+          args="$(find gait_training_robot)/bags/sunny/ga/data502.bag" output="screen"/>
+    <node pkg="gait_training_robot" type="plot_mos.py" name="plot_mos" output="screen"/>
+	<!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/sunny_2d.rviz" output="screen" /> -->
+</launch>
