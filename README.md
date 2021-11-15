@@ -1,10 +1,14 @@
 # gait_training_robot
-This ROS package provides a suite of software that enables a mobile robot to perform gait-training tasks such as engaging people in walkinging exercise, analyzing people's gait, and providing corrective feedback. Some launch files in this package are a good starting point to get [P3-DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf) with a Kinect sensor to perform some generic SLAM/localization/planning tasks. The development of this package is ongoing.
+This ROS package provides a suite of software that enables a mobile robot to perform gait-training tasks such as engaging people in walkinging exercise, analyzing people's gait, and providing corrective feedback. Some launch files in this package are a good starting point to get [P3-DX robot](https://www.generationrobots.com/media/Pioneer3DX-P3DX-RevA.pdf) with a Kinect sensor to perform some generic SLAM/localization/planning tasks. 
+
+![gta_demo_small](https://user-images.githubusercontent.com/10326250/141740820-7a039a19-cf2c-4b34-9d42-dbc17c311a5e.gif)
+
 ```bash
 git clone --recurse-submodules https://github.com/zchenpds/gait_training_robot.git
 ```
 
 # ROS Nodes
+
 
 ## [goal_generator](src/goal_generator.cpp)
 This node loads a list of 2-D waypoints from a yaml file and sends them sequentially and cyclically to move_base if parameter `preview` is set to false. Each waypoint represents a goal pose for the robot to reach. A move_base action client is used to send the goal to the move_base action server and monitor the progress of the execution of the plan made by move_base. Once the distance of the robot to the current waypoint is below `dist_tolerance`, the next waypoint (or, in case the current waypoint is the last waypoint in the list, the first waypoint) will be sent over to the move_base action server. The node will terminate either when the attempt to reach the current waypoint times out or after the node has gone through the list of waypoints `max_num_laps` times. If `stop_upon_completion` is set to true, the node will attempt to kill all other nodes by sending SIGINT to them before terminating itself. The node can be configured to start pursuing the first goal with a delay of `delay_start_secs` seconds after startup. The path to the yaml file to be loaded is specified by parameters `yaml_file_path` + `suffix`. 
