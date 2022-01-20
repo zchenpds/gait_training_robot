@@ -22,6 +22,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib import rc
+import matplotlib.patches as patches
 #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('font',**{'family':'serif','serif':['Times New Roman'], 'size': 12})
 
@@ -44,7 +45,7 @@ def process_inbag(inbag, args):
     comv_fsd = me.extractVector3Stamped("/gait_analyzer/estimate/comv", "Fused CoMv")
     comv_raw = me.extractVector3Stamped("/gait_analyzer/measurement/comv", "Raw CoMv")
     comv_ref = me.extractVector3Stamped("/gait_analyzer_optitrack/estimate/comv", "Reference CoMv")
-    comv_list = [comv_fsd, comv_raw, comv_ref]
+    comv_list = [comv_fsd, comv_ref, comv_raw]
     
     # CoP
     cop = me.extractPointStamped("/gait_analyzer/cop", "Estimated CoP")
@@ -54,8 +55,13 @@ def process_inbag(inbag, args):
                  me.extractFootprint("/gait_analyzer/footprint_r", "Right Footprint")]
 
 
-    pd_list = [fsd, raw, ref, cop]
-    plot_style_list = [{"ls": "-", "color": "blue"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}, {"ls": "-", "color": "green"}]
+    pd_list = [fsd, ref, raw, cop]
+    plot_style_list = [
+        {"ls": "-", "color": "blue"},
+        {"ls": "-", "color": "black"},
+        {"ls": "-", "color": "r"},
+        {"ls": "-", "color": "yellowgreen"},
+    ]
 
     # Find the min and max of all the time series
     t_min = max([pd["t"][0] for pd in pd_list])
@@ -104,6 +110,11 @@ def plot_com(pd_list, plot_style_list, footprint, args):
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
     plt.gca().set_aspect('equal', adjustable='box')
+    arrow = patches.FancyArrowPatch((4, -1.2), (-1, -1.2),
+        connectionstyle="arc3,rad=-.2",
+        arrowstyle="Simple, tail_width=1.0, head_width=8, head_length=16",
+        color="blue")
+    plt.gca().add_patch(arrow)
     plt.tight_layout()
 
     # Save
@@ -129,7 +140,7 @@ def plot_comv(comv_list, plot_style_list, t_min, args):
                 pd["xyz"][:, xy], 
                 label=pd["legend"], linewidth=args.linewidth, **plot_style)
 
-        ax.legend()
+        if xy == 0: ax.legend()
         ax.set_xlabel("t [s]")
         ax.set_ylabel("{0:s} [m/s]".format(xy_str[xy]))
     plt.tight_layout()

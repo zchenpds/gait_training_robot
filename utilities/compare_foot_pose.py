@@ -45,8 +45,12 @@ def process_inbag(inbag, args):
     ref = [me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_l", "Refererence"),
            me.extractPoseWithCovarianceStamped("/optitrack/foot_pose_r", "Refererence")]
 
-    pd_list = [fsd, raw, ref]
-    plot_style_list = [{"ls": "-", "color": "blue"}, {"ls": "--", "color": "r"}, {"ls": "-", "color": "black"}]
+    pd_list = [fsd, ref, raw]
+    plot_style_list = [
+        {"ls": "-", "color": "blue"},
+        {"ls": "-", "color": "black"},
+        {"ls": "-", "color": "r"},
+    ]
 
     # Find the min and max of all the poses
     t_min = max([pd[lr]["t"][0] for lr in [0, 1] for pd in pd_list])
@@ -73,7 +77,7 @@ def process_inbag(inbag, args):
 
     # Plot
     xy_list = [0, 1]
-    _, axs = plt.subplots(len(xy_list), len(lr_list), sharex=True, figsize=(6, 6))
+    fig, axs = plt.subplots(len(xy_list), len(lr_list), sharex=True, figsize=(6, 6))
     lr_str = ["Left Foot Position", "Right Foot Position"]
     for lr in lr_list:
         xy_str = ["x", "y"]
@@ -83,11 +87,13 @@ def process_inbag(inbag, args):
                 ax.plot(pd[lr]["t"] - t_min + args.time_range[0], 
                     pd[lr]["xyz"][:, xy], 
                     label=pd[lr]["legend"], linewidth=args.linewidth, **plot_style)
-            ax.legend()
-            ax.set_xlabel("t [s]")
+            # ax.legend()
+            if xy == 1: ax.set_xlabel("t [s]")
             ax.set_ylabel("{0:s} [m]".format(xy_str[xy]))
             if xy == 0: ax.set_title(lr_str[lr])
-    plt.tight_layout()
+            handles, labels = ax.get_legend_handles_labels()
+    plt.tight_layout(h_pad=2.6)
+    fig.legend(handles, labels, loc='center', bbox_to_anchor=(0.5, 0.51), ncol=3)
 
     # Save
     if args.save:
