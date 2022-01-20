@@ -6,6 +6,8 @@ import argparse
 import numpy as np
 from scipy.signal import butter, filtfilt
 from collections import namedtuple
+from matplotlib import rc
+rc('font',**{'family':'serif','serif':['Times New Roman'], 'size': 12})
 
 import rospy
 import rosbag
@@ -26,6 +28,13 @@ def process(inbag, filename, bag_name):
         i_minima=[]
     )
 
+    com_list = [msg for _, msg, _ in inbag.read_messages(topics="/optitrack/com")]
+    pos_human_map = PositionSeries(
+        t=[msg.header.stamp.to_sec() for msg in com_list],
+        xy=[[-msg.point.y, msg.point.x] for msg in com_list],
+        i_minima=[]
+    )
+
     transformer = Transformer()
     tf_static_list = [msg for _, tfs, _ in inbag.read_messages(topics=["/tf_static"]) for msg in tfs.transforms]
     for tf_static in tf_static_list:
@@ -33,16 +42,16 @@ def process(inbag, filename, bag_name):
 
     pos_human_odom = PositionSeries([], [], [])
     pos_robot_map = PositionSeries([], [], [])
-    pos_human_map = PositionSeries([], [], [])
+    # pos_human_map = PositionSeries([], [], [])
     pos_human_robot = PositionSeries([], [], [])
 
     tf_list = [msg for _, tfs, _ in inbag.read_messages(topics=["/tf"]) for msg in tfs.transforms]
     for tf1 in tf_list:
         transformer.setTransform(tf1)
-        if tf1.header.frame_id == "map" or tf1.header.frame_id == "odom":
+        if tf1.header.frame_id == "base_link":
             try:
-                tf2 = transformer.lookupTransform('map', 'base_link', rospy.Time(0))
-                pos_robot_map.xy.append([tf2[0][0], tf2[0][1]])
+                tf2 = transformer.lookupTransform('optitrack', 'base_link', rospy.Time(0))
+                pos_robot_map.xy.append([-tf2[0][1], tf2[0][0]])
                 pos_robot_map.t.append(tf1.header.stamp.to_sec())
             except tf.Exception:
                 pass
@@ -54,9 +63,9 @@ def process(inbag, filename, bag_name):
             except tf.Exception:
                 pass
             try:
-                tf2 = transformer.lookupTransform('map', 'joint_pelvis', rospy.Time(0))
-                pos_human_map.xy.append([tf2[0][0], tf2[0][1]])
-                pos_human_map.t.append(tf1.header.stamp.to_sec())
+                tf2 = transformer.lookupTransform('opttitrack', 'joint_pelvis', rospy.Time(0))
+                # pos_human_map.xy.append([tf2[0][0], tf2[0][1]])
+                # pos_human_map.t.append(tf1.header.stamp.to_sec())
             except tf.Exception:
                 pass
             try:
@@ -75,6 +84,8 @@ def process(inbag, filename, bag_name):
     pos_robot_map = pos_robot_map._replace(t=np.array(pos_robot_map.t) - t0, xy=np.array(pos_robot_map.xy))
     pos_human_map = pos_human_map._replace(t=np.array(pos_human_map.t) - t0, xy=np.array(pos_human_map.xy))
     pos_human_robot = pos_human_robot._replace(t=np.array(pos_human_robot.t) - t0, xy=np.array(pos_human_robot.xy))
+
+    print(np.shape(pos_human_map.xy))
 
     dist_error = (pos_human_robot.xy[:, 0]**2 + pos_human_robot.xy[:, 1]**2)**0.5 - DESIRED_DIST
     idx = np.nonzero(np.logical_and(pos_human_robot.t > min(pos_human_robot.t) + 15, pos_human_robot.t < max(pos_human_robot.t) - 5))
@@ -160,22 +171,23 @@ def process(inbag, filename, bag_name):
                 'Velocity', 't [s]', 'Velocity [cm/s]'),
             PlotData(
                 [
-                    get_lap_curve_data(pos_robot_odom, k, 0, {"label": "Robot", "lw": 1.0, "ls": "-", "color": robot_color}),
-                    get_lap_curve_data(pos_human_odom, k, 0, {"label": "Human", "lw": 1.0, "ls": "--", "color": human_color}),
-                    get_lap_curve_data(pos_robot_odom, k, 1, {"marker":'o', "markersize": marker_size[1], "color": robot_color}),
-                    get_lap_curve_data(pos_human_odom, k, 1, {"marker":'o', "markersize": marker_size[1], "color": human_color}),
+                    get_lap_curve_data(pos_robot_map, k, 0, {"label": "Robot", "lw": 1.0, "ls": "-", "color": robot_color}),
+                    get_lap_curve_data(pos_human_map, k, 0, {"label": "Human", "lw": 1.0, "ls": "--", "color": human_color}),
+                    get_lap_curve_data(pos_robot_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": robot_color}),
+                    get_lap_curve_data(pos_human_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": human_color}),
                 ], 
-                'Odom (Lap {:d})'.format(k), 'x [m]', 'y [m]'),
+                'Trajectory', 'x [m]', 'y [m]'),
         ])
     
     fig, axs = plt.subplots(len(plot_list[0]), len(plot_list), squeeze=False)
-    fig.set_size_inches(9, 7)
+    fig.set_size_inches(6, 9.5)
     for i in range(len(plot_list[0])):
         for j in range(len(plot_list)):
             ax = axs[i][j]
             curve_list, title, xlabel, ylabel = plot_list[j][i]
             for curve in curve_list:
-                ax.plot(curve.x, curve.y * 100.0, **curve.opt)
+                if i <= 1: ax.plot(curve.x, curve.y * 100.0, **curve.opt)
+                else: ax.plot(curve.x, curve.y, **curve.opt)
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
             if "[m]" in ax.xaxis.get_label().get_text():
@@ -186,10 +198,11 @@ def process(inbag, filename, bag_name):
             #     ax.set_ylim([0.0, 1.5])
             if "Difference" not in ax.yaxis.get_label().get_text():
                 ax.legend()
-            ax.set_xlim([vel_robot_odom.t[0], vel_robot_odom.t[-1]])
+            if i <= 1:
+                ax.set_xlim([vel_robot_odom.t[0], vel_robot_odom.t[-1]])
             ax.set_title(title)
     # plt.tight_layout()
-    plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=0.65)
+    plt.subplots_adjust(left=None, bottom=0.05, right=None, top=0.95, wspace=None, hspace=0.4)
     plt.savefig(filename)
     print("Saved to " + filename)
     if args.preview: plt.show()
@@ -212,4 +225,6 @@ if __name__ == "__main__":
         with rosbag.Bag(filename, 'r') as inbag:
             png_filename = os.path.join(os.path.expanduser("~"), "Pictures",
                 os.path.splitext(os.path.basename(filename))[0] + ".eps")
-            process(inbag, png_filename, os.path.basename(filename))
+            eps_filename = os.path.join(os.path.expanduser("~"), "TMRB2021", "results",
+                os.path.splitext(os.path.basename(filename))[0] + "_distance" + ".eps")
+            process(inbag, eps_filename, os.path.basename(filename))

@@ -106,7 +106,7 @@ def process(inbag, filename, bag_name):
         elif mode == 2: # 2-norm
             return CurveData(position_series.t[a:b], np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2), opts)
         elif mode == 3: # Horizontal line y = DESIRED_DIST
-            return CurveData([position_series.t[a], position_series.t[b]], [DESIRED_DIST, DESIRED_DIST], opts)
+            return CurveData([position_series.t[a], position_series.t[b]], np.array([DESIRED_DIST, DESIRED_DIST]), opts)
         elif mode == 4: # Filtered 2-norm
             v = np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2)
             for i in range(1, len(v)):
@@ -115,7 +115,7 @@ def process(inbag, filename, bag_name):
             if len(v) > 0: v = filtfilt(b1, a1, v, padlen=0)
             return CurveData(position_series.t[a:b], v, opts)
         elif mode == 5: # Horizontal line y = 1.2
-            return CurveData([position_series.t[a], position_series.t[b]], [1.2, 1.2], opts)
+            return CurveData([position_series.t[a], position_series.t[b]], np.array([1.2, 1.2]), opts)
         elif mode == 6: # scalar time series
             v = position_series.xy[a:b]
             for i in range(1, len(v)):
@@ -150,19 +150,19 @@ def process(inbag, filename, bag_name):
                     get_lap_curve_data(pos_human_robot, k, 2, {"label": "Actual", "color": 'm'}),
                     get_lap_curve_data(pos_human_robot, k, 3, {"label": "Desired", "color": 'y', "ls": "--"}),
                 ],
-                'Human-Robot Distance', 't [s]', 'Distance [m]'),
+                'Human-Robot Distance', 't [s]', 'Distance [cm]'),
             PlotData(
                 [
                     get_lap_curve_data(vel_robot_odom, k, 2, {"label": "Robot", "color": 'b'}),
                     get_lap_curve_data(vel_human_odom, k, 4, {"label": "Human", "color": 'g'}),
                     get_lap_curve_data(vel_robot_odom, k, 5, {"label": "Robot Max", "color": 'r', "ls": "--"}),
                 ],
-                'Velocity', 't [s]', 'Velocity [m/s]'),
+                'Velocity', 't [s]', 'Velocity [cm/s]'),
             PlotData(
                 [
                     get_lap_curve_data(vel_human_robot, k, 6, {"label": "Robot - Human", "color": 'k'}),
                 ],
-                'Velocity(Robot) - Velocity(Human)', 't [s]', 'Velocity Difference [m/s]'),
+                'Velocity(Robot) - Velocity(Human)', 't [s]', 'Velocity Difference [cm/s]'),
         ])
     
     fig, axs = plt.subplots(len(plot_list[0]), len(plot_list), squeeze=False)
@@ -172,15 +172,15 @@ def process(inbag, filename, bag_name):
             ax = axs[i][j]
             curve_list, title, xlabel, ylabel = plot_list[j][i]
             for curve in curve_list:
-                ax.plot(curve.x, curve.y, **curve.opt)
+                ax.plot(curve.x, curve.y * 100.0, **curve.opt)
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
             if "[m]" in ax.xaxis.get_label().get_text():
                 ax.set_aspect('equal')
-            if "Distance" in ax.yaxis.get_label().get_text():
-                ax.set_ylim([0.5, 2.5])
-            if "Velocity [m/s]" in ax.yaxis.get_label().get_text():
-                ax.set_ylim([0.0, 1.5])
+            # if "Distance" in ax.yaxis.get_label().get_text():
+            #     ax.set_ylim([0.5, 2.5])
+            # if "Velocity [m/s]" in ax.yaxis.get_label().get_text():
+            #     ax.set_ylim([0.0, 1.5])
             if "Difference" not in ax.yaxis.get_label().get_text():
                 ax.legend()
             ax.set_xlim([vel_robot_odom.t[0], vel_robot_odom.t[-1]])
