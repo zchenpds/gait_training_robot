@@ -35,6 +35,10 @@ The output foot poses are published under topic "~fused_pose_l" and "~fused_pose
 
 The header-only implementation of the filter can be found in [include/sport_sole_ekf/ExtendedKalmanFilter.hpp](include/sport_sole_ekf/ExtendedKalmanFilter.hpp). The parameters can be found in [params/foot_pose_estimator.yaml](params/foot_pose_estimator.yaml)
 
+Running on an Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+- Sportsole measurement updates take 1.5 ± 0.68 ms per sample for both left and right
+- Kinect measurement updates take 0.84 ± 0.31 ms per sample for both left and right
+
 ## [gait_analyzer](src/gait_analyzer.cpp)
 This node estiamtes the subject's CoM (center of mass), CoM velocity, BoS (base of support) and MoS (Margin of stability) using RGB-D, plantar pressure and insole IMU sensors. 
 
