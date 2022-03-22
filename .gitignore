@@ -1,5 +1,8 @@
 .vscode/
+matlab
 data/*
 urdf/*.urdf
 bags/*
 *.pyc
+*.bag
+*.csv

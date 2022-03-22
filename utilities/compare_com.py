@@ -110,12 +110,12 @@ def plot_com(pd_list, plot_style_list, footprint, args):
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
     plt.gca().set_aspect('equal', adjustable='box')
-    arrow = patches.FancyArrowPatch((4.5, 1.5), (5.3, 0.7),
-        connectionstyle="arc3,rad=-.2",
+    arrow = patches.FancyArrowPatch((-1.3, 1.5), (-2.1, 0.8),
+        connectionstyle="arc3,rad=.2",
         arrowstyle="->, head_width=5, head_length=10",
         color="blue")
     plt.gca().add_patch(arrow)
-    plt.text(4.8, 1.4, "CW", color="blue", rotation=-45)
+    plt.text(-2.1, 1.5, "CCW", color="blue", rotation=40)
     plt.tight_layout()
 
     # Save

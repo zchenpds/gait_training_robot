@@ -7,7 +7,7 @@
 	<arg name="enable_ga"                 default="true"/>
 	<arg name="record_odom"               default="false"/>
 	<arg name="record_all"                default="false"/>
-	<arg name="rviz_config_file"          default="slam_rtabmap_ekf.rviz"/>     <!-- slam_rtabmap_ekf_ga.rviz -->
+	<arg name="rviz_config_file"          default="sunny_2d.rviz"/>     <!-- slam_rtabmap_ekf_ga.rviz sunny_3d-->
 	<arg name="sport_sole_time_offset"    default="0.0"/>
     <arg name="play_back_rate" 		      default="1.0" />
     <arg name="comkf_measurement_scheme"  default="2" />
@@ -48,6 +48,6 @@
 	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find gait_training_robot)/rviz/$(arg rviz_config_file)" output="screen"  if="$(arg enable_rviz)" />
 
 	<!-- Record gait analytics -->
-	<node name="record_ga" pkg="rosbag" type="record" if="$(arg record_all)"
-		args="record -a -o $(find gait_training_robot)/bags/sunny/ga/$(arg bag_name)"/>
+	<!-- <node name="record_ga" pkg="rosbag" type="record" if="$(arg record_all)"
+		args="record -a -o $(find gait_training_robot)/bags/sunny/ga/$(arg bag_name)"/> -->
 </launch>

@@ -1,7 +1,0 @@
-[submodule "external/EKF"]
-	path = external/EKF
-	url = https://github.com/zchenpds/EKF.git
-	branch = state9
-[submodule "matlab"]
-	path = matlab
-	url = https://github.com/zchenpds/gta-matlab.git

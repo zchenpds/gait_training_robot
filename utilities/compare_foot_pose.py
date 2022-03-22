@@ -47,9 +47,9 @@ def process_inbag(inbag, args):
 
     pd_list = [fsd, ref, raw]
     plot_style_list = [
-        {"ls": "-", "color": "blue"},
-        {"ls": "-", "color": "black"},
-        {"ls": "-", "color": "r"},
+        {"ls": "-", "color": "blue", "alpha": 0.7},
+        {"ls": "-", "color": "black", "alpha": 0.7},
+        {"ls": "-", "color": "r", "alpha": 0.7},
     ]
 
     # Find the min and max of all the poses
@@ -101,7 +101,7 @@ def process_inbag(inbag, args):
         #     "Foot pose data" + str(args.trial_id).rjust(3, '0') +
         #     " [{0:3.1f}:{1:3.1f}]".format(args.time_range[0], args.time_range[1]) +
         #     datetime.datetime.now().strftime(" %Y-%m-%d %H-%M-%S.eps"))
-        eps_path = os.path.join(os.path.expanduser("~"), "TMRB2021/results/foot_position_time_course.eps")
+        eps_path = os.path.join(os.path.expanduser("~"), "TMRB2021/results/foot_position_time_course.pdf")
         plt.savefig(eps_path, format='eps')
 
     plt.show()

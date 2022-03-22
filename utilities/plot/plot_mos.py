@@ -14,7 +14,8 @@ MOS_LABELS  = ("MoS [cm]", "MoS AP [cm]", "MoS ML [cm]")
 #         pass
 
 if __name__ == "__main__":
-    fig, axs = plt.subplots(3, 1, figsize=(5, 6))
+    plt.rcParams.update({'font.size': 16})
+    fig, axs = plt.subplots(3, 1, figsize=(11, 7.5))
     ts, mos_vec = [], [[], [], []]
     lns_curr = [None] * len(MOS_LABELS)
     lns_prev = [None] * len(MOS_LABELS)

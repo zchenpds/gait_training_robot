@@ -160,7 +160,7 @@ def process(filename, launch_options, png_filename, trial_id):
             percentage_discarded = 0.0
 
             # Data minipulation
-            if 1:
+            if 0:
                 if bag_name in bag_info.keys() and 'time_range' in bag_info[bag_name].keys():
                     t_min = bag_info[bag_name]['time_range'][0]
                     t_max = bag_info[bag_name]['time_range'][1]

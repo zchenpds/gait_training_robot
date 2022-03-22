@@ -328,6 +328,8 @@ void GaitAnalyzer::mlVecCB(const geometry_msgs::Vector3Stamped& msg)
   ap_vec_ = ml_vec_.rotate({0, 0, 1}, -M_PI_2);
 }
 
+static std::ofstream ofs_timing("/tmp/gta/timing");
+
 void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_l, const PoseType::ConstPtr& msg_foot_r, 
     const PointType::ConstPtr& msg_com, const VectorType::ConstPtr& msg_comv)
 {
@@ -436,7 +438,10 @@ void GaitAnalyzer::timeSynchronizerMeasureCB(const PoseType::ConstPtr& msg_foot_
 
       for (const auto & ss_ptr : sport_sole_ptrs)
       {
+  auto t0 = std::chrono::high_resolution_clock::now();
         processSportSole(*ss_ptr);
+  auto t1 = std::chrono::high_resolution_clock::now();
+  ofs_timing << std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() << "\n";
         if (comkf_params_.hyper_kinect_update_rate)
         {
           double w1 = (ss_ptr->header.stamp - stamp_com_prev_).toSec() / dt_com;

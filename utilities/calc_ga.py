@@ -100,6 +100,16 @@ def main():
                 STEP_KINECT    = ga.StepData(inbag, '/foot_pose_estimator/fused_pose_', stance_intervals)
                 STEP_OPTITRACK = ga.StepData(inbag, '/optitrack/foot_pose_', stance_intervals)
                 STEP_ERROR = STEP_KINECT - STEP_OPTITRACK
+
+                KINECT["StrideL"] = np.array(STEP_KINECT.get_stride_lengths())
+                KINECT["StrideV"] = np.array(STEP_KINECT.get_stride_velocities())
+                KINECT["StepL"]   = np.array(STEP_KINECT.get_step_lengths())
+                KINECT["StepW"]   = np.array(STEP_KINECT.get_step_widths())
+
+                OPTITRACK["StrideL"] = np.array(STEP_OPTITRACK.get_stride_lengths())
+                OPTITRACK["StrideV"] = np.array(STEP_OPTITRACK.get_stride_velocities())
+                OPTITRACK["StepL"]   = np.array(STEP_OPTITRACK.get_step_lengths())
+                OPTITRACK["StepW"]   = np.array(STEP_OPTITRACK.get_step_widths())
                 
                 step_rmse = np.array([ga.calc_rmse(STEP_ERROR.get_stride_lengths()),
                                       ga.calc_rmse(STEP_ERROR.get_step_lengths()),

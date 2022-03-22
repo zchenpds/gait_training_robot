@@ -15,6 +15,7 @@ import math
 import pandas as pd
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 DESIRED_DIST = 1.5
 
@@ -147,7 +148,7 @@ class BoxPlotter:
         pkl_filename = os.path.join(WS_PATH, "kinect_pkl", "data" + str(trial_id).rjust(3, '0') + ".pkl")
         with open(pkl_filename, "rb") as pkl_file:
             df_skeleton = pickle.load(pkl_file)
-            # sr: the ratio of # actual frames to the # expected frames (30 FPS)
+            # sr: the ratio of actual # frames to the expected # frames (30 FPS)
             ts = df_skeleton.t
             n = round((ts.iat[-1] - ts.iat[0]) * 30)
             m = len(ts)
@@ -268,14 +269,15 @@ def process(inbag, bag_name):
 
 
 def plotScatters(df_skeleton, out_filename):
-    fig, axs = plt.subplots(1, 3, figsize=(20, 5))
-    plotScatter(axs[0], df_skeleton.loc[:, "pelvisX"], df_skeleton.loc[:, "pelvisZ"], 0.0)
+    fig, axs = plt.subplots(1, 3, figsize=(12, 3.4))
+    plotScatter(axs[0], df_skeleton.loc[:, "pelvisX"], df_skeleton.loc[:, "pelvisZ"], 0.2)
     plotScatter(axs[1], df_skeleton.loc[:, "ankleLX"], df_skeleton.loc[:, "ankleLZ"], 0.7)
     plotScatter(axs[2], df_skeleton.loc[:, "ankleRX"], df_skeleton.loc[:, "ankleRZ"], 0.7)
 
-    axs[0].set_title("Pelvis")
-    axs[1].set_title("Left Ankle")
-    axs[2].set_title("Right Ankle")
+    axs[0].set_title("Pelvis (1.0 m above the ground)")
+    axs[1].set_title("Left Ankle (0.1 m above the ground)")
+    axs[2].set_title("Right Ankle (0.1 m above the ground)")
+    plt.tight_layout()
     # plt.scatter(df_skeleton.loc[:, "pelvisX"], df_skeleton.loc[:, "pelvisZ"])
     if args.preview: plt.show()
     fig.savefig(out_filename)
@@ -293,14 +295,18 @@ def plotScatter(ax, x, y, y0):
     def max_fov_fun(x): 
         max_range = 2.88
         return np.sqrt(max_range**2 - x**2 - y0**2)
-    ax.fill_between(xedges, min_fov_fun(xedges), max_fov_fun(xedges), color="lightgray", alpha=0.3)
+    ax.fill_between(xedges, min_fov_fun(xedges), max_fov_fun(xedges), color="pink")
     
     hist, xedges, yedges = np.histogram2d(x, y, (xedges, yedges))
     xidx = np.clip(np.digitize(x, xedges), 0, hist.shape[0]-1)
     yidx = np.clip(np.digitize(y, yedges), 0, hist.shape[1]-1)
     cmap = hist[xidx, yidx]
     sc = ax.scatter(x, y, c=cmap, s=0.1)
-    plt.colorbar(sc, ax=ax)
+    cbar = plt.colorbar(sc, ax=ax)
+    for tick in cbar.ax.get_yticklabels():
+        tick.set_rotation(270)
+    cbar.ax.set_ylabel("# of samples per 5-cm-by-5-cm bin", rotation=270, labelpad=12.0)
+    cbar.ax.yaxis.set_major_locator(MaxNLocator(4))
     ax.set_xlim(xlims)
     ax.set_ylim(ylims)
     ax.set_xlabel("x [m]")

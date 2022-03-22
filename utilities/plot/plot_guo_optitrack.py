@@ -14,7 +14,7 @@ import rosbag
 from tf import Transformer
 import tf
 
-DESIRED_DIST = 1.5
+DESIRED_DIST = 1.4
 
 PositionSeries = namedtuple("PositionSeries", ["t", "xy", "i_minima"])
 CurveData = namedtuple("CurveData", ["x", "y", "opt"])
@@ -114,6 +114,8 @@ def process(inbag, filename, bag_name):
             return CurveData(position_series.xy[a:b, 0], position_series.xy[a:b, 1], opts)
         elif mode == 1: # Start point
             return CurveData(position_series.xy[a, 0], position_series.xy[a, 1], opts)
+        elif mode == 7: # End point
+            return CurveData(position_series.xy[b-1, 0], position_series.xy[b-1, 1], opts)
         elif mode == 2: # 2-norm
             return CurveData(position_series.t[a:b], np.sqrt(position_series.xy[a:b, 0] ** 2 + position_series.xy[a:b, 1] ** 2), opts)
         elif mode == 3: # Horizontal line y = DESIRED_DIST
@@ -161,22 +163,24 @@ def process(inbag, filename, bag_name):
                     get_lap_curve_data(pos_human_robot, k, 2, {"label": "Actual", "color": 'm'}),
                     get_lap_curve_data(pos_human_robot, k, 3, {"label": "Desired", "color": 'y', "ls": "--"}),
                 ],
-                'Human-Robot Distance', 't [s]', 'Distance [cm]'),
+                '(a) Human-Robot Distance', r'$t$ [s]' '\n' r'(a)', 'Distance [m]'),
             PlotData(
                 [
                     get_lap_curve_data(vel_robot_odom, k, 2, {"label": "Robot", "color": 'b'}),
                     get_lap_curve_data(vel_human_odom, k, 4, {"label": "Human", "color": 'g'}),
                     get_lap_curve_data(vel_robot_odom, k, 5, {"label": "Robot Max", "color": 'r', "ls": "--"}),
                 ],
-                'Velocity', 't [s]', 'Velocity [cm/s]'),
+                '(b) Velocity', r'$t$ [s]' '\n' r'(b)', 'Velocity [m/s]'),
             PlotData(
                 [
                     get_lap_curve_data(pos_robot_map, k, 0, {"label": "Robot", "lw": 1.0, "ls": "-", "color": robot_color}),
                     get_lap_curve_data(pos_human_map, k, 0, {"label": "Human", "lw": 1.0, "ls": "--", "color": human_color}),
-                    get_lap_curve_data(pos_robot_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": robot_color}),
-                    get_lap_curve_data(pos_human_map, k, 1, {"marker":'o', "markersize": marker_size[1], "color": human_color}),
+                    get_lap_curve_data(pos_robot_map, k, 1, {"marker":'o', "markersize": marker_size[1],   "color": robot_color, "markeredgecolor": "white", "markeredgewidth": 0.6}),
+                    get_lap_curve_data(pos_human_map, k, 1, {"marker":'o', "markersize": marker_size[1],   "color": human_color, "markeredgecolor": "white", "markeredgewidth": 0.6}),
+                    get_lap_curve_data(pos_robot_map, k, 7, {"marker":'*', "markersize": marker_size[1]+2, "color": robot_color, "markeredgecolor": "white", "markeredgewidth": 0.6}),
+                    get_lap_curve_data(pos_human_map, k, 7, {"marker":'*', "markersize": marker_size[1]+2, "color": human_color, "markeredgecolor": "white", "markeredgewidth": 0.6}),
                 ], 
-                'Trajectory', 'x [m]', 'y [m]'),
+                '(c) Trajectory', r'$x$ [m]' '\n' r'(c)', r'$y$ [m]'),
         ])
     
     fig, axs = plt.subplots(len(plot_list[0]), len(plot_list), squeeze=False)
@@ -186,8 +190,9 @@ def process(inbag, filename, bag_name):
             ax = axs[i][j]
             curve_list, title, xlabel, ylabel = plot_list[j][i]
             for curve in curve_list:
-                if i <= 1: ax.plot(curve.x, curve.y * 100.0, **curve.opt)
-                else: ax.plot(curve.x, curve.y, **curve.opt)
+                # if i <= 1: ax.plot(curve.x, curve.y * 100.0, **curve.opt)
+                # else: 
+                ax.plot(curve.x, curve.y, **curve.opt)
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
             if "[m]" in ax.xaxis.get_label().get_text():
@@ -200,9 +205,9 @@ def process(inbag, filename, bag_name):
                 ax.legend()
             if i <= 1:
                 ax.set_xlim([vel_robot_odom.t[0], vel_robot_odom.t[-1]])
-            ax.set_title(title)
+            # ax.set_title(title)
     # plt.tight_layout()
-    plt.subplots_adjust(left=None, bottom=0.05, right=None, top=0.95, wspace=None, hspace=0.4)
+    plt.subplots_adjust(left=None, bottom=0.07, right=None, top=0.95, wspace=None, hspace=0.4)
     plt.savefig(filename)
     print("Saved to " + filename)
     if args.preview: plt.show()

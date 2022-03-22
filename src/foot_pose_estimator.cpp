@@ -229,6 +229,7 @@ void FootPoseEstimator::skeletonsCB(const visualization_msgs::MarkerArray& msg)
   // std::cout << "\rBody id: " << sub_id_ << ". " << "Num of tf published: " << tf_cnt << std::flush;
 }
 
+// static std::ofstream ofs_timing("/tmp/gta/timing");
 
 void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
 {
@@ -269,7 +270,10 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
         if ((msg_ptr->header.stamp - ts_sport_sole_last_).toSec() > params_.sport_sole_gap_threshold) large_sport_sole_gap_detected_ = true;
 
         ++cnt_predict_local;
+        // auto t0 = std::chrono::high_resolution_clock::now();
         sportSoleUpdate(msg_ptr);
+        // auto t1 = std::chrono::high_resolution_clock::now();
+        // ofs_timing << "Sportsole update: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() << " ns.\n";
       }
       cnt_predict += cnt_predict_local;
       // if (cnt_predict_local) std::cout << "Predict " << (ts_sport_sole_last_ - ts_init_).toSec() << " " << cnt_predict_local << " steps" << std::endl;
@@ -282,7 +286,11 @@ void FootPoseEstimator::sportSoleCB(const sport_sole::SportSole& msg)
       cache_kinect_measurements_[RIGHT].getElemBeforeTime(msg_kinect_ptrs[RIGHT]->header.stamp)
     };
 
+    // auto t0 = std::chrono::high_resolution_clock::now();
     kinectUpdate(msg_kinect_ptrs, prev_msg_kinect_ptrs);
+    // auto t1 = std::chrono::high_resolution_clock::now();
+    // ofs_timing << "Kinect update: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count() << " ns.\n";
+
     // std::cout << "Update  " << (msg_kinect_ptrs[LEFT]->header.stamp - ts_init_).toSec() << std::endl;
     num_of_predictions_between_updates = cnt_predict - cnt_predict_prev;
     cnt_predict_prev = cnt_predict;

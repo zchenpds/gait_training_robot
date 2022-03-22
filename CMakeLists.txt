@@ -8,7 +8,6 @@ add_compile_options(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  rosaria
   roscpp
   rospy
   std_msgs
@@ -21,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   sport_sole
   actionlib
-  azure_kinect_ros_driver
   # PCL
 )
 
@@ -148,7 +146,7 @@ generate_messages(
 catkin_package(
  INCLUDE_DIRS include
 #  LIBRARIES gait_training_robot
-CATKIN_DEPENDS message_runtime rosaria roscpp rospy std_msgs
+CATKIN_DEPENDS message_runtime roscpp rospy std_msgs
  DEPENDS sport_sole
 )
 
@@ -160,8 +158,6 @@ CATKIN_DEPENDS message_runtime rosaria roscpp rospy std_msgs
 ## Your package locations should be listed before other locations
 include_directories(
   include/
-  external/EKF/include/
-  external/EKF/examples/
   ${catkin_INCLUDE_DIRS}
   ${Eigen3_INCLUDE_DIR}
 )
@@ -182,7 +178,6 @@ add_library(global_planner_lib src/global_planner.cpp)
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/gait_training_robot_node.cpp)
-add_executable(kalman_filter src/kalman_filter.cpp)
 add_executable(goal_generator src/goal_generator.cpp)
 add_executable(distance_controller src/distance_controller.cpp)
 add_executable(gait_analyzer src/gait_analyzer.cpp)
@@ -201,15 +196,8 @@ add_executable(skeleton_publisher src/skeleton_publisher.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(kalman_filter
-  gait_training_robot_generate_messages_cpp 
-  sport_sole_generate_messages_cpp
-)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(kalman_filter
-  ${catkin_LIBRARIES}
-)
 target_link_libraries(global_planner_lib
   ${catkin_LIBRARIES}
 )
@@ -224,18 +212,23 @@ target_link_libraries(gait_analyzer
   ${catkin_LIBRARIES}
   ${gsl_LIBRARIES}
 )
+add_dependencies(gait_analyzer gait_training_robot_generate_messages_cpp)
+
 target_link_libraries(gait_analyzer_optitrack
   ${catkin_LIBRARIES}
   ${gsl_LIBRARIES}
 )
+add_dependencies(gait_analyzer_optitrack gait_training_robot_generate_messages_cpp)
 
 target_link_libraries(foot_pose_estimator
   ${catkin_LIBRARIES}
 )
+add_dependencies(foot_pose_estimator gait_training_robot_generate_messages_cpp)
 
 target_link_libraries(kinect_pose_estimator 
   ${catkin_LIBRARIES}
 )
+add_dependencies(kinect_pose_estimator gait_training_robot_generate_messages_cpp)
 
 target_link_libraries(skeleton_publisher 
   ${catkin_LIBRARIES}
