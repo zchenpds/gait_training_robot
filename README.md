@@ -7,6 +7,28 @@ This ROS package provides a suite of software that enables a mobile robot to per
 git clone --recurse-submodules https://github.com/zchenpds/gait_training_robot.git
 ```
 
+## Publication
+
+If you use this work in your research, please cite our paper:
+
+**Mobile Robot Assisted Gait Monitoring and Dynamic Margin of Stability Estimation** Zhuo Chen, Huanghe Zhang, Antonia Zaferiou, Damiano Zanotto, and Yi Guo  
+*IEEE Transactions on Medical Robotics and Bionics*, vol. 4, no. 2, pp. 460-471, May 2022.  
+[Read the paper here](https://ieeexplore.ieee.org/document/9741381)
+
+### BibTeX
+```bibtex
+@article{chen2022mobile,
+  title={Mobile robot assisted gait monitoring and dynamic margin of stability estimation},
+  author={Chen, Zhuo and Zhang, Huanghe and Zaferiou, Antonia and Zanotto, Damiano and Guo, Yi},
+  journal={IEEE Transactions on Medical Robotics and Bionics},
+  volume={4},
+  number={2},
+  pages={460--471},
+  year={2022},
+  publisher={IEEE}
+}
+```
+
 # ROS Nodes
 
 
